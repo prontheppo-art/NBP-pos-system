@@ -1,0 +1,608 @@
+<!--
+  ========================================================================
+  [File Note]
+  - File Name: quickorder.html
+  - External Scripts: 
+    * https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
+    * https://cdn.tailwindcss.com
+    * supabaseClient.js
+  - Target Redirect: index.html
+  - Description: บันทึกออเดอร์ด่วนลงตาราง orders ให้ตรงตาม schema.sql แล้วกลับหน้าแรก
+  ========================================================================
+-->
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>บันทึกยอดด่วน - ลาบหนองบัวลำภู</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg-color: #f1f5f9;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            touch-action: pan-y;
+            -webkit-text-size-adjust: 100%;
+            background-color: var(--bg-color);
+            color: #1e293b;
+            font-family: 'Sarabun', 'Segoe UI', Tahoma, sans-serif;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        .page-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 672px;
+            margin: 0 auto;
+            box-sizing: border-box;
+            background-color: var(--bg-color);
+        }
+
+        .fixed-header-wrapper {
+            flex-shrink: 0;
+            width: 100%;
+            padding: 12px 12px 6px 12px;
+            box-sizing: border-box;
+            background-color: var(--bg-color);
+            z-index: 10;
+        }
+
+        .group-btn-v2 {
+            background-color: #ffffff;
+            border: 1.5px solid #fde68a;
+            color: #334155;
+            transition: all 0.2s ease;
+        }
+
+        .group-btn-v2.active {
+            background-color: #f59e0b;
+            border-color: #d97706;
+            color: #ffffff;
+            box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+        }
+
+        .customer-autocomplete-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .customer-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            max-height: 180px;
+            overflow-y: auto;
+            z-index: 50;
+            display: none;
+        }
+
+        .customer-dropdown.active { display: block; }
+
+        .customer-dropdown-item {
+            padding: 10px 12px;
+            font-size: 12px;
+            color: #334155;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .customer-dropdown-item:hover { background-color: #fef3c7; }
+
+        .main-content-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 6px 12px;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        .fixed-footer-wrapper {
+            flex-shrink: 0;
+            width: 100%;
+            background: #ffffff;
+            border-top: 1px solid #e2e8f0;
+            padding: 10px 12px;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+            box-sizing: border-box;
+            z-index: 20;
+        }
+
+        .custom-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(3px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .custom-modal-overlay.active { display: flex !important; }
+
+        .custom-modal-box {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            width: 92%;
+            max-width: 440px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-container">
+    <div class="fixed-header-wrapper">
+        <div id="locationSelectorWrapper"></div>
+    </div>
+
+    <div class="main-content-box">
+        <div class="bg-white border-2 border-emerald-500/30 rounded-2xl p-4 shadow-sm space-y-3">
+            <label for="quickAmountInput" class="font-extrabold text-sm text-slate-700 flex items-center gap-1.5">
+                ⚡ กรอกยอดเงินรวมทั้งหมด (บาท)
+            </label>
+            <div class="relative flex items-center">
+                <input 
+                    type="number" 
+                    id="quickAmountInput" 
+                    placeholder="0" 
+                    inputmode="numeric" 
+                    class="w-full h-16 pl-4 pr-12 text-3xl font-black text-emerald-600 border-2 border-emerald-400 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 bg-emerald-50/30"
+                >
+                <span class="absolute right-4 font-bold text-slate-400 text-base">บาท</span>
+            </div>
+            
+            <div>
+                <label for="quickNoteInput" class="font-bold text-xs text-slate-600 block mb-1">📝 หมายเหตุเพิ่มเติม (ถ้ามี)</label>
+                <input 
+                    type="text" 
+                    id="quickNoteInput" 
+                    placeholder="เช่น โอนจ่าย, ไม่ใส่ผัก" 
+                    class="w-full h-10 px-3 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500 bg-slate-50"
+                >
+            </div>
+        </div>
+    </div>
+
+    <div class="fixed-footer-wrapper">
+        <div class="flex gap-2.5 max-w-2xl mx-auto">
+            <a href="index.html" class="bg-white hover:bg-gray-50 text-slate-800 border border-slate-300 font-bold py-3.5 px-3 rounded-xl text-xs flex-1 text-center shadow-sm transition flex items-center justify-center gap-1">
+                ⬅️ ย้อนกลับ
+            </a>
+            <button type="button" onclick="submitQuickOrder()" id="btnSubmitOrder" class="bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-3.5 px-3 rounded-xl text-xs flex-1 text-center shadow transition flex items-center justify-center gap-1">
+                ✅ บันทึกออเดอร์
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="locationModal" class="custom-modal-overlay" onclick="handleOutsideClick(event, 'locationModal')">
+    <div class="custom-modal-box border-t-4 border-amber-500" onclick="event.stopPropagation()">
+        <div class="flex justify-between items-center mb-3 pb-2 border-b">
+            <h3 class="font-bold text-base text-slate-800 flex items-center gap-1.5">📍 เลือกสถานที่ / ที่พัก</h3>
+            <button onclick="closeModal('locationModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg px-1">✕</button>
+        </div>
+        <div id="locationGrid" class="grid grid-cols-2 gap-2 overflow-y-auto py-1 pr-1 max-h-[60vh]"></div>
+    </div>
+</div>
+
+<div id="zoneModal" class="custom-modal-overlay" onclick="handleOutsideClick(event, 'zoneModal')">
+    <div class="custom-modal-box border-t-4 border-blue-500" onclick="event.stopPropagation()">
+        <div class="flex justify-between items-center mb-3 pb-2 border-b">
+            <div>
+                <h3 class="font-bold text-base text-slate-800 flex items-center gap-1.5">🏷️ เลือกโซน / ห้องพัก</h3>
+                <span id="zoneModalSubTitle" class="text-xs text-amber-600 font-semibold block"></span>
+            </div>
+            <button onclick="closeModal('zoneModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg px-1">✕</button>
+        </div>
+        <div id="zoneContainer" class="overflow-y-auto py-1 pr-1 max-h-[60vh] space-y-2"></div>
+    </div>
+</div>
+
+<script src="supabaseClient.js"></script>
+<script>
+    let tempSelectedLocation = null;
+    const zoneIcons = ['🏠', '🔑', '🛋️', '🚪', '🏡', '🌿', '🛏️', '🔑'];
+
+    let locationData = {
+        groupId: 1,
+        groupName: 'ชาวบ้าน',
+        locationId: null,
+        locationName: '',
+        zoneId: null,
+        zoneName: '',
+        locationObj: null,
+        zoneObj: null
+    };
+
+    let locationsData = [];
+    let zonesData = [];
+    let customersList = []; 
+    let selectedCustomerObj = null;
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        initLocationComponent('locationSelectorWrapper');
+        await fetchLocationsAndZones();
+        await fetchCustomersData();
+    });
+
+    function renderLocationComponent(targetContainerId) {
+        const container = document.getElementById(targetContainerId);
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="bg-amber-50/50 border border-amber-200/80 rounded-2xl p-3 shadow-sm space-y-2.5">
+                <div class="grid grid-cols-3 gap-2" id="groupSelectorContainer">
+                    <button type="button" onclick="selectCustomerGroup(1, 'ชาวบ้าน')" id="btn-group-1" class="group-btn-v2 active h-[42px] px-1 rounded-xl flex items-center justify-center gap-1 cursor-pointer font-bold text-xs whitespace-nowrap">
+                        <span class="text-sm shrink-0">🏡</span>
+                        <span>ชาวบ้าน</span>
+                    </button>
+
+                    <button type="button" onclick="selectCustomerGroup(2, 'นักท่องเที่ยว')" id="btn-group-2" class="group-btn-v2 h-[42px] px-1 rounded-xl flex items-center justify-center gap-1 cursor-pointer font-bold text-xs whitespace-nowrap">
+                        <span class="text-sm shrink-0">🧳</span>
+                        <span>นักท่องเที่ยว</span>
+                    </button>
+
+                    <button type="button" onclick="selectCustomerGroup(3, 'สบายดี')" id="btn-group-3" class="group-btn-v2 h-[42px] px-1 rounded-xl flex items-center justify-center gap-1 cursor-pointer font-bold text-xs whitespace-nowrap">
+                        <span class="text-sm shrink-0">😊</span>
+                        <span>สบายดี</span>
+                    </button>
+                </div>
+
+                <div class="flex gap-2 items-center">
+                    <div id="phoneInputWrapper" class="flex-1 customer-autocomplete-wrapper">
+                        <div class="relative w-full flex items-center">
+                            <span class="absolute left-0 pl-2.5 pointer-events-none text-slate-700 text-xs">👤</span>
+                            <input 
+                                type="text" 
+                                id="customerInput" 
+                                oninput="handleCustomerInput(this.value)" 
+                                onfocus="handleCustomerInput(this.value)"
+                                placeholder="ชื่อ หรือ เบอร์โทรศัพท์ลูกค้า" 
+                                autocomplete="off"
+                                class="w-full h-[42px] pl-7 pr-14 border border-amber-200/80 rounded-xl text-xs bg-white text-slate-800 outline-none focus:border-amber-500 font-medium placeholder-gray-400"
+                            >
+                            
+                            <div class="absolute right-0 top-0 bottom-0 flex items-center pr-1 gap-0.5">
+                                <button type="button" id="btnClearCustomer" onclick="clearCustomerInput()" class="hidden p-1 text-gray-400 hover:text-gray-600 text-xs font-bold">✕</button>
+                                <button type="button" id="btnToggleCustomerDropdown" onclick="toggleCustomerDropdown(event)" class="h-[34px] w-[30px] flex items-center justify-center text-slate-600 hover:text-amber-600 active:scale-95 transition rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-bold">
+                                    ▼
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="customerDropdown" class="customer-dropdown"></div>
+                    </div>
+
+                    <div id="locationBtnContainer" class="w-5/12 hidden">
+                        <button type="button" id="btnSelectLocation" onclick="requestOpenLocationModal()" class="w-full h-[42px] bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold px-2 rounded-xl text-xs flex items-center justify-center gap-1 shadow-sm transition whitespace-nowrap">
+                            <span>📍</span>
+                            <span id="locationBtnText" class="truncate">เลือกสถานที่</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function initLocationComponent(targetContainerId) {
+        renderLocationComponent(targetContainerId);
+        selectCustomerGroup(1, 'ชาวบ้าน');
+    }
+
+    async function fetchLocationsAndZones() {
+        try {
+            if (typeof supabaseClient !== 'undefined') {
+                const [locRes, zoneRes] = await Promise.all([
+                    supabaseClient.from('locations').select('*'),
+                    supabaseClient.from('zones').select('*')
+                ]);
+                if (locRes.data) locationsData = locRes.data;
+                if (zoneRes.data) zonesData = zoneRes.data;
+            }
+        } catch (err) { console.error('Error fetching locations:', err); }
+    }
+
+    async function fetchCustomersData() {
+        try {
+            if (typeof supabaseClient !== 'undefined') {
+                const { data, error } = await supabaseClient.from('customers').select('*').order('name_phone', { ascending: true });
+                if (error) throw error;
+                if (data) customersList = data;
+            }
+        } catch (err) { console.error('Error fetching customers:', err); }
+    }
+
+    function handleCustomerInput(val, showAll = false) {
+        const dropdown = document.getElementById('customerDropdown');
+        const btnClear = document.getElementById('btnClearCustomer');
+        const keyword = val.trim().toLowerCase();
+
+        if (keyword.length > 0) btnClear.classList.remove('hidden');
+        else btnClear.classList.add('hidden');
+
+        let matches = [];
+        if (showAll || (keyword === '' && document.activeElement === document.getElementById('customerInput'))) {
+            matches = [...customersList];
+        } else if (keyword !== '') {
+            matches = customersList.filter(c => c.name_phone && c.name_phone.toLowerCase().includes(keyword));
+        }
+
+        if (matches.length === 0) {
+            dropdown.innerHTML = '<div class="p-2 text-center text-gray-400 text-xs">ไม่พบข้อมูลลูกค้า</div>';
+            dropdown.classList.add('active');
+            return;
+        }
+
+        dropdown.innerHTML = '';
+        matches.forEach(cust => {
+            const item = document.createElement('div');
+            item.className = 'customer-dropdown-item';
+            item.innerHTML = `<span class="font-semibold text-slate-700">${cust.name_phone || ''}</span>`;
+            item.onclick = () => selectCustomerFromDropdown(cust);
+            dropdown.appendChild(item);
+        });
+
+        dropdown.classList.add('active');
+    }
+
+    function toggleCustomerDropdown(event) {
+        if (event) event.stopPropagation();
+        const dropdown = document.getElementById('customerDropdown');
+        const input = document.getElementById('customerInput');
+        if (dropdown.classList.contains('active')) {
+            dropdown.classList.remove('active');
+        } else {
+            input.focus();
+            handleCustomerInput(input.value, true);
+        }
+    }
+
+    function selectCustomerFromDropdown(cust) {
+        selectedCustomerObj = cust;
+        const input = document.getElementById('customerInput');
+        input.value = cust.name_phone || '';
+        document.getElementById('customerDropdown').classList.remove('active');
+        document.getElementById('btnClearCustomer').classList.remove('hidden');
+    }
+
+    function clearCustomerInput() {
+        const input = document.getElementById('customerInput');
+        input.value = '';
+        selectedCustomerObj = null;
+        handleCustomerInput('');
+        input.focus();
+    }
+
+    document.addEventListener('click', function(e) {
+        const wrapper = document.getElementById('phoneInputWrapper');
+        if (wrapper && !wrapper.contains(e.target)) {
+            const dropdown = document.getElementById('customerDropdown');
+            if (dropdown) dropdown.classList.remove('active');
+        }
+    });
+
+    function selectCustomerGroup(groupId, groupName) {
+        locationData.groupId = groupId;
+        locationData.groupName = groupName;
+
+        const locationBtnContainer = document.getElementById('locationBtnContainer');
+
+        if (groupId === 2) {
+            locationBtnContainer.classList.remove('hidden');
+        } else {
+            locationBtnContainer.classList.add('hidden');
+            locationData.locationId = null;
+            locationData.locationName = '';
+            locationData.zoneId = null;
+            locationData.zoneName = '';
+            locationData.locationObj = null;
+            locationData.zoneObj = null;
+        }
+
+        document.querySelectorAll('.group-btn-v2').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = document.getElementById(`btn-group-${groupId}`);
+        if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    function requestOpenLocationModal() {
+        openLocationModal(locationsData);
+    }
+
+    function openLocationModal(locationsData) {
+        closeAllModals();
+        const grid = document.getElementById('locationGrid');
+        grid.innerHTML = '';
+
+        locationsData.forEach(loc => {
+            let icon = '🏨';
+            if (loc.name.includes('บาหลี')) icon = '🏝️';
+            else if (loc.name.includes('บ้านเขา')) icon = '🏡';
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'flex flex-col items-center justify-center p-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition cursor-pointer shadow-sm active:scale-95';
+            btn.innerHTML = `<span class="text-xl mb-1">${icon}</span><span class="text-sm font-bold text-slate-800 text-center truncate w-full">${loc.name}</span>`;
+            btn.onclick = () => handleSelectLocationItem(loc);
+            grid.appendChild(btn);
+        });
+
+        openModal('locationModal');
+    }
+
+    function handleSelectLocationItem(loc) {
+        tempSelectedLocation = loc;
+        closeAllModals();
+
+        if (loc.name.includes('หน้าร้าน')) {
+            selectZone({ id: null, name: 'หน้าร้าน' });
+        } else {
+            openZoneModal(loc, zonesData);
+        }
+    }
+
+    function openZoneModal(loc, zonesData) {
+        tempSelectedLocation = loc;
+        document.getElementById('zoneModalSubTitle').innerText = `📍 สถานที่: ${loc.name}`;
+        const container = document.getElementById('zoneContainer');
+        container.innerHTML = '';
+
+        const filteredZones = zonesData.filter(z => z.location_id === loc.id);
+
+        if (filteredZones.length === 0) {
+            container.innerHTML = '<span class="text-center text-gray-400 text-xs py-6 block">ไม่มีรายการโซนสำหรับสถานที่นี้</span>';
+        } else {
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-2 gap-2';
+            filteredZones.forEach((z, idx) => {
+                const icon = zoneIcons[idx % zoneIcons.length];
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'flex items-center justify-center gap-1.5 py-2 px-2 bg-blue-50 border border-blue-200 rounded-xl shadow-sm active:scale-95';
+                btn.innerHTML = `<span class="text-sm">${icon}</span><span class="text-sm font-bold text-slate-800 truncate">${z.name}</span>`;
+                btn.onclick = () => { selectZone(z); closeAllModals(); };
+                grid.appendChild(btn);
+            });
+            container.appendChild(grid);
+        }
+
+        openModal('zoneModal');
+    }
+
+    function selectZone(zone) {
+        locationData.locationObj = tempSelectedLocation;
+        locationData.zoneObj = zone;
+        locationData.locationId = tempSelectedLocation ? tempSelectedLocation.id : null;
+        locationData.locationName = tempSelectedLocation ? tempSelectedLocation.name : '';
+        locationData.zoneId = zone ? zone.id : null;
+        locationData.zoneName = zone ? zone.name : '';
+
+        let displayLocationText = locationData.locationName;
+        if (locationData.zoneName && locationData.zoneName !== locationData.locationName) {
+            displayLocationText += ` - ${locationData.zoneName}`;
+        }
+        document.getElementById('locationBtnText').innerText = displayLocationText;
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    function closeAllModals() { closeModal('locationModal'); closeModal('zoneModal'); }
+    function handleOutsideClick(e, id) { if (e.target.id === id) closeModal(id); }
+
+    async function ensureCustomerSaved(inputValue) {
+        const val = inputValue.trim();
+        if (!val) return null;
+        if (selectedCustomerObj) return selectedCustomerObj;
+
+        const existing = customersList.find(c => (c.name_phone || '').trim().toLowerCase() === val.toLowerCase());
+        if (existing) return existing;
+
+        try {
+            if (typeof supabaseClient !== 'undefined') {
+                const { data, error } = await supabaseClient
+                    .from('customers')
+                    .insert([{ name_phone: val }])
+                    .select()
+                    .single();
+
+                if (!error && data) {
+                    customersList.push(data);
+                    return data;
+                }
+            }
+        } catch (err) { console.error('Insert Customer Error:', err); }
+        return { name_phone: val };
+    }
+
+    async function submitQuickOrder() {
+        const amountInput = document.getElementById('quickAmountInput');
+        const totalAmount = Number(amountInput.value);
+
+        if (!totalAmount || totalAmount <= 0) {
+            alert('กรุณากรอกยอดเงินรวมให้ถูกต้อง');
+            return;
+        }
+
+        const btn = document.getElementById('btnSubmitOrder');
+        btn.disabled = true;
+        btn.innerText = '⏳ กำลังบันทึกข้อมูล...';
+
+        try {
+            const rawCustomerInput = document.getElementById('customerInput')?.value || '';
+            const customerObj = await ensureCustomerSaved(rawCustomerInput);
+            const customerDisplayName = customerObj ? (customerObj.name_phone || '') : rawCustomerInput.trim();
+            const userNote = document.getElementById('quickNoteInput').value || '';
+
+            const quickItems = [{
+                food_id: 0,
+                name: 'ออเดอร์ด่วน (ระบุยอดรวม)',
+                qty: 1,
+                price: totalAmount,
+                unit_price: totalAmount,
+                total_price: totalAmount,
+                note: userNote
+            }];
+
+            const now = new Date();
+            const todayDate = now.toISOString().split('T')[0];
+
+            if (typeof supabaseClient !== 'undefined') {
+                const { error } = await supabaseClient
+                    .from('orders')
+                    .insert([{
+                        order_date: todayDate,
+                        customer_id: customerObj ? customerObj.id : null,
+                        customer_group_id: locationData.groupId,
+                        customer_group: locationData.groupName,
+                        phone: customerDisplayName,
+                        customer_phone: customerDisplayName,
+                        location_id: locationData.locationId,
+                        location_name: locationData.locationName,
+                        zone_id: locationData.zoneId,
+                        zone_name: locationData.zoneName,
+                        subtotal: totalAmount,
+                        delivery_fee: 0,
+                        total_price: totalAmount,
+                        total_qty: 1,
+                        items: quickItems,
+                        status: 'pending',
+                        note: userNote ? `[บันทึกด่วน] ${userNote}` : '[บันทึกด่วน]'
+                    }]);
+
+                if (error) throw error;
+            }
+
+            window.location.href = 'index.html';
+
+        } catch (err) {
+            console.error('Submit Quick Order Error:', err);
+            alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + (err.message || ''));
+            btn.disabled = false;
+            btn.innerHTML = '✅ บันทึกออเดอร์';
+        }
+    }
+</script>
+</body>
+</html>

@@ -2,8 +2,8 @@
   ========================================
   [File Note]
   - File Name: reportgroupsales.html
-  - Included JavaScript: key.js, slender.js
-  - Links: reportmenu.html
+  - Included JavaScript: supabaseClient.js, slender.js
+  - Links: report_index.html
   ========================================
 -->
 <!DOCTYPE html>
@@ -16,8 +16,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Supabase JS Client (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- เรียกไฟล์คีย์แยกตามเงื่อนไขเพื่อดึง SUPABASE_URL และ SUPABASE_KEY -->
-    <script src="key.js"></script>
+    <!-- เรียกไฟล์ Initialization ของ Supabase -->
+    <script src="supabaseClient.js"></script>
     <!-- เรียกไฟล์ Calendar System -->
     <script src="slender.js"></script>
 
@@ -28,13 +28,13 @@
 
       /* CSS เฉพาะของ UI แอป */
       html, body { 
-          height: 100%; 
+          height: 100dvh; 
           margin: 0; 
           padding: 0; 
           overflow: hidden; 
           font-family: 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
           background-color: var(--bg-color); 
-          touch-action: manipulation; 
+          touch-action: pan-y; 
           -webkit-text-size-adjust: 100%;
           -webkit-user-select: none;
           user-select: none;
@@ -115,25 +115,21 @@
 </div>
 
 <script>
-    // ป้องกันการซูมหน้าจอด้วยนิ้วบน iOS/Mobile
-    document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
-    document.addEventListener('gesturechange', function (e) { e.preventDefault(); }, { passive: false });
-    document.addEventListener('gestureend', function (e) { e.preventDefault(); }, { passive: false });
+    // ป้องกัน Gesture Pinch Zoom บนอุปกรณ์มือถือ
+    document.addEventListener('touchstart', function(event) {
+        if (event.touches.length > 1) {
+            event.preventDefault();
+        }
+    }, { passive: false });
 
     let lastTouchEnd = 0;
-    document.addEventListener('touchend', function (event) {
+    document.addEventListener('touchend', function(event) {
         const now = (new Date()).getTime();
         if (now - lastTouchEnd <= 300) {
             event.preventDefault();
         }
         lastTouchEnd = now;
-    }, { passive: false });
-
-    document.addEventListener('touchstart', function (event) {
-        if (event.touches.length > 1) {
-            event.preventDefault();
-        }
-    }, { passive: false });
+    }, false);
 
     let db;
     let allOrdersCache = [];
@@ -143,7 +139,7 @@
     // คำนวณวันที่ปัจจุบันของประเทศไทย (GMT+7)
     function getTodayString() {
         const now = new Date();
-        const tzOffset = 7 * 60; // 7 ชั่วโมงเป็นนาที
+        const tzOffset = 7 * 60;
         const localTime = new Date(now.getTime() + (tzOffset + now.getTimezoneOffset()) * 60000);
 
         const year = localTime.getFullYear();
@@ -159,15 +155,14 @@
         return dateString;
     }
 
-    // ฟังก์ชั่นสรุปจำนวนบิลรายวันเพื่อส่งให้ปฏิทินแสดง Badge สีแดง
+    // ฟังก์ชั่นสรุปจำนวนบิลรายวันเพื่อส่งให้ปฏิทินแสดงผล
     function getOrderCounts() {
         const counts = {};
         allOrdersCache.forEach(o => {
-            const rawDate = o.order_date || o.created_at || o.date;
+            const rawDate = o.order_date || o.created_at;
             if (rawDate) {
                 const oDate = String(rawDate).split('T')[0].split(' ')[0];
                 const status = (o.status || '').toLowerCase();
-                // นับออเดอร์ทั้งหมดยกเว้นรายการที่ถูกยกเลิก (cancelled)
                 if (status !== 'cancelled') {
                     counts[oDate] = (counts[oDate] || 0) + 1;
                 }
@@ -176,7 +171,7 @@
         return counts;
     }
 
-    // ระบบตรวจจับการแตะ/คลิกภายนอกกล่องปฏิทินเพื่อปิด (Outside Click Handler)
+    // ปิดปฏิทินเมื่อคลิกพื้นที่ด้านนอก
     document.addEventListener('pointerdown', function(e) {
         const calendarModal = document.getElementById('slenderCalendarModal') || document.getElementById('calendarModal') || document.querySelector('.slender-calendar-overlay');
         if (calendarModal && !calendarModal.classList.contains('hidden') && calendarModal.style.display !== 'none') {
@@ -199,8 +194,8 @@
 
         if (typeof window.supabaseClient !== 'undefined') {
             db = window.supabaseClient;
-        } else if (typeof window.supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_KEY !== 'undefined') {
-            db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        } else if (typeof supabaseClient !== 'undefined') {
+            db = supabaseClient;
         } else {
             console.error("Critical Error: ไม่สามารถเชื่อมต่อ Supabase ได้");
         }
@@ -247,12 +242,11 @@
 
         let filteredOrders = allOrdersCache.filter(o => {
             let oDate = '';
-            const rawDate = o.order_date || o.created_at || o.date;
+            const rawDate = o.order_date || o.created_at;
             if (rawDate) {
                 oDate = String(rawDate).split('T')[0].split(' ')[0];
             }
             const status = (o.status || '').toLowerCase();
-            // ดึงข้อมูลรายการทั้งหมดยกเว้นที่ถูก cancelled
             return oDate === selectedDate && status !== 'cancelled';
         });
 
@@ -269,7 +263,7 @@
         let grandTotalPrice = 0;
 
         filteredOrders.forEach(order => {
-            let groupName = order.customer_group || order.group_name || order.customer_type || 'ทั่วไป';
+            let groupName = order.customer_group || 'ทั่วไป';
             if (groupName.includes(' ')) {
                 groupName = groupName.split(' ')[0];
             }
@@ -287,13 +281,9 @@
                 try { items = JSON.parse(order.items); } catch(e) { items = []; }
             } else if (Array.isArray(order.items)) {
                 items = order.items;
-            } else if (typeof order.order_items === 'string') {
-                try { items = JSON.parse(order.order_items); } catch(e) { items = []; }
-            } else if (Array.isArray(order.order_items)) {
-                items = order.order_items;
             }
 
-            let billTotal = Number(order.total_price || order.total_amount || order.total || 0);
+            let billTotal = Number(order.total_price || order.subtotal || 0);
             if (billTotal === 0 && items.length > 0) {
                 billTotal = items.reduce((sum, item) => {
                     let q = Number(item.qty || item.quantity || 1);
@@ -352,7 +342,7 @@
         let listHtml = '';
         group.orders.forEach((o, index) => {
             let timeStr = "";
-            const rawTime = o.created_at || o.order_date || o.date;
+            const rawTime = o.created_at || o.order_date;
             if (rawTime && rawTime.includes('T')) {
                 let timePart = rawTime.split('T')[1];
                 if (timePart) {
@@ -372,7 +362,7 @@
 
             if (itemsList && itemsList.length > 0) {
                 itemsList.forEach(item => {
-                    let itemName = item.name || item.food_name || item.title || 'ไม่ระบุชื่อเมนู';
+                    let itemName = item.name || item.food_name || 'ไม่ระบุชื่อเมนู';
                     let itemQty = Number(item.qty || item.quantity || 1);
                     let unitPrice = Number(item.price || item.unit_price || 0);
                     let itemPrice = (item.total_price || item.sum) ? Number(item.total_price || item.sum) : (unitPrice * itemQty);
@@ -399,7 +389,7 @@
                         <div>
                             <span class="font-black text-xs text-amber-900 bg-amber-100 px-2 py-0.5 rounded">บิลที่ #${index + 1}</span>
                             <span class="text-slate-500 text-[11px]">${timeStr}</span>
-                            ${o.table_number || o.location_name ? `<span class="text-[10px] text-blue-500 ml-1 font-semibold">(${o.table_number || o.location_name})</span>` : ''}
+                            ${o.location_name ? `<span class="text-[10px] text-blue-500 ml-1 font-semibold">(${o.location_name})</span>` : ''}
                         </div>
                         <span class="font-black text-emerald-600 text-xs">฿${Number(o.computedTotal).toLocaleString()}.-</span>
                     </div>

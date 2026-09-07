@@ -1,42 +1,93 @@
+<!--
+  ========================================================================
+  [File Note] ข้อกำหนดที่ 3: สรุปไฟล์ที่เชื่อมโยง
+  - File Name: orderentity.html
+  - Description: หน้าเลือกหมวดหมู่และสั่งรายการอาหารสำหรับลูกค้า/พนักงาน POS
+  - External Libraries (CDNs):
+    1. Supabase JS SDK v2 (https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2)
+    2. Tailwind CSS (https://cdn.tailwindcss.com)
+    3. Font Awesome v6.0.0 (https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css)
+  - Linked Local Files:
+    1. supabaseClient.js (ไฟล์เปิดใช้งาน Client เชื่อมต่อ Supabase DB)
+  - Navigation Destination Pages:
+    1. index.html (หน้าหลักระบบ)
+    2. confirmorder.html (หน้าตรวจสอบและยืนยันคำสั่งซื้อ)
+  - Supabase Database Tables Used:
+    1. public.food_groups (ดึงข้อมูลหมวดหมู่อาหาร)
+    2. public.foods (ดึงรายการอาหาร)
+  ========================================================================
+-->
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <!-- ข้อกำหนดที่ 2: Viewport meta tag แบบ Lock Zoom (maximum-scale=1.0, user-scalable=no) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <title>รับออเดอร์จากลูกค้า - ลาบหนองบัวลำภู</title>
     
+    <!-- External CDNs -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
         :root { --bg-color: #f8fafc; }
+        
+        /* ข้อกำหนดที่ 2: ล็อก Zoom ถ่างนิ้ว แต่อนุญาตให้ไถ Scroll ขึ้นลงได้ (touch-action: pan-y) และไม่ใช้ position: fixed, overflow: hidden */
         html, body { 
-            position: fixed; width: 100%; height: 100%; overflow: hidden;
-            touch-action: manipulation; -webkit-text-size-adjust: 100%;
-            background-color: var(--bg-color); color: #1e293b;
-            font-family: 'Sarabun', sans-serif; margin: 0; padding: 0; user-select: none; 
+            width: 100%; 
+            min-height: 100%;
+            touch-action: pan-y; 
+            -webkit-text-size-adjust: 100%;
+            background-color: var(--bg-color); 
+            color: #1e293b;
+            font-family: 'Sarabun', sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            user-select: none; 
         }
+
+        /* ข้อกำหนดที่ 4: ล็อคหัว (Sticky Top) */
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            background-color: var(--bg-color);
+            padding-top: 0.75rem;
+            padding-bottom: 0.5rem;
+        }
+
+        /* หมวดหมู่หน้าหลัก */
         .category-nav-wrap {
             display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.5rem; padding: 0.5rem 0.1rem; width: 100%;
+            gap: 0.6rem; padding: 0.5rem 0.1rem; width: 100%;
         }
         .cat-nav-btn {
             position: relative; background-color: #ffffff; border: 1.5px solid #cbd5e1;
-            color: #1e293b; font-size: 0.9rem; font-weight: 700; padding: 0.75rem 0.5rem;
-            border-radius: 0.85rem; text-align: center; white-space: nowrap;
+            color: #1e293b; font-size: 1.05rem; font-weight: 700; padding: 0.6rem 0.4rem;
+            border-radius: 0.85rem; text-align: center;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.15s ease;
             display: flex; align-items: center; justify-content: center; gap: 0.35rem;
-            min-height: 52px; cursor: pointer;
+            min-height: 56px; cursor: pointer;
         }
         .cat-nav-btn:active { background-color: #10b981; color: #ffffff; border-color: #10b981; transform: scale(0.96); }
-        .cat-nav-icon { font-size: 1.25rem; display: inline-block; }
+        .cat-nav-icon { font-size: 1.25rem; flex-shrink: 0; }
+        
+        /* สไตล์สำหรับข้อความหมวดหมู่ที่ยาว */
+        .cat-text-long {
+            font-size: 0.9rem !important;
+            line-height: 1.2;
+            word-break: break-word;
+        }
+
         .cat-badge-main {
             position: absolute; top: -0.35rem; right: -0.35rem; background-color: #ef4444;
-            color: #ffffff; font-size: 0.7rem; font-weight: 800; width: 1.35rem; height: 1.35rem;
+            color: #ffffff; font-size: 0.75rem; font-weight: 800; width: 1.4rem; height: 1.4rem;
             border-radius: 9999px; display: flex; align-items: center; justify-content: center;
             border: 2px solid #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.15);
         }
+
+        /* Modals */
         .custom-modal-overlay { 
             position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
             background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); 
@@ -49,44 +100,251 @@
             width: 100%; padding: 1.25rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); 
             max-height: 90vh; overflow-y: auto; border-top: 4px solid #22c55e; touch-action: pan-y; 
         }
+
+        /* รายการอาหาร 2 คอลัมน์ */
+        .food-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 0.5rem;
+        }
+        .food-btn {
+            position: relative; background: #ffffff; border: 1.5px solid #10b981;
+            color: #047857; font-weight: 700; 
+            font-size: 1rem; 
+            padding: 0.6rem 0.4rem;
+            border-radius: 0.75rem; text-align: center; display: flex; align-items: center;
+            justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: all 0.15s ease; cursor: pointer; 
+            min-height: 48px; word-break: break-word; width: 100%;
+        }
+        .food-btn:active { background-color: #10b981; color: #ffffff; transform: scale(0.97); }
+        .badge-count {
+            position: absolute; top: -0.35rem; right: -0.35rem; background-color: #ef4444;
+            color: white; font-size: 0.7rem; font-weight: 800; width: 1.3rem; height: 1.3rem;
+            border-radius: 9999px; display: flex; align-items: center; justify-content: center;
+            border: 2px solid #ffffff;
+        }
+
+        /* ปุ่มเพิ่ม/ลด จำนวน (+ -) */
+        .qty-btn {
+            width: 26px; height: 26px; border-radius: 6px;
+            background-color: #ffffff; border: 1px solid #cbd5e1;
+            font-weight: 800; font-size: 0.85rem; color: #334155;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+        }
+        .qty-btn:active { background-color: #e2e8f0; }
+
+        /* ข้อกำหนดที่ 4: ล็อคท้าย (Sticky Bottom) */
+        .sticky-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #ffffff;
+            border-top: 1px solid #e2e8f0;
+            padding: 0.625rem;
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
+            z-index: 40;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased">
 
     <!-- Content หลัก -->
-    <div class="max-w-xl mx-auto p-3 flex flex-col h-full justify-between pb-16">
+    <div class="max-w-xl mx-auto p-3 flex flex-col h-full justify-between pb-24">
         <div class="space-y-3">
-            <div class="bg-white p-3 px-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
-                <span class="font-bold text-xs text-slate-700">🛒 ตะกร้าสินค้าปัจจุบัน:</span>
-                <span class="text-emerald-600 font-extrabold text-sm" id="cartCountText">0 รายการ | 0 ชิ้น</span>
+            <!-- ส่วนหัว (Sticky Top) -->
+            <div class="sticky-header">
+                <div class="bg-white p-3.5 px-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
+                    <span class="font-bold text-sm text-slate-700">🛒 ตะกร้าสินค้าปัจจุบัน:</span>
+                    <span class="text-emerald-600 font-extrabold text-base" id="cartCountText">0 รายการ | 0 ชิ้น</span>
+                </div>
             </div>
 
             <div id="quickNavContainer" class="category-nav-wrap">
-                <div class="col-span-2 text-center py-8 text-slate-400 font-bold text-xs">⏳ กำลังโหลดหมวดหมู่...</div>
+                <div class="col-span-2 text-center py-8 text-slate-400 font-bold text-sm">⏳ กำลังโหลดหมวดหมู่...</div>
             </div>
         </div>
     </div>
 
-    <!-- แถบปุ่มล่าง -->
-    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-2.5 shadow-lg z-40">
+    <!-- ข้อกำหนดที่ 4: แถบปุ่มล่าง ล็อคท้าย (Sticky Bottom) -->
+    <div class="sticky-footer">
         <div class="max-w-xl mx-auto flex gap-2">
-            <button type="button" onclick="window.location.href='index.html'" class="bg-white text-slate-700 border border-slate-300 font-bold py-2.5 px-2 rounded-2xl text-xs flex-1 shadow active:scale-95 transition whitespace-nowrap">🏠 หน้าหลัก</button>
-            <button type="button" onclick="confirmClearCart()" class="bg-rose-50 text-rose-600 border border-rose-200 font-bold py-2.5 px-2 rounded-2xl text-xs flex-1 shadow active:scale-95 transition whitespace-nowrap">🗑️ ยกเลิก</button>
-            <button type="button" onclick="goToSummary()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-2 rounded-2xl text-xs flex-1 shadow active:scale-95 transition whitespace-nowrap">🔍 ตรวจสอบ</button>
+            <button type="button" onclick="window.location.href='index.html'" class="bg-white text-slate-700 border border-slate-300 font-bold py-2.5 px-2 rounded-2xl text-xs flex-1 shadow active:scale-95 transition whitespace-nowrap cursor-pointer">🏠 หน้าหลัก</button>
+            <button type="button" onclick="confirmClearCart()" class="bg-rose-50 text-rose-600 border border-rose-200 font-bold py-2.5 px-2 rounded-2xl text-xs flex-1 shadow active:scale-95 transition whitespace-nowrap cursor-pointer">🗑️ ยกเลิก</button>
+            <button type="button" onclick="goToSummary()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-2 rounded-2xl text-xs flex-1 shadow active:scale-95 transition whitespace-nowrap cursor-pointer">🔍 ตรวจสอบ</button>
         </div>
     </div>
 
-    <!-- Modal 1: ป๊อปอัพตารางรายการอาหาร (จัดให้อยู่กลางหน้าจอ 100% และปรับขนาดตาม Viewport) -->
+    <!-- Modal 1: ป๊อปอัพตารางรายการอาหาร -->
     <div id="categoryFoodModalOverlay" class="custom-modal-overlay">
-        <div class="w-full max-w-[24rem] h-full max-h-[88vh] p-0 overflow-hidden bg-transparent border-0 shadow-none flex items-center justify-center">
-            <iframe id="categoryPopupIframe" src="orderpopup.html" class="w-full h-full border-none bg-transparent"></iframe>
+        <div class="w-full max-w-[24rem] bg-white rounded-3xl p-4 border-2 border-emerald-500 shadow-2xl max-h-[85vh] flex flex-col justify-between" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-3">
+                <div class="flex items-center gap-2">
+                    <span id="catIcon" class="text-2xl">🍱</span>
+                    <h2 id="catName" class="font-extrabold text-base text-slate-800">หมวดหมู่อาหาร</h2>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <!-- ปุ่มเพิ่มเมนูอาหาร -->
+                    <button type="button" onclick="openAddMenuModal()" class="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl flex items-center gap-1 shadow transition cursor-pointer">
+                        <span>➕</span> เมนู
+                    </button>
+                    <button type="button" onclick="cancelCategoryItems()" class="bg-rose-100 text-rose-600 px-3 py-1.5 rounded-full text-xs font-bold active:scale-95 cursor-pointer">ยกเลิก</button>
+                    <button type="button" onclick="closeCategoryFoodModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl px-1 cursor-pointer">✕</button>
+                </div>
+            </div>
+
+            <div id="foodGridContainer" class="food-grid overflow-y-auto pr-1 my-1 flex-1 max-h-[55vh]">
+                <!-- ปุ่มอาหารจะถูกวาดลงตรงนี้ -->
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 mt-2">
+                <button type="button" onclick="goToSummary()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 shadow active:scale-95 cursor-pointer">
+                    <span>🔍 ตรวจสอบ</span>
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Modal 2: ป๊อปอัพเลือกรายละเอียดอาหาร -->
+    <!-- Modal 3: เพิ่มเมนูอาหารใหม่ (ตั้ง z-index ให้ลอยเหนือ Modal 1 และรองรับการกดนอก Overlay เพื่อปิด) -->
+    <div id="addModalWrapper" class="fixed inset-0 z-[10005] hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 cursor-pointer" onclick="closeAddMenuModal()">
+        <div onclick="event.stopPropagation()" class="w-full max-w-sm bg-white rounded-3xl p-5 border-4 border-red-500 relative shadow-2xl cursor-default">
+            
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl text-blue-600 font-extrabold flex items-center justify-center">➕</span>
+                    <h2 class="text-base font-extrabold text-slate-800 tracking-tight">เพิ่มเมนูอาหารใหม่</h2>
+                </div>
+                <button type="button" onclick="closeAddMenuModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold leading-none p-1 transition cursor-pointer">&times;</button>
+            </div>
+
+            <!-- ฟอร์มกรอกข้อมูล -->
+            <form id="addMenuForm" onsubmit="saveNewMenuData(event)" class="space-y-4">
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">หมวดหมู่:</label>
+                        <input type="text" id="addCategoryDisplay" readonly value="กำลังโหลด..." 
+                               class="w-full bg-slate-100 border border-slate-200 rounded-2xl px-3 py-2.5 text-xs font-bold text-slate-600 outline-none truncate">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                            ชื่อเมนูอาหาร <span class="text-rose-500 font-bold">*</span>
+                        </label>
+                        <input type="text" id="addFoodNameInput" required placeholder="เช่น กะเพราไก่, ต้มยำกุ้ง" 
+                               class="w-full border border-blue-400 focus:border-blue-600 rounded-2xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-300 transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">ราคา (บาท):</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <span class="block text-[11px] font-bold text-slate-500 text-center mb-1">ชาวบ้าน</span>
+                            <input type="number" id="addPrice2Input" min="0" step="any" placeholder="0" 
+                                   class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-center text-xs font-extrabold text-slate-700 outline-none focus:bg-white focus:border-blue-500 transition">
+                        </div>
+                        <div>
+                            <span class="block text-[11px] font-bold text-slate-500 text-center mb-1">นักท่องเที่ยว</span>
+                            <input type="number" id="addPrice1Input" min="0" step="any" placeholder="0" 
+                                   class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-center text-xs font-extrabold text-slate-700 outline-none focus:bg-white focus:border-blue-500 transition">
+                        </div>
+                        <div>
+                            <span class="block text-[11px] font-bold text-slate-500 text-center mb-1">สบายดี</span>
+                            <input type="number" id="addPrice3Input" min="0" step="any" placeholder="0" 
+                                   class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-center text-xs font-extrabold text-slate-700 outline-none focus:bg-white focus:border-blue-500 transition">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-2 grid grid-cols-2 gap-2">
+                    <button type="button" onclick="closeAddMenuModal()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-2xl text-xs transition cursor-pointer">
+                        ยกเลิก
+                    </button>
+                    <button type="submit" id="btnSubmitAddMenu" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-extrabold py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                        <span>✓</span> บันทึกเมนู
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 2: ป๊อปอัพสั่งอาหาร -->
     <div id="orderDetailModalOverlay" class="custom-modal-overlay" style="z-index: 10001;">
-        <div class="w-full max-w-[24rem] p-0 overflow-hidden bg-transparent border-0 shadow-none">
-            <iframe id="orderPopupIframe" src="orderpopupdetail.html" class="w-full h-[460px] border-none bg-transparent"></iframe>
+        <div class="w-full max-w-[24rem] bg-white rounded-3xl p-4 border-2 border-emerald-500 shadow-2xl max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+            <!-- Header -->
+            <div class="flex justify-between items-center pb-2 border-b border-slate-100 mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-rose-500 text-xl">📌</span>
+                    <h2 id="modalFoodTitle" class="font-extrabold text-base text-slate-800">ชื่อรายการ</h2>
+                </div>
+                <button type="button" onclick="closeOrderDetailModal()" class="text-slate-400 hover:text-slate-600 font-bold text-2xl px-1 cursor-pointer">✕</button>
+            </div>
+
+            <!-- รายการที่เลือกไว้แล้ว -->
+            <div id="selectedCartItemsBox" class="bg-slate-50 border border-slate-200 rounded-2xl p-2.5 mb-3 hidden">
+                <div class="flex justify-between items-center mb-1.5">
+                    <span class="text-xs text-slate-600 font-bold flex items-center gap-1">🛒 รายการที่เลือกไว้แล้ว:</span>
+                    <span id="selectedCartCountBadge" class="bg-emerald-600 text-white font-extrabold text-[11px] px-2 py-0.5 rounded-full">0 รายการ</span>
+                </div>
+                <div id="selectedCartList" class="space-y-1 text-xs text-slate-700 max-h-24 overflow-y-auto">
+                    <!-- รายการสินค้า -->
+                </div>
+            </div>
+
+            <!-- ฟอร์มเลือกรายละเอียด (ปรับปรุงตามรูปที่ 2) -->
+            <div class="border border-slate-200 rounded-2xl p-3 space-y-2.5 bg-white shadow-xs">
+                <!-- แถวที่ 1: ราคาพิเศษ -->
+                <div class="flex items-center justify-between gap-2">
+                    <span class="font-bold text-amber-600 text-xs whitespace-nowrap">ราคาพิเศษ</span>
+                    <input type="number" id="customPriceInput" min="0" step="any" placeholder="ระบุราคา" class="w-36 px-2 py-1.5 border border-amber-300 rounded-lg text-center font-bold text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 bg-amber-50/20">
+                </div>
+
+                <!-- แถวที่ 2: จำนวน -->
+                <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                    <span class="font-bold text-slate-700 text-xs whitespace-nowrap">จำนวน</span>
+                    <div class="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-lg p-1">
+                        <button type="button" class="qty-btn" onclick="changeMainQty(-1)">-</button>
+                        <span id="mainQtyText" class="w-8 text-center font-extrabold text-sm text-slate-800">1</span>
+                        <button type="button" class="qty-btn" onclick="changeMainQty(1)">+</button>
+                    </div>
+                </div>
+
+                <!-- บล็อกส่วนไข่ (ไข่ดาว + ไข่เจียว) -->
+                <div id="eggToppingSection" class="space-y-2.5 pt-2 border-t border-slate-100">
+                    <!-- แถวที่ 3: ไข่ดาว -->
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-bold text-slate-700 text-xs whitespace-nowrap">ไข่ดาว</span>
+                        <div class="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-lg p-1">
+                            <button type="button" class="qty-btn" onclick="changeEggQty('fried', -1)">-</button>
+                            <span id="friedEggQtyText" class="w-8 text-center font-extrabold text-sm text-slate-800">0</span>
+                            <button type="button" class="qty-btn" onclick="changeEggQty('fried', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <!-- แถวที่ 4: ไข่เจียว -->
+                    <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                        <span class="font-bold text-slate-700 text-xs whitespace-nowrap">ไข่เจียว</span>
+                        <div class="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-lg p-1">
+                            <button type="button" class="qty-btn" onclick="changeEggQty('omelet', -1)">-</button>
+                            <span id="omeletQtyText" class="w-8 text-center font-extrabold text-sm text-slate-800">0</span>
+                            <button type="button" class="qty-btn" onclick="changeEggQty('omelet', 1)">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- แถวที่ 5: หมายเหตุ -->
+                <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                    <span class="font-bold text-slate-700 text-xs whitespace-nowrap">หมายเหตุ</span>
+                    <input type="text" id="foodNoteInput" placeholder="(เช่น เผ็ดน้อย, ไม่ใส่ผัก)" class="w-36 px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                </div>
+            </div>
+
+            <!-- ปุ่มบันทึก -->
+            <button type="button" onclick="saveOrderDetail()" class="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow active:scale-95 transition cursor-pointer">
+                <span>✓ บันทึกรายการ</span>
+            </button>
         </div>
     </div>
 
@@ -97,13 +355,14 @@
             <h3 class="text-sm font-extrabold text-slate-800 mb-1">ยืนยันการล้างตะกร้า?</h3>
             <p class="text-xs text-slate-500 mb-4">รายการอาหารทั้งหมดในตะกร้าจะถูกยกเลิก</p>
             <div class="flex gap-2">
-                <button type="button" onclick="closeConfirmClearModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold text-xs rounded-xl border border-slate-200">ยกเลิก</button>
-                <button type="button" onclick="executeClearAllCart()" class="flex-1 py-2.5 bg-rose-600 text-white font-bold text-xs rounded-xl shadow">ยืนยันการลบ</button>
+                <button type="button" onclick="closeConfirmClearModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold text-xs rounded-xl border border-slate-200 cursor-pointer">ยกเลิก</button>
+                <button type="button" onclick="executeClearAllCart()" class="flex-1 py-2.5 bg-rose-600 text-white font-bold text-xs rounded-xl shadow cursor-pointer">ยืนยันการลบ</button>
             </div>
         </div>
     </div>
 
-    <script src="key.js"></script>
+    <!-- ข้อกำหนดที่ 1: เรียกใช้สคริปต์ supabaseClient.js เพื่ออ้างอิงไฟล์ Initialization ให้ถูกต้อง -->
+    <script src="supabaseClient.js"></script>
 
     <script>
         let db;
@@ -113,7 +372,32 @@
         let currentCategory = null;
         let currentSelectedFood = null;
 
+        let mainQty = 1;
+        let friedEggQty = 0;
+        let omeletQty = 0;
+        const EGG_PRICE = 10;
+
         const categoryIcons = ['🍱', '🍲', '🍳', '🍚', '🥩', '⭐', '🥗', '🛍️', '🍽️'];
+
+        // ข้อกำหนดที่ 2: Event Listeners ป้องกัน Gesture Zoom (Pinch-to-zoom / Double-tap zoom)
+        document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
+        document.addEventListener('gesturechange', function (e) { e.preventDefault(); }, { passive: false });
+        document.addEventListener('gestureend', function (e) { e.preventDefault(); }, { passive: false });
+
+        document.addEventListener('touchstart', function(event) {
+            if (event.touches.length > 1) {
+                event.preventDefault();
+            }
+        }, { passive: false });
+
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, { passive: false });
 
         function initDatabase() {
             if (typeof supabaseClient !== 'undefined') db = supabaseClient;
@@ -128,9 +412,7 @@
         });
 
         function setupOutsideClickClose() {
-            document.getElementById('categoryFoodModalOverlay').addEventListener('click', (e) => {
-                if (e.target.id === 'categoryFoodModalOverlay') closeCategoryFoodModal();
-            });
+            document.getElementById('categoryFoodModalOverlay').addEventListener('click', closeCategoryFoodModal);
             document.getElementById('orderDetailModalOverlay').addEventListener('click', (e) => {
                 if (e.target.id === 'orderDetailModalOverlay') closeOrderDetailModal();
             });
@@ -138,7 +420,6 @@
         }
 
         async function loadData() {
-            const container = document.getElementById('quickNavContainer');
             if (!db) return;
             try {
                 const [catRes, foodRes] = await Promise.all([
@@ -154,10 +435,7 @@
 
                     if (isASpecial && !isBSpecial) return 1;
                     if (!isASpecial && isBSpecial) return -1;
-
-                    if (isASpecial && isBSpecial) {
-                        return specialCategories.indexOf(a.name) - specialCategories.indexOf(b.name);
-                    }
+                    if (isASpecial && isBSpecial) return specialCategories.indexOf(a.name) - specialCategories.indexOf(b.name);
 
                     return a.name.localeCompare(b.name, 'th');
                 });
@@ -178,11 +456,14 @@
                 btn.className = 'cat-nav-btn';
                 const icon = categoryIcons[index % categoryIcons.length];
                 
-                const catFoodIds = foods.filter(f => Number(f.group_id) === Number(cat.id)).map(f => String(f.id));
-                const catTotalQty = currentCart.filter(item => catFoodIds.includes(String(item.food_id))).reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+                const catFoodIds = foods.filter(f => f.group_id === cat.id).map(f => f.id);
+                const catTotalQty = currentCart.filter(item => catFoodIds.includes(item.food_id)).reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
                 const badgeHTML = catTotalQty > 0 ? `<span class="cat-badge-main">${catTotalQty}</span>` : '';
 
-                btn.innerHTML = `<span class="cat-nav-icon">${icon}</span> <span>${cat.name}</span>${badgeHTML}`;
+                const isLongText = cat.name.length > 8;
+                const textClass = isLongText ? 'cat-text-long' : '';
+
+                btn.innerHTML = `<span class="cat-nav-icon">${icon}</span> <span class="${textClass}">${cat.name}</span>${badgeHTML}`;
                 btn.onclick = () => openCategoryFoodModal(cat, icon);
                 navContainer.appendChild(btn);
             });
@@ -190,137 +471,240 @@
 
         function openCategoryFoodModal(cat, icon) {
             currentCategory = cat;
+            document.getElementById('catIcon').textContent = icon || '🍱';
+            document.getElementById('catName').textContent = cat ? cat.name : '';
+            renderCategoryFoodGrid();
             document.getElementById('categoryFoodModalOverlay').classList.add('active');
-
-            const catFoods = foods.filter(f => Number(f.group_id) === Number(cat.id));
-            const iframe = document.getElementById('categoryPopupIframe');
-
-            setTimeout(() => {
-                iframe.contentWindow.postMessage({
-                    action: 'initCategoryView',
-                    category: cat,
-                    icon: icon,
-                    foods: catFoods,
-                    cart: cart
-                }, '*');
-            }, 100);
         }
 
         function closeCategoryFoodModal() {
             document.getElementById('categoryFoodModalOverlay').classList.remove('active');
         }
 
+        function renderCategoryFoodGrid() {
+            const container = document.getElementById('foodGridContainer');
+            container.innerHTML = '';
+
+            if (!currentCategory) return;
+            const catFoods = foods.filter(f => f.group_id === currentCategory.id);
+
+            if (catFoods.length === 0) {
+                container.innerHTML = '<div class="col-span-2 text-center py-6 text-slate-400 font-bold text-xs">ไม่มีรายการอาหารในหมวดนี้</div>';
+                return;
+            }
+
+            catFoods.forEach(food => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'food-btn';
+                
+                const qtyInCart = cart
+                    .filter(item => item.food_id === food.id)
+                    .reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+
+                const badgeHTML = qtyInCart > 0 ? `<span class="badge-count">${qtyInCart}</span>` : '';
+                btn.innerHTML = `<span>${food.name}</span>${badgeHTML}`;
+
+                btn.onclick = () => openOrderDetailModal(food);
+                container.appendChild(btn);
+            });
+        }
+
+        // --- ฟังก์ชันควบคุม Modal เพิ่มเมนูอาหาร ---
+        function openAddMenuModal() {
+            document.getElementById('addCategoryDisplay').value = currentCategory ? currentCategory.name : 'ไม่ระบุกลุ่ม';
+            document.getElementById('addFoodNameInput').value = '';
+            document.getElementById('addPrice1Input').value = '';
+            document.getElementById('addPrice2Input').value = '';
+            document.getElementById('addPrice3Input').value = '';
+
+            document.getElementById('addModalWrapper').classList.remove('hidden');
+        }
+
+        function closeAddMenuModal() {
+            document.getElementById('addModalWrapper').classList.add('hidden');
+        }
+
+        async function saveNewMenuData(e) {
+            if (e) e.preventDefault();
+
+            const foodName = document.getElementById('addFoodNameInput').value.trim();
+            const priceTourist = parseFloat(document.getElementById('addPrice1Input').value) || 0;
+            const priceLocal = parseFloat(document.getElementById('addPrice2Input').value) || 0;
+            const priceSabaidee = parseFloat(document.getElementById('addPrice3Input').value) || 0;
+
+            if (!foodName) {
+                alert('กรุณากรอกชื่อเมนูอาหาร');
+                return;
+            }
+
+            const btnSubmit = document.getElementById('btnSubmitAddMenu');
+            if (btnSubmit) btnSubmit.disabled = true;
+
+            try {
+                const { error } = await db.from('foods').insert([{
+                    name: foodName,
+                    group_id: currentCategory ? currentCategory.id : null,
+                    price_1: priceTourist,
+                    price_2: priceLocal,
+                    price_3: priceSabaidee
+                }]);
+
+                if (error) throw error;
+
+                closeAddMenuModal();
+                await loadData();
+                renderCategoryFoodGrid();
+            } catch (err) {
+                alert('เกิดข้อผิดพลาดในการบันทึก: ' + err.message);
+            } finally {
+                if (btnSubmit) btnSubmit.disabled = false;
+            }
+        }
+
         function openOrderDetailModal(food) {
             currentSelectedFood = food;
-            document.getElementById('orderDetailModalOverlay').classList.add('active');
-            const iframe = document.getElementById('orderPopupIframe');
+            mainQty = 1;
+            friedEggQty = 0;
+            omeletQty = 0;
+
+            document.getElementById('modalFoodTitle').textContent = food.name;
+            document.getElementById('mainQtyText').textContent = mainQty;
+            document.getElementById('friedEggQtyText').textContent = friedEggQty;
+            document.getElementById('omeletQtyText').textContent = omeletQty;
+            document.getElementById('customPriceInput').value = '';
+            document.getElementById('foodNoteInput').value = '';
+
+            const catName = currentCategory ? currentCategory.name : '';
+            const isEggAllowed = (catName.includes('ข้าวผัด') || catName.includes('กระเพรา') || catName.includes('กะเพรา'));
             
-            setTimeout(() => {
-                iframe.contentWindow.postMessage({
-                    action: 'initFoodDetail',
-                    food: food,
-                    cart: cart
-                }, '*');
-            }, 100);
+            const eggSection = document.getElementById('eggToppingSection');
+            eggSection.style.display = isEggAllowed ? 'block' : 'none';
+
+            renderSelectedCartList();
+            document.getElementById('orderDetailModalOverlay').classList.add('active');
         }
 
         function closeOrderDetailModal() {
             document.getElementById('orderDetailModalOverlay').classList.remove('active');
         }
 
-        function refreshCategoryIframe() {
-            if (!currentCategory) return;
-            const catFoods = foods.filter(f => Number(f.group_id) === Number(currentCategory.id));
-            const catIndex = categories.findIndex(c => String(c.id) === String(currentCategory.id));
-            const icon = categoryIcons[catIndex % categoryIcons.length] || '🍱';
-            
-            const iframe = document.getElementById('categoryPopupIframe');
-            iframe.contentWindow.postMessage({
-                action: 'initCategoryView',
-                category: currentCategory,
-                icon: icon,
-                foods: catFoods,
-                cart: cart
-            }, '*');
+        function changeMainQty(delta) {
+            mainQty = Math.max(1, mainQty + delta);
+            document.getElementById('mainQtyText').textContent = mainQty;
         }
 
-        window.addEventListener('message', function(event) {
-            const data = event.data;
-            if (!data || !data.action) return;
-
-            if (data.action === 'closeCategoryModal') {
-                closeCategoryFoodModal();
-            } else if (data.action === 'openOrderDetailModal') {
-                openOrderDetailModal(data.food);
-            } else if (data.action === 'closePopup') {
-                closeOrderDetailModal();
-            } else if (data.action === 'cancelCategoryItems') {
-                cancelCategoryItems();
-            } else if (data.action === 'goToSummary') {
-                goToSummary();
-            } else if (data.action === 'saveOrderDetail') {
-                handleSaveFromIframe(data.payload);
-            } else if (data.action === 'deleteCartItemFromDetail') {
-                cart = cart.filter(item => item.item_id !== data.itemId);
-                localStorage.setItem('cart', JSON.stringify(cart));
-                updateCartUI();
-                refreshCategoryIframe();
-                if (currentSelectedFood) openOrderDetailModal(currentSelectedFood);
+        function changeEggQty(type, delta) {
+            if (type === 'fried') {
+                friedEggQty = Math.max(0, friedEggQty + delta);
+                document.getElementById('friedEggQtyText').textContent = friedEggQty;
+            } else if (type === 'omelet') {
+                omeletQty = Math.max(0, omeletQty + delta);
+                document.getElementById('omeletQtyText').textContent = omeletQty;
             }
-        });
+        }
 
-        function handleSaveFromIframe(payload) {
-            const { food, mainQty, customPriceVal, note, editingItemId } = payload;
+        function renderSelectedCartList() {
+            const boxContainer = document.getElementById('selectedCartItemsBox');
+            const listContainer = document.getElementById('selectedCartList');
+            const badge = document.getElementById('selectedCartCountBadge');
+            listContainer.innerHTML = '';
+
+            if (!currentSelectedFood) {
+                if (boxContainer) boxContainer.classList.add('hidden');
+                return;
+            }
+
+            const existingItems = cart.filter(item => item.food_id === currentSelectedFood.id);
+            
+            if (existingItems.length === 0) {
+                if (boxContainer) boxContainer.classList.add('hidden');
+                return;
+            }
+
+            if (boxContainer) boxContainer.classList.remove('hidden');
+            badge.textContent = `${existingItems.length} รายการ`;
+
+            existingItems.forEach(item => {
+                let eggText = '';
+                if (item.friedEggQty > 0) eggText += ` +ไข่ดาว ${item.friedEggQty}`;
+                if (item.omeletQty > 0) eggText += ` +ไข่เจียว ${item.omeletQty}`;
+
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center bg-white p-2 rounded-xl border border-slate-200 shadow-2xs';
+                div.innerHTML = `
+                    <div class="font-bold text-slate-700">
+                        <span class="text-emerald-600">${item.qty}x</span> ${item.name}${eggText}
+                        ${item.note ? `<span class="text-slate-400 font-normal">(${item.note})</span>` : ''}
+                    </div>
+                    <button type="button" onclick="deleteCartItem('${item.item_id}')" class="text-rose-500 hover:text-rose-700 font-extrabold px-1 text-sm cursor-pointer">✕</button>
+                `;
+                listContainer.appendChild(div);
+            });
+        }
+
+        function deleteCartItem(itemId) {
+            cart = cart.filter(item => item.item_id !== itemId);
+            localStorage.setItem('cart', JSON.stringify(cart));
+            updateCartUI();
+            renderCategoryFoodGrid();
+            renderSelectedCartList();
+        }
+
+        function saveOrderDetail() {
+            if (!currentSelectedFood) return;
+
+            const customPriceRaw = document.getElementById('customPriceInput').value;
+            const customPriceVal = (customPriceRaw !== '' && !isNaN(customPriceRaw)) ? Number(customPriceRaw) : null;
+            const note = document.getElementById('foodNoteInput').value.trim();
+
             const isCustomPrice = customPriceVal !== null;
-            const basePrice = isCustomPrice ? customPriceVal : Number(food.price || 0);
+            const basePrice = isCustomPrice ? customPriceVal : Number(currentSelectedFood.price_1 || 0);
 
-            if (editingItemId) {
-                const index = cart.findIndex(item => item.item_id === editingItemId);
-                if (index !== -1) {
-                    cart[index].qty = mainQty;
-                    cart[index].price = basePrice;
-                    cart[index].isCustomPrice = isCustomPrice;
-                    cart[index].note = note;
-                    cart[index].totalPrice = basePrice * mainQty;
-                }
+            const totalEggPrice = (friedEggQty + omeletQty) * EGG_PRICE;
+            const unitPrice = basePrice + totalEggPrice;
+
+            // ตรวจสอบหารายการเดิมที่มีคุณลักษณะตรงกันทุกประการเพื่อทำการวม (Merge)
+            const existingIndex = cart.findIndex(item => 
+                item.food_id === currentSelectedFood.id &&
+                Boolean(item.isCustomPrice) === isCustomPrice &&
+                Number(item.price) === Number(basePrice) &&
+                Number(item.friedEggQty || 0) === Number(friedEggQty) &&
+                Number(item.omeletQty || 0) === Number(omeletQty) &&
+                (item.note || '').trim() === note
+            );
+
+            if (existingIndex !== -1) {
+                cart[existingIndex].qty += mainQty;
+                cart[existingIndex].totalPrice = unitPrice * cart[existingIndex].qty;
             } else {
-                const existingIndex = cart.findIndex(item => 
-                    String(item.food_id) === String(food.id) &&
-                    Boolean(item.isCustomPrice) === Boolean(isCustomPrice) &&
-                    (isCustomPrice ? Number(item.price) === Number(basePrice) : true) &&
-                    (item.note || '').trim() === note
-                );
-
-                if (existingIndex !== -1) {
-                    cart[existingIndex].qty += mainQty;
-                    cart[existingIndex].totalPrice = basePrice * cart[existingIndex].qty;
-                } else {
-                    cart.push({
-                        item_id: Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-                        food_id: food.id,
-                        name: food.name,
-                        price: basePrice,
-                        isCustomPrice: isCustomPrice,
-                        qty: mainQty,
-                        note: note,
-                        totalPrice: basePrice * mainQty
-                    });
-                }
+                cart.push({
+                    item_id: Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+                    food_id: currentSelectedFood.id,
+                    name: currentSelectedFood.name,
+                    price: basePrice,
+                    friedEggQty: friedEggQty,
+                    omeletQty: omeletQty,
+                    isCustomPrice: isCustomPrice,
+                    qty: mainQty,
+                    note: note,
+                    totalPrice: unitPrice * mainQty
+                });
             }
 
             localStorage.setItem('cart', JSON.stringify(cart));
             updateCartUI();
             closeOrderDetailModal();
-            refreshCategoryIframe();
+            renderCategoryFoodGrid();
         }
 
         function cancelCategoryItems() {
             if (!currentCategory) return;
-            const catFoodIds = foods.filter(f => Number(f.group_id) === Number(currentCategory.id)).map(f => String(f.id));
-            cart = cart.filter(item => !catFoodIds.includes(String(item.food_id)));
+            const catFoodIds = foods.filter(f => f.group_id === currentCategory.id).map(f => f.id);
+            cart = cart.filter(item => !catFoodIds.includes(item.food_id));
             localStorage.setItem('cart', JSON.stringify(cart));
             updateCartUI();
-            refreshCategoryIframe();
+            renderCategoryFoodGrid();
         }
 
         function updateCartCountOnly() {
@@ -342,7 +726,7 @@
             localStorage.removeItem('cart');
             closeConfirmClearModal();
             updateCartUI();
-            refreshCategoryIframe();
+            renderCategoryFoodGrid();
         }
         function goToSummary() { window.location.href = 'confirmorder.html'; }
     </script>

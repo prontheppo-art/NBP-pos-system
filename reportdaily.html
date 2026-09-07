@@ -2,23 +2,23 @@
   ========================================
   [File Note]
   - File Name: reportdaily.html
-  - Included JavaScript: key.js, slender.js
-  - Links: reportmenu.html
+  - Included JavaScript: supabaseClient.js, slender.js
+  - Links: report_index.html
   ========================================
 -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <title>รายงานออร์เดอร์รายวัน - ลาบหนองบัวลำภู</title>
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Supabase JS Client (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- เรียกไฟล์คีย์แยกตามเงื่อนไขเพื่อดึง SUPABASE_URL และ SUPABASE_KEY -->
-    <script src="key.js"></script>
-    <!-- เรียกไฟล์ Calendar System -->
+    <!-- ไฟล์ Initialization ของ Supabase -->
+    <script src="supabaseClient.js"></script>
+    <!-- ไฟล์ระบบปฏิทิน Calendar System -->
     <script src="slender.js"></script>
     
     <style>
@@ -26,16 +26,14 @@
         --bg-color: #f8fafc;
       }
 
-      /* CSS เฉพาะของ UI แอป */
-      html,
-      body {
-        height: 100%;
+      /* ป้องกันการ Zoom บนมือถือ แต่ยังเลื่อน Scroll ได้สะดวก */
+      html, body {
+        height: 100dvh;
         margin: 0;
         padding: 0;
-        overflow: hidden;
         font-family: 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         background-color: var(--bg-color);
-        touch-action: manipulation;
+        touch-action: pan-y;
         -webkit-text-size-adjust: 100%;
         -webkit-user-select: none;
         user-select: none;
@@ -46,8 +44,8 @@
         margin: 0 auto;
         height: 100dvh;
         background: #ffffff;
-        display: grid;
-        grid-template-rows: auto auto 1fr auto;
+        display: flex;
+        flex-direction: column;
         box-sizing: border-box;
         overflow: hidden;
       }
@@ -78,15 +76,21 @@
             </button>
         </div>
         <div class="grid grid-cols-2 gap-2">
-            <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs"><div class="text-[10px] text-slate-500 font-bold">จำนวนบิลวันนี้</div><div class="text-sm font-black text-slate-800" id="summaryCount">0 บิล</div></div>
-            <div class="bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 shadow-xs"><div class="text-[10px] text-emerald-700 font-bold">ยอดขายรวมสุทธิ</div><div class="text-sm font-black text-emerald-600" id="summaryTotal">0 บาท</div></div>
+            <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs">
+                <div class="text-[10px] text-slate-500 font-bold">จำนวนบิลวันนี้</div>
+                <div class="text-sm font-black text-slate-800" id="summaryCount">0 บิล</div>
+            </div>
+            <div class="bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 shadow-xs">
+                <div class="text-[10px] text-emerald-700 font-bold">ยอดขายรวมสุทธิ</div>
+                <div class="text-sm font-black text-emerald-600" id="summaryTotal">0 บาท</div>
+            </div>
         </div>
     </div>
 
-    <!-- Content Section (Scrollable Container) -->
-    <div class="p-3 overflow-y-auto space-y-3 bg-slate-100" id="dailyOrdersContainer" style="-webkit-overflow-scrolling: touch;"></div>
+    <!-- Content Section (Scrollable Area) -->
+    <div class="p-3 overflow-y-auto space-y-3 bg-slate-100 flex-1" id="dailyOrdersContainer" style="-webkit-overflow-scrolling: touch;"></div>
 
-    <!-- Footer Section -->
+    <!-- Footer Section (แก้ไขปลายทางลิงก์เป็น report_index.html) -->
     <div class="p-3 bg-white border-t border-slate-100 shrink-0">
         <a href="report_index.html" class="w-full bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-bold py-3 rounded-xl text-xs text-center transition flex items-center justify-center gap-1.5 shadow-md no-underline">
             ⬅️ กลับหน้าศูนย์รวมรายงาน
@@ -98,15 +102,26 @@
     let db;
     let allOrdersCache = [];
     
-    // ป้องกัน Gesture ซูมบน iOS/Mobile
-    document.addEventListener('gesturestart', function (e) { 
-        e.preventDefault(); 
+    // ป้องกัน Gesture Pinch Zoom บนอุปกรณ์มือถือ
+    document.addEventListener('touchstart', function(event) {
+        if (event.touches.length > 1) {
+            event.preventDefault();
+        }
     }, { passive: false });
 
-    // ฟังก์ชั่นดึงวันที่ปัจจุบันของประเทศไทย (YYYY-MM-DD)
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function(event) {
+        const now = (new Date()).getTime();
+        if (now - lastTouchEnd <= 300) {
+            event.preventDefault();
+        }
+        lastTouchEnd = now;
+    }, false);
+
+    // ดึงวันที่ปัจจุบันตามเวลาประเทศไทย (YYYY-MM-DD)
     function getTodayString() {
         const now = new Date();
-        const tzOffset = 7 * 60; // 7 ชั่วโมงเป็นนาที
+        const tzOffset = 7 * 60;
         const localTime = new Date(now.getTime() + (tzOffset + now.getTimezoneOffset()) * 60000);
 
         const year = localTime.getFullYear();
@@ -115,7 +130,7 @@
         return `${year}-${month}-${day}`;
     }
 
-    // ฟังก์ชั่นแปลงรูปแบบวันที่ YYYY-MM-DD เป็น DD/MM/YYYY
+    // แปลงวันที่จาก YYYY-MM-DD เป็น DD/MM/YYYY
     function formatDateThai(dateString) {
         if (!dateString) return '';
         const parts = dateString.split('-');
@@ -125,7 +140,6 @@
 
     let currentSelectedDate = getTodayString();
 
-    // ฟังก์ชั่นอัปเดตข้อความวันที่บนหน้าจอ
     function updateDateDisplay(dateStr) {
         currentSelectedDate = dateStr || getTodayString();
         const txtDate = document.getElementById('txtSelectedDate');
@@ -134,11 +148,11 @@
         }
     }
 
-    // ฟังก์ชั่นสรุปจำนวนบิลแยกตามวันที่
+    // นับจำนวนบิลแยกรายวัน เพื่อส่งให้ปฏิทินแสดงผลจุดแจ้งเตือน
     function getOrderCounts() {
         const counts = {};
         allOrdersCache.forEach(o => {
-            const rawDate = o.order_date || o.created_at || o.date;
+            const rawDate = o.order_date || o.created_at;
             if (rawDate) {
                 const oDate = String(rawDate).split('T')[0].split(' ')[0];
                 const status = (o.status || '').toLowerCase();
@@ -150,17 +164,14 @@
         return counts;
     }
 
-    // ฟังก์ชั่นเปิดปฏิทินพร้อมส่งวัตถุข้อมูลจำนวนบิล
     function openCalendar() {
         if (typeof CalendarSystem !== 'undefined' && typeof CalendarSystem.open === 'function') {
             const counts = getOrderCounts();
             CalendarSystem.open(currentSelectedDate, counts);
-        } else {
-            console.warn("CalendarSystem is not available");
         }
     }
 
-    // ระบบตรวจจับการแตะ/คลิกภายนอกกล่องปฏิทินเพื่อปิด (Outside Click Handler)
+    // ปิดปฏิทินเมื่อคลิกพื้นที่ด้านนอก
     document.addEventListener('pointerdown', function(e) {
         const calendarModal = document.getElementById('slenderCalendarModal') || document.getElementById('calendarModal') || document.querySelector('.slender-calendar-overlay');
         if (calendarModal && !calendarModal.classList.contains('hidden') && calendarModal.style.display !== 'none') {
@@ -180,12 +191,13 @@
     window.onload = function() {
         updateDateDisplay(currentSelectedDate);
 
+        // ตรวจสอบตัวแปรเชื่อมต่อ Supabase
         if (typeof window.supabaseClient !== 'undefined') {
             db = window.supabaseClient;
-        } else if (typeof window.supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_KEY !== 'undefined') {
-            db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        } else if (typeof supabaseClient !== 'undefined') {
+            db = supabaseClient;
         } else {
-            console.error("Critical Error: ไม่สามารถเชื่อมต่อ Supabase ได้");
+            console.error("Critical Error: ไม่พบการเชื่อมต่อ Supabase");
         }
 
         if (typeof CalendarSystem !== 'undefined' && typeof CalendarSystem.init === 'function') {
@@ -200,6 +212,7 @@
         fetchOrdersForReport();
     };
 
+    // ดึงออร์เดอร์ทั้งหมดจากตาราง orders
     async function fetchOrdersForReport() {
         if (!db) return;
         
@@ -214,6 +227,7 @@
         filterOrdersByDate();
     }
 
+    // กรองออร์เดอร์ตามวันที่เลือก และแสดงผล
     function filterOrdersByDate() {
         const container = document.getElementById('dailyOrdersContainer');
         if (!container) return;
@@ -222,8 +236,7 @@
 
         let filtered = allOrdersCache.filter(o => {
             let oDate = '';
-            
-            const rawDate = o.order_date || o.created_at || o.date;
+            const rawDate = o.order_date || o.created_at;
             if (rawDate) {
                 oDate = String(rawDate).split('T')[0].split(' ')[0];
             }
@@ -242,17 +255,14 @@
         let total = 0;
         filtered.forEach((order, index) => {
             let items = [];
+            
             if (typeof order.items === 'string') {
                 try { items = JSON.parse(order.items); } catch(e) { items = []; }
             } else if (Array.isArray(order.items)) {
                 items = order.items;
-            } else if (typeof order.order_items === 'string') {
-                try { items = JSON.parse(order.order_items); } catch(e) { items = []; }
-            } else if (Array.isArray(order.order_items)) {
-                items = order.order_items;
             }
 
-            let billTotal = Number(order.total_price || order.total_amount || order.total || 0);
+            let billTotal = Number(order.total_price || order.subtotal || 0);
             
             if (billTotal === 0 && items.length > 0) {
                 billTotal = items.reduce((sum, item) => {
@@ -268,7 +278,7 @@
                 let itemQty = Number(item.qty || item.quantity || 1);
                 let unitPrice = Number(item.price || item.unit_price || 0);
                 let itemTotalPrice = (item.total_price || item.sum) ? Number(item.total_price || item.sum) : (unitPrice * itemQty);
-                let itemName = item.name || item.food_name || item.title || 'ไม่ระบุชื่อรายการ';
+                let itemName = item.name || item.food_name || 'ไม่ระบุชื่อรายการ';
                 
                 return `<tr class="border-b border-slate-100">
                     <td class="p-1.5 text-xs text-slate-800 font-medium">${itemName}</td>
@@ -277,22 +287,20 @@
                 </tr>`;
             }).join('');
 
-            // --- ส่วนที่ปรับแก้ไขการแสดงผลกลุ่มลูกค้า / สถานที่ ---
-            let groupLabel = order.customer_group || order.group_name || order.customer_type || '';
+            let rawGroup = order.customer_group || '';
+            let loc = (order.location_name || '').trim();
+            let zone = (order.zone_name || '').trim();
+            let groupLabel = '';
 
-            if (groupLabel.includes('นักท่องเที่ยว')) {
-                const loc = order.location_name || '';
-                const zone = order.zone_name || '';
-                const fullLocation = [loc, zone].filter(Boolean).join(' ');
-                groupLabel = fullLocation || 'นักท่องเที่ยว';
-            } else if (groupLabel.includes(' ')) {
-                groupLabel = groupLabel.split(' ')[0];
+            if (rawGroup.includes('หน้าร้าน') || loc.includes('หน้าร้าน') || zone.includes('หน้าร้าน')) {
+                groupLabel = 'หน้าร้าน';
+            } 
+            else if (rawGroup.includes('นักท่องเที่ยว')) {
+                groupLabel = [loc, zone].filter(Boolean).join(' ') || 'นักท่องเที่ยว';
+            } 
+            else {
+                groupLabel = [rawGroup, loc, zone].filter(Boolean).join(' ') || 'ทั่วไป';
             }
-
-            if (!groupLabel) {
-                groupLabel = 'ทั่วไป';
-            }
-            // --------------------------------------------------
             
             container.innerHTML += `
                 <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">

@@ -1,3 +1,14 @@
+<!--
+  ========================================
+  [File Note]
+  - File Name: printorder.html
+  - External Scripts: 
+      1. https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
+      2. https://cdn.tailwindcss.com
+      3. supabaseClient.js (Supabase Initialization)
+  - Target Destination: index.html
+  ========================================
+-->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -5,27 +16,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <title>รายการอาหาร - ลาบหนองบัวลำภู</title>
     
+    <!-- Supabase JS Client (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ดึงการเชื่อมต่อ Supabase จากไฟล์ supabaseClient.js (ข้อ 1) -->
+    <script src="supabaseClient.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap');
         
+        /* ข้อ 2: เปิดให้ scroll ได้ (pan-y) และป้องกันการซูม */
         html, body {
-            height: 100%;
+            min-height: 100%;
             margin: 0;
             padding: 0;
-            overflow: hidden;
             font-family: 'Sarabun', sans-serif; 
             background-color: #f1f5f9;
             user-select: none;
             -webkit-user-select: none;
+            touch-action: pan-y;
+            -webkit-text-size-adjust: 100%;
         }
 
         .app-viewport {
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            height: 100dvh;
             max-width: 420px;
             margin: 0 auto;
             padding: 12px;
@@ -42,10 +59,15 @@
             flex-direction: column;
             height: 100%;
             min-height: 0;
-            justify-content: space-between;
+            position: relative;
         }
 
+        /* ข้อ 4: ล็อคส่วนหัว (Sticky Top View) */
         .header-section {
+            position: sticky;
+            top: 0;
+            background-color: #ffffff;
+            z-index: 20;
             flex-shrink: 0;
         }
 
@@ -76,7 +98,12 @@
             padding-right: 2px;
         }
 
+        /* ข้อ 4: ล็อคส่วนท้าย (Sticky Bottom View) */
         .footer-section {
+            position: sticky;
+            bottom: 0;
+            background-color: #ffffff;
+            z-index: 20;
             flex-shrink: 0;
         }
 
@@ -127,8 +154,8 @@
     <div class="app-viewport">
         <div class="print-card">
             
-            <!-- 🟢 ส่วนที่ 1: หัวกระดาษ (ยึดติดบน) -->
-            <div class="header-section text-center mb-3">
+            <!-- 🟢 ส่วนที่ 1: หัวกระดาษ (Sticky Top View - ข้อ 4) -->
+            <div class="header-section text-center mb-3 pb-1">
                 <h2 class="font-extrabold text-slate-800 text-lg leading-tight">ลาบหนองบัวลำภู @เขื่อนขุนด่าน</h2>
                 <p class="text-xs text-slate-500 font-semibold mt-0.5">064-565-4951</p>
                 <p class="text-xs text-slate-700 font-bold mt-1">
@@ -136,9 +163,9 @@
                 </p>
             </div>
 
-            <!-- 🟡 ส่วนที่ 2: เนื้อหาตรงกลาง (ยืดหยุ่น + สกอร์ได้ถ้าเกินจอ) -->
+            <!-- 🟡 ส่วนที่ 2: เนื้อหาตรงกลาง (Scrollable Area) -->
             <div class="content-scrollable">
-                <!-- กรอบรายการอาหาร -->
+                <!-- กรอบรายการอาหาร (Cart Box) -->
                 <div class="items-box-container">
                     <div class="scrollable-items">
                         <div id="itemListContainer" class="w-full space-y-1.5">
@@ -174,17 +201,15 @@
                 </div>
             </div>
 
-            <!-- 🟢 ส่วนที่ 3: ปุ่มกดด้านล่าง (ยึดติดล่าง) -->
+            <!-- 🟢 ส่วนที่ 3: ปุ่มกดด้านล่าง (Sticky Bottom View - ข้อ 4) -->
             <div class="footer-section no-print pt-2 border-t border-slate-100">
                 <div class="grid grid-cols-2 gap-2">
-                    <!-- ปุ่มที่ 1: บันทึก -->
-                    <button type="button" id="saveOnlyBtn" onclick="handleSaveOrder(false)" class="w-full py-2.5 bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5">
+                    <button type="button" id="saveOnlyBtn" onclick="handleSaveOrder(false)" class="w-full py-2.5 bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer">
                         <span>💾</span>
                         <span id="saveBtnText">บันทึก</span>
                     </button>
 
-                    <!-- ปุ่มที่ 2: บันทึก / พิมพ์ -->
-                    <button type="button" id="saveAndPrintBtn" onclick="handleSaveOrder(true)" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5">
+                    <button type="button" id="saveAndPrintBtn" onclick="handleSaveOrder(true)" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer">
                         <span>🖨️</span>
                         <span id="printBtnText">บันทึก / พิมพ์</span>
                     </button>
@@ -194,10 +219,35 @@
         </div>
     </div>
 
-    <!-- ดึงไฟล์เชื่อมต่อ Supabase -->
-    <script src="key.js"></script>
     <script>
         let currentOrderData = null;
+        let processedItemsForDb = [];
+
+        function getSupabaseClient() {
+            if (typeof window.supabaseClient?.from === 'function') return window.supabaseClient;
+            if (typeof supabase?.from === 'function') return supabase;
+            if (typeof supabase?.createClient === 'function' && window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
+                window.supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+                return window.supabaseClient;
+            }
+            return null;
+        }
+
+        // ข้อ 2: ป้องกัน Gesture Pinch-to-zoom และ Double-tap zoom บนอุปกรณ์พกพา
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
 
         window.addEventListener('DOMContentLoaded', () => {
             loadOrderData();
@@ -209,9 +259,11 @@
 
             currentOrderData = JSON.parse(pendingOrderRaw);
             const cart = currentOrderData.cart || [];
-            const groupId = Number(currentOrderData.groupId || currentOrderData.customerGroupId) || 1;
+            
+            // เปรียบเทียบค่าโดยตรง ไม่แปลงประเภทข้อมูลซ้ำซ้อน
+            const groupId = currentOrderData.groupId ?? currentOrderData.customerGroupId ?? 1;
 
-            // 1. จัดการแสดงผล QR Code (แสดงเฉพาะกลุ่มนักท่องเที่ยว groupId = 2)
+            // 1. จัดการแสดงผล QR Code (แสดงเฉพาะกลุ่มนักท่องเที่ยว groupId === 2)
             const touristSection = document.getElementById('touristOnlySection');
             if (touristSection) {
                 if (groupId === 2) {
@@ -221,12 +273,11 @@
                 }
             }
 
-            // 2. จัดการแสดงผลกลุ่มลูกค้า / สถานที่ (ซ่อนถ้ารูปแบบเป็น ชาวบ้าน หรือ สบายดี)
+            // 2. จัดการแสดงผลกลุ่มลูกค้า / สถานที่
             const groupWrapper = document.getElementById('customerGroupWrapper');
             const groupLabel = document.getElementById('customerGroupLabel');
 
             if (groupId === 2) {
-                // กลุ่มนักท่องเที่ยว -> แสดงชื่อสถานที่ / ห้อง
                 let locDetails = [];
                 if (currentOrderData.locationName) locDetails.push(currentOrderData.locationName);
                 if (currentOrderData.zoneName && currentOrderData.zoneName !== currentOrderData.locationName) {
@@ -234,19 +285,21 @@
                 }
 
                 let groupDisplay = locDetails.join(' - ') || 'นักท่องเที่ยว';
-                const phoneNum = currentOrderData.customerPhone || currentOrderData.phone;
-                if (phoneNum) {
-                    groupDisplay += ` โทร: ${phoneNum}`;
+                const rawPhone = String(currentOrderData.customerPhone || currentOrderData.phone || '').trim();
+
+                // ตรวจสอบเบอร์โทรศัพท์: ตัวเลขล้วน 10 หลัก
+                const isValidPhone = /^\d{10}$/.test(rawPhone);
+                if (isValidPhone) {
+                    groupDisplay += ` โทร: ${rawPhone}`;
                 }
 
                 if (groupLabel) groupLabel.textContent = groupDisplay;
                 if (groupWrapper) groupWrapper.classList.remove('hidden');
             } else {
-                // กลุ่มชาวบ้าน (1) หรือ สบายดี (3) -> ซ่อนวงเล็บ ไม่นำมาลง
                 if (groupWrapper) groupWrapper.classList.add('hidden');
             }
 
-            // 3. แสดงหมายเหตุออเดอร์ (ถ้ามี)
+            // 3. แสดงหมายเหตุออเดอร์
             const noteVal = currentOrderData.orderNote || currentOrderData.note;
             if (noteVal) {
                 const noteContainer = document.getElementById('orderNoteContainer');
@@ -278,45 +331,52 @@
             let totalItems = cart.length;
             let totalQty = 0;
             let html = '';
+            processedItemsForDb = [];
 
             cart.forEach(item => {
-                const qty = Number(item.qty) || 1;
-                const gId = Number(groupId) || 1;
-                
+                const qty = item.qty || 1;
                 let basePrice = 0;
 
-                // 1. ถ้ามีการระบุราคาพิเศษเอง (Custom Price)
-                if ((item.is_custom_price || item.isCustomPrice) && Number(item.custom_price || item.price) > 0) {
-                    basePrice = Number(item.custom_price || item.price);
+                // ตรวจสอบ Custom Price หรือเปรียบเทียบตาม groupId โดยตรง
+                if ((item.is_custom_price || item.isCustomPrice) && (item.custom_price || item.price) > 0) {
+                    basePrice = item.custom_price || item.price;
                 } else {
-                    // 2. ตรวจสอบตามกลุ่มลูกค้า (gId 1=price_1, gId 2=price_2, gId 3=price_3)
-                    if (gId === 1) {
-                        basePrice = Number(item.price_1 ?? item.price1 ?? item.price ?? 0);
-                    } else if (gId === 2) {
-                        basePrice = Number(item.price_2 ?? item.price2 ?? item.price ?? 0);
-                    } else if (gId === 3) {
-                        basePrice = Number(item.price_3 ?? item.price3 ?? item.price ?? 0);
+                    if (groupId === 1) {
+                        basePrice = item.price_1 ?? item.price1 ?? item.price ?? 0;
+                    } else if (groupId === 2) {
+                        basePrice = item.price_2 ?? item.price2 ?? item.price ?? 0;
+                    } else if (groupId === 3) {
+                        basePrice = item.price_3 ?? item.price3 ?? item.price ?? 0;
                     } else {
-                        basePrice = Number(item.price ?? 0);
+                        basePrice = item.price ?? 0;
                     }
                     
-                    // 3. Fallback
                     if (basePrice === 0) {
-                        basePrice = Number(item.price ?? item.unit_price ?? item.base_price ?? 0);
+                        basePrice = item.price ?? item.unit_price ?? item.base_price ?? 0;
                     }
                 }
 
-                const eggCost = (Number(item.fried_egg || item.khaiDaoQty) || 0) * 10;
-                const omeletCost = (Number(item.omelet || item.khaiJiaoQty) || 0) * 10;
+                const daoQty = item.friedEggQty || item.khaiDaoQty || item.fried_egg || item.egg_dao || item.eggDao || 0;
+                const jiaoQty = item.omeletQty || item.khaiJiaoQty || item.omelet || item.egg_jiao || item.eggJiao || 0;
+
+                const eggCost = daoQty * 10;
+                const omeletCost = jiaoQty * 10;
                 const unitPrice = basePrice + eggCost + omeletCost;
                 const itemTotal = unitPrice * qty;
 
                 totalQty += qty;
 
                 let itemSubDetails = [];
-                if (item.fried_egg > 0 || item.khaiDaoQty > 0) itemSubDetails.push(`ไข่ดาว`);
-                if (item.omelet > 0 || item.khaiJiaoQty > 0) itemSubDetails.push(`ไข่เจียว`);
+                if (daoQty > 0) itemSubDetails.push(`ไข่ดาว ${daoQty > 1 ? daoQty + ' ฟอง' : ''}`.trim());
+                if (jiaoQty > 0) itemSubDetails.push(`ไข่เจียว ${jiaoQty > 1 ? jiaoQty + ' ฟอง' : ''}`.trim());
                 if (item.note) itemSubDetails.push(item.note);
+
+                processedItemsForDb.push({
+                    ...item,
+                    price: basePrice,
+                    unit_price: unitPrice,
+                    total_price: itemTotal
+                });
 
                 html += `
                 <div class="flex justify-between items-start text-xs font-bold text-slate-800 py-0.5">
@@ -333,7 +393,7 @@
                 `;
             });
 
-            if (Number(deliveryFee) > 0) {
+            if (deliveryFee > 0) {
                 html += `
                 <div class="flex justify-between items-center text-xs font-bold text-slate-700 pt-1 border-t border-slate-200 mt-1">
                     <span>🛵 ค่าบริการจัดส่ง</span>
@@ -364,60 +424,95 @@
                 if (shouldPrint && printText) printText.textContent = 'กำลังบันทึก...';
                 if (!shouldPrint && saveText) saveText.textContent = 'กำลังบันทึก...';
 
-                if (typeof supabaseClient !== 'undefined') {
-                    const totalQty = (currentOrderData.cart || []).reduce((sum, item) => sum + (Number(item.qty) || 1), 0);
+                const _db = getSupabaseClient();
+
+                if (_db) {
+                    const custName = currentOrderData.customerName || '';
+                    const custPhone = currentOrderData.customerPhone || currentOrderData.phone || '';
+                    let finalCustomerId = currentOrderData.selectedCustomerId || null;
+
+                    const combinedNamePhone = [custName, custPhone].filter(Boolean).join(' ') || 'ลูกค้าทั่วไป';
+
+                    if (!finalCustomerId && (custName || custPhone)) {
+                        let existingCust = null;
+
+                        if (custPhone) {
+                            const { data } = await _db.from('customers').select('id').ilike('name_phone', `%${custPhone}%`).limit(1);
+                            if (data && data.length > 0) existingCust = data[0];
+                        }
+
+                        if (existingCust) {
+                            finalCustomerId = existingCust.id;
+                        } else {
+                            const { data: newCust, error: custErr } = await _db
+                                .from('customers')
+                                .insert([{ name_phone: combinedNamePhone }])
+                                .select('id');
+
+                            if (custErr) console.error('Customer Insert Error:', custErr);
+                            if (!custErr && newCust && newCust.length > 0) {
+                                finalCustomerId = newCust[0].id;
+                            }
+                        }
+                    }
+
+                    const totalQty = (currentOrderData.cart || []).reduce((sum, item) => sum + (item.qty || 1), 0);
 
                     const now = new Date();
-                    const tzOffset = 7 * 60;
-                    const localTime = new Date(now.getTime() + (tzOffset + now.getTimezoneOffset()) * 60000);
-
-                    const year = localTime.getFullYear();
-                    const month = String(localTime.getMonth() + 1).padStart(2, '0');
-                    const day = String(localTime.getDate()).padStart(2, '0');
-                    const hours = String(localTime.getHours()).padStart(2, '0');
-                    const minutes = String(localTime.getMinutes()).padStart(2, '0');
-                    const seconds = String(localTime.getSeconds()).padStart(2, '0');
-
+                    const year = now.getFullYear();
+                    const month = String(now.getMonth() + 1).padStart(2, '0');
+                    const day = String(now.getDate()).padStart(2, '0');
                     const todayStr = `${year}-${month}-${day}`;
-                    const timestampStr = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
                     const insertPayload = {
+                        customer_id: finalCustomerId,
+                        customer_group_id: currentOrderData.groupId ?? currentOrderData.customerGroupId ?? 1,
                         customer_group: currentOrderData.groupName || currentOrderData.customerGroup || 'ชาวบ้าน',
-                        customer_group_id: currentOrderData.groupId || currentOrderData.customerGroupId || 1,
-                        phone: currentOrderData.customerPhone || currentOrderData.phone || '',
-                        customer_phone: currentOrderData.customerPhone || currentOrderData.phone || '',
+                        phone: custPhone || null,
                         location_id: currentOrderData.locationId || null,
                         location_name: currentOrderData.locationName || null,
                         zone_id: currentOrderData.zoneId || null,
                         zone_name: currentOrderData.zoneName || null,
-                        note: currentOrderData.orderNote || currentOrderData.note || '',
                         subtotal: currentOrderData.subtotal || 0,
                         delivery_fee: currentOrderData.deliveryFee || currentOrderData.delivery_fee || 0,
                         total_price: currentOrderData.grandTotal || currentOrderData.total_price || 0,
                         total_qty: totalQty,
-                        items: currentOrderData.cart || [],
-                        order_date: todayStr,
-                        created_at: timestampStr,
-                        status: 'completed'
+                        items: processedItemsForDb.length > 0 ? processedItemsForDb : (currentOrderData.cart || []),
+                        status: 'completed',
+                        note: currentOrderData.orderNote || currentOrderData.note || '',
+                        order_date: todayStr
                     };
 
-                    const { error } = await supabaseClient
+                    const { data: orderResult, error: orderErr } = await _db
                         .from('orders')
-                        .insert([insertPayload]);
+                        .insert([insertPayload])
+                        .select();
 
-                    if (error) console.error('Supabase Insert Warning:', error);
+                    if (orderErr) {
+                        console.error('Supabase Insert Order Error:', orderErr);
+                        alert('เกิดข้อผิดพลาดในการบันทึกออเดอร์: ' + orderErr.message);
+                        return;
+                    } else {
+                        console.log('บันทึกออเดอร์สำเร็จ:', orderResult);
+                    }
                 }
 
                 if (shouldPrint) {
                     window.print();
                 }
 
-            } catch (err) {
-                console.error('Save Order Error:', err);
-            } finally {
                 localStorage.removeItem('pendingOrder');
                 localStorage.removeItem('cart');
                 window.location.href = 'index.html';
+
+            } catch (err) {
+                console.error('Save Order Exception:', err);
+                alert('เกิดข้อผิดพลาดในการทำงาน: ' + err.message);
+            } finally {
+                btnSave.disabled = false;
+                btnSavePrint.disabled = false;
+                if (saveText) saveText.textContent = 'บันทึก';
+                if (printText) printText.textContent = 'บันทึก / พิมพ์';
             }
         }
     </script>

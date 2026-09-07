@@ -2,8 +2,8 @@
   ========================================
   [File Note]
   - File Name: managemenu.html
-  - Included JavaScript: key.js, managecategorypopup.js
-  - Links: managefoodgroups.html, admin.html, managemenupopup.html
+  - Included JavaScript: supabaseClient.js
+  - Links: index.html
   ========================================
 -->
 <!DOCTYPE html>
@@ -16,13 +16,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Supabase JS Client (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- เรียกไฟล์ Initialization ของ Supabase -->
+    <script src="supabaseClient.js"></script>
     
     <style>
       :root {
         --bg-color: #f8fafc;
       }
 
-      /* CSS เฉพาะของ UI แอป */
       html, body { 
           height: 100%; 
           margin: 0; 
@@ -47,7 +48,6 @@
           overflow: hidden;
       }
 
-      /* ปรับเป็น Grid 2 คอลัมน์เท่ากัน */
       .category-nav-wrap {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -94,6 +94,10 @@
       ::-webkit-scrollbar {
         display: none;
       }
+
+      .popup-scrollbar::-webkit-scrollbar { width: 4px; display: block; }
+      .popup-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+      .popup-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
     </style>
 </head>
 <body class="bg-slate-100 flex items-center justify-center antialiased">
@@ -117,28 +121,268 @@
 
         <!-- Footer Navigation Section (Fixed Bottom) -->
         <div class="p-3 bg-white border-t border-slate-100 shrink-0 grid grid-cols-2 gap-2">
-            <a href="managefoodgroups.html" 
-               class="bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-bold py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md no-underline text-center transition">
-                ➕ จัดการกลุ่มอาหาร
-            </a>
-            <a href="admin_index.html" 
-               class="bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-bold py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md no-underline text-center transition">
-                🔑 เมนูผู้ดูแล
+            <button type="button" onclick="openManageGroupModal()" 
+               class="bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-bold py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer">
+                📁 จัดการกลุ่มอาหาร
+            </button>
+            <a href="index.html" 
+               class="bg-rose-500 hover:bg-rose-600 active:scale-95 text-white font-bold py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md no-underline text-center transition">
+                🏠 หน้าหลัก
             </a>
         </div>
 
     </div>
 
-    <!-- Modal Frame Container for managemenupopup.html -->
-    <div id="popupModalWrapper" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2">
-        <iframe id="menuPopupFrame" class="w-full h-full border-none" style="display:none;"></iframe>
+    <!-- Modal 1: managemenupopup (แสดงรายการอาหารและตารางราคา) -->
+    <div id="popupModalWrapper" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2">
+        <div onclick="event.stopPropagation()" class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border-4 border-blue-600 overflow-hidden flex flex-col max-h-[90vh] z-10">
+            
+            <div class="bg-slate-700 text-white p-4 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">📁</span>
+                    <h3 id="groupNameTitle" class="font-bold text-lg text-amber-300">กำลังโหลด...</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openAddMenuModal()" class="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1 shadow transition cursor-pointer">
+                        <span>➕</span> เมนู
+                    </button>
+                    <button onclick="closeManageMenuModal()" class="bg-slate-600 hover:bg-slate-500 text-slate-200 rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg active:scale-95 transition cursor-pointer">
+                        ✕
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-blue-600 text-white font-bold text-xs py-2.5 px-3 grid grid-cols-12 gap-1 items-center text-center shrink-0">
+                <div class="col-span-6 text-left pl-2">รายการอาหาร</div>
+                <div class="col-span-2">ชาวบ้าน</div>
+                <div class="col-span-2">นักท่องเที่ยว</div>
+                <div class="col-span-2">สบายดี</div>
+            </div>
+
+            <div id="foodListContainer" class="flex-1 overflow-y-auto p-2 space-y-1 bg-slate-50 popup-scrollbar">
+                <div class="text-center py-8 text-slate-400 text-xs">⏳ กำลังโหลดรายการอาหาร...</div>
+            </div>
+
+            <div class="p-3 bg-white border-t border-slate-100 shrink-0">
+                <button onclick="closeManageMenuModal()" class="w-full bg-slate-700 hover:bg-slate-800 text-white font-bold py-3 rounded-2xl text-sm shadow active:scale-[0.98] transition cursor-pointer">
+                    ปิดหน้าต่าง
+                </button>
+            </div>
+
+        </div>
     </div>
 
-    <!-- External JS Files -->
-    <script src="key.js"></script>
-    <script src="managecategorypopup.js"></script>
+    <!-- Modal 2: managemenueditpopup (แก้ไขชื่อ ย้ายกลุ่ม และลบเมนู) -->
+    <div id="editModalWrapper" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+        <div onclick="event.stopPropagation()" class="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col p-4 space-y-3 relative max-h-[90vh]">
+            
+            <div class="flex justify-between items-center border-b border-slate-100 pb-2.5 shrink-0">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                    ✏️ แก้ไขชื่อและย้ายกลุ่มเมนู
+                </h3>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 font-bold text-base w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 transition cursor-pointer">✕</button>
+            </div>
+
+            <div class="space-y-3 overflow-y-auto pr-0.5 popup-scrollbar">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 mb-1 uppercase tracking-wide">ชื่อรายการอาหาร</label>
+                    <input type="text" id="foodNameInput" placeholder="กรอกชื่ออาหารใหม่" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 mb-1.5 uppercase tracking-wide">กลุ่ม / หมวดหมู่อาหาร</label>
+                    <div id="groupGridContainer" class="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto p-1 bg-slate-50 border border-slate-200/80 rounded-2xl popup-scrollbar">
+                        <div class="col-span-2 text-center text-xs text-slate-400 py-4 font-medium">⏳ กำลังโหลดหมวดหมู่...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 pt-1 shrink-0 border-t border-slate-100">
+                <button onclick="deleteFoodData()" type="button" class="bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold px-3 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1 shrink-0 shadow-md transition cursor-pointer" title="ลบรายการอาหารนี้">
+                    🗑️ <span>ลบ</span>
+                </button>
+                <button onclick="closeEditModal()" type="button" class="flex-1 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition text-center cursor-pointer">
+                    ยกเลิก
+                </button>
+                <button onclick="saveFoodData()" type="button" class="flex-1 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-2.5 rounded-xl text-xs shadow-md transition text-center cursor-pointer">
+                    บันทึก
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal 3: addmenupopup (ดีไซน์เดิมจาก addmenupopup.html ปรับสไตล์ขอบแดง 3D UI) -->
+    <div id="addModalWrapper" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3">
+        <div onclick="event.stopPropagation()" class="w-full max-w-sm bg-white rounded-3xl p-5 border-4 border-red-500 relative z-10 shadow-2xl">
+            
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl text-blue-600 font-extrabold flex items-center justify-center">➕</span>
+                    <h2 class="text-base font-extrabold text-slate-800 tracking-tight">เพิ่มเมนูอาหารใหม่</h2>
+                </div>
+                <button type="button" onclick="closeAddMenuModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold leading-none p-1 transition">&times;</button>
+            </div>
+
+            <!-- ฟอร์มกรอกข้อมูล -->
+            <form id="addMenuForm" onsubmit="saveNewMenuData(event)" class="space-y-4">
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">หมวดหมู่:</label>
+                        <input type="text" id="addCategoryDisplay" readonly value="กำลังโหลด..." 
+                               class="w-full bg-slate-100 border border-slate-200 rounded-2xl px-3 py-2.5 text-xs font-bold text-slate-600 outline-none truncate">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                            ชื่อเมนูอาหาร <span class="text-rose-500 font-bold">*</span>
+                        </label>
+                        <input type="text" id="addFoodNameInput" required placeholder="เช่น กะเพราไก่, ต้มยำกุ้ง" 
+                               class="w-full border border-blue-400 focus:border-blue-600 rounded-2xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-300 transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">ราคา (บาท):</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <span class="block text-[11px] font-bold text-slate-500 text-center mb-1">ชาวบ้าน</span>
+                            <input type="number" id="addPrice2Input" min="0" step="any" placeholder="0" 
+                                   class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-center text-xs font-extrabold text-slate-700 outline-none focus:bg-white focus:border-blue-500 transition">
+                        </div>
+                        <div>
+                            <span class="block text-[11px] font-bold text-slate-500 text-center mb-1">นักท่องเที่ยว</span>
+                            <input type="number" id="addPrice1Input" min="0" step="any" placeholder="0" 
+                                   class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-center text-xs font-extrabold text-slate-700 outline-none focus:bg-white focus:border-blue-500 transition">
+                        </div>
+                        <div>
+                            <span class="block text-[11px] font-bold text-slate-500 text-center mb-1">สบายดี</span>
+                            <input type="number" id="addPrice3Input" min="0" step="any" placeholder="0" 
+                                   class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-center text-xs font-extrabold text-slate-700 outline-none focus:bg-white focus:border-blue-500 transition">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-2 grid grid-cols-2 gap-2">
+                    <button type="button" onclick="closeAddMenuModal()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-2xl text-xs transition">
+                        ยกเลิก
+                    </button>
+                    <button type="submit" id="btnSubmitAddMenu" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-extrabold py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 transition">
+                        <span>✓</span> บันทึกเมนู
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 4: Manage Category Modal (จัดการกลุ่มรายการอาหาร) -->
+    <div id="manageGroupModalWrapper" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+        <div onclick="event.stopPropagation()" class="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col p-4 space-y-3 relative max-h-[85vh]">
+            
+            <div class="flex justify-between items-center border-b border-slate-100 pb-2 shrink-0">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                    📁 จัดการกลุ่มรายการอาหาร
+                </h3>
+                <button onclick="closeManageGroupModal()" class="text-slate-400 hover:text-slate-600 font-bold text-base w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 transition cursor-pointer">✕</button>
+            </div>
+
+            <!-- ฟอร์มเพิ่มกลุ่มรายการ -->
+            <div class="bg-slate-50 p-2 rounded-2xl border border-slate-200 shrink-0">
+                <div class="flex gap-2">
+                    <input type="text" id="addCategoryInput" placeholder="กรอกชื่อกลุ่มรายการ..." class="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none bg-white focus:border-indigo-500 transition font-medium">
+                    <button type="button" onclick="handleSaveCategoryAction()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer shadow-xs active:scale-95">
+                        เพิ่ม
+                    </button>
+                </div>
+            </div>
+
+            <div class="text-[11px] font-bold text-slate-500 flex items-center justify-between shrink-0">
+                <span>📂 กลุ่มรายการอาหารทั้งหมด:</span>
+                <span class="text-[10px] text-slate-400 font-normal">*แตะที่ชื่อเพื่อแก้ไข</span>
+            </div>
+
+            <!-- รายการหมวดหมู่ -->
+            <div id="categoryListContainer" class="flex-1 overflow-y-auto space-y-1.5 pr-1 popup-scrollbar">
+                <div class="text-center text-slate-400 text-xs py-8">⏳ กำลังโหลดกลุ่มรายการ...</div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 shrink-0">
+                <button onclick="closeManageGroupModal()" type="button" class="w-full bg-slate-700 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs transition text-center cursor-pointer">
+                    ปิด
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 5: Custom Alert Modal -->
+    <div id="customAlertModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 hidden z-50">
+        <div onclick="event.stopPropagation()" class="bg-white w-full max-w-xs rounded-3xl shadow-2xl p-5 text-center space-y-3">
+            <div id="alertIconContainer" class="w-12 h-12 rounded-full flex items-center justify-center mx-auto text-2xl">
+                ⚠️
+            </div>
+            <div>
+                <h3 id="alertTitle" class="font-bold text-sm text-slate-800">แจ้งเตือน</h3>
+                <p id="alertMessageText" class="text-xs text-slate-600 mt-1 font-medium leading-relaxed"></p>
+            </div>
+            <div class="pt-1">
+                <button onclick="closeModal('customAlertModal')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer">
+                    ตกลง
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 6: Edit Category Modal (แก้ไขชื่อกลุ่ม) -->
+    <div id="editCategoryModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 hidden z-50">
+        <div onclick="event.stopPropagation()" class="bg-white w-full max-w-xs rounded-3xl shadow-2xl p-5 text-left space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                    <span>✏️</span> แก้ไขชื่อกลุ่มรายการ
+                </h3>
+                <button onclick="closeModal('editCategoryModal')" class="text-slate-400 hover:text-slate-600 text-sm font-bold cursor-pointer">✕</button>
+            </div>
+            
+            <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1.5">ชื่อกลุ่มรายการใหม่:</label>
+                <input type="text" id="editCategoryNameInput" placeholder="เช่น ส้มตำ / ลาบ" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none bg-slate-50 focus:bg-white focus:border-indigo-500 font-bold text-slate-800 transition">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1">
+                <button onclick="closeModal('editCategoryModal')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer">
+                    ยกเลิก
+                </button>
+                <button onclick="handleUpdateCategory()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer">
+                    บันทึก
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 7: Delete Category Modal (ยืนยันลบกลุ่ม) -->
+    <div id="deleteCategoryModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 hidden z-50">
+        <div onclick="event.stopPropagation()" class="bg-white w-full max-w-xs rounded-3xl shadow-2xl p-5 text-center space-y-3">
+            <div class="w-12 h-12 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
+                ⚠️
+            </div>
+            <div>
+                <h3 class="font-black text-base text-slate-800">ยืนยันการลบ?</h3>
+                <p class="text-xs text-slate-500 mt-1">คุณต้องการลบกลุ่มรายการ <span id="deleteTargetCategoryName" class="font-bold text-rose-600">""</span> ใช่หรือไม่?</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-2">
+                <button onclick="closeModal('deleteCategoryModal')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer">
+                    ยกเลิก
+                </button>
+                <button onclick="confirmExecuteDeleteCategory()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer">
+                    ลบกลุ่มรายการ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Core Logic -->
     <script>
-        // ป้องกันการซูมหน้าจอด้วยนิ้ว
+        // ป้องกัน Gesture & Zoom
         document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
         document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
         document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
@@ -150,57 +394,93 @@
             lastTouchEnd = now;
         }, { passive: false });
 
-        document.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 1) e.preventDefault();
-        }, { passive: false });
-
         let db;
         let menus = [];
         let foodGroups = []; 
+        let currentGroupId = null;
+        let currentGroupName = '';
+        
+        let editingFoodId = null;
+        let selectedGroupIdForEdit = null;
+        let activeEditingCategoryId = null;
+        let activeDeletingCategoryId = null;
+
         const categoryIcons = ['🍱', '🍲', '🍳', '🍚', '🥩', '⭐', '🥗', '🛍️', '🍽️', '🥢', '🍹'];
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            // เพิ่มการดักจับการคลิกนอก Pop-up Wrapper เพื่อปิดตัวเอง
-            setupOutsideClickClose();
-
-            try {
-                if (window.supabaseClient) {
-                    db = window.supabaseClient;
-                } else if (typeof supabaseClient !== 'undefined') {
-                    db = supabaseClient;
-                } else if (typeof supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_KEY !== 'undefined') {
-                    db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                }
-            } catch (e) {
-                console.error("Supabase Init Error:", e);
+        function getDbClient() {
+            if (db) return db;
+            if (typeof window.supabaseClient !== 'undefined') {
+                db = window.supabaseClient;
+            } else if (typeof supabaseClient !== 'undefined') {
+                db = supabaseClient;
             }
+            return db;
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            setupOutsideClickClose();
+            db = getDbClient();
 
             if (db) {
-                if (typeof ManageCategoryPopup !== 'undefined' && ManageCategoryPopup.init) {
-                    ManageCategoryPopup.init(db, () => loadAllData());
-                }
                 await loadAllData();
             } else {
-                document.getElementById('quickNavContainer').innerHTML = `<div class="col-span-2 text-center w-full text-rose-500 text-xs py-10 font-medium">❌ ไม่สามารถเชื่อมต่อฐานข้อมูลได้ (โปรดตรวจสอบ key.js)</div>`;
+                document.getElementById('quickNavContainer').innerHTML = `<div class="col-span-2 text-center w-full text-rose-500 text-xs py-10 font-medium">❌ ไม่สามารถเชื่อมต่อฐานข้อมูลได้ (โปรดตรวจสอบ supabaseClient.js)</div>`;
             }
         });
 
-        // ฟังก์ชันตั้งค่าให้ปิด Pop-up เมื่อกดพื้นที่ภายนอก
         function setupOutsideClickClose() {
-            const wrapper = document.getElementById('popupModalWrapper');
-            wrapper.addEventListener('click', (e) => {
-                // หากแตะตรงพื้นที่สีดำรอบป๊อปอัพ (popupModalWrapper) ให้ปิดทันที
-                if (e.target.id === 'popupModalWrapper') {
-                    closeManageMenuIframe();
-                }
-            });
+            const modals = [
+                { id: 'popupModalWrapper', closeFn: closeManageMenuModal },
+                { id: 'editModalWrapper', closeFn: closeEditModal },
+                { id: 'addModalWrapper', closeFn: closeAddMenuModal },
+                { id: 'manageGroupModalWrapper', closeFn: closeManageGroupModal },
+                { id: 'customAlertModal', closeFn: () => closeModal('customAlertModal') },
+                { id: 'editCategoryModal', closeFn: () => closeModal('editCategoryModal') },
+                { id: 'deleteCategoryModal', closeFn: () => closeModal('deleteCategoryModal') }
+            ];
 
-            // ดักรับสัญญาณสั่งปิดป๊อปอัพจาก Iframe ด้านใน (managemenupopup.html)
-            window.addEventListener('message', (event) => {
-                if (event.data && (event.data.action === 'closePopup' || event.data.action === 'closeManageMenu')) {
-                    closeManageMenuIframe();
+            modals.forEach(m => {
+                const el = document.getElementById(m.id);
+                if (el) {
+                    el.addEventListener('click', (e) => {
+                        if (e.target.id === m.id) m.closeFn();
+                    });
                 }
             });
+        }
+
+        function openModal(id) {
+            document.getElementById(id)?.classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id)?.classList.add('hidden');
+            if (id === 'editCategoryModal') activeEditingCategoryId = null;
+            if (id === 'deleteCategoryModal') activeDeletingCategoryId = null;
+        }
+
+        function showAlertModal(message, type = 'warning') {
+            const iconContainer = document.getElementById('alertIconContainer');
+            const titleEl = document.getElementById('alertTitle');
+            const textEl = document.getElementById('alertMessageText');
+
+            textEl.textContent = message;
+
+            if (type === 'error') {
+                iconContainer.className = 'w-12 h-12 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto text-2xl';
+                iconContainer.textContent = '❌';
+                titleEl.textContent = 'เกิดข้อผิดพลาด';
+            } else if (type === 'success') {
+                iconContainer.className = 'w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-2xl';
+                iconContainer.textContent = '✅';
+                titleEl.textContent = 'สำเร็จ';
+            } else {
+                iconContainer.className = 'w-12 h-12 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto text-2xl';
+                iconContainer.textContent = '⚠️';
+                titleEl.textContent = 'แจ้งเตือน';
+            }
+
+            openModal('customAlertModal');
         }
 
         async function loadAllData() {
@@ -220,24 +500,21 @@
 
                 const specialCategories = ['เมนูพิเศษ', 'ลูกค้าฝากซื้อ'];
 
-                // เรียงหมวดหมู่ตาม ก-ฮ ภาษาไทย และดันหมวดหมู่พิเศษไว้ท้ายสุด
                 foodGroups = rawGroups.sort((a, b) => {
                     const isASpecial = specialCategories.includes(a.name);
                     const isBSpecial = specialCategories.includes(b.name);
 
                     if (isASpecial && !isBSpecial) return 1;
                     if (!isASpecial && isBSpecial) return -1;
-
-                    if (isASpecial && isBSpecial) {
-                        return specialCategories.indexOf(a.name) - specialCategories.indexOf(b.name);
-                    }
+                    if (isASpecial && isBSpecial) return specialCategories.indexOf(a.name) - specialCategories.indexOf(b.name);
 
                     return a.name.localeCompare(b.name, 'th');
                 });
 
                 renderQuickNav();
+                renderCategoryList();
             } catch (err) {
-                console.error("Error loading price editor data:", err);
+                console.error("Error loading data:", err);
                 document.getElementById('quickNavContainer').innerHTML = `<div class="col-span-2 text-center w-full text-rose-500 text-xs py-10 font-medium">เกิดข้อผิดพลาดในการโหลดข้อมูล: ${err.message}</div>`;
             }
         }
@@ -264,23 +541,332 @@
             });
         }
 
-        function openCategoryPriceModalHTML(cat) {
-            const wrapper = document.getElementById('popupModalWrapper');
-            const iframe = document.getElementById('menuPopupFrame');
-            
-            iframe.style.display = 'block';
-            iframe.src = `managemenupopup.html?groupId=${cat.id}&groupName=${encodeURIComponent(cat.name)}`;
-            wrapper.classList.remove('hidden');
+        // ==========================================
+        // Modal 1: แสดงรายการอาหารและแก้ไขราคา
+        // ==========================================
+        async function openCategoryPriceModalHTML(cat) {
+            currentGroupId = cat.id;
+            currentGroupName = cat.name;
+
+            document.getElementById('groupNameTitle').textContent = currentGroupName;
+            openModal('popupModalWrapper');
+
+            await loadCategoryFoods();
         }
 
-        function closeManageMenuIframe() {
-            const wrapper = document.getElementById('popupModalWrapper');
-            const iframe = document.getElementById('menuPopupFrame');
-            
-            wrapper.classList.add('hidden');
-            iframe.removeAttribute('src');
-            iframe.style.display = 'none';
+        async function loadCategoryFoods() {
+            const container = document.getElementById('foodListContainer');
+            container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">⏳ กำลังโหลดรายการอาหาร...</div>`;
+
+            try {
+                const { data: foods, error } = await db
+                    .from('foods')
+                    .select('*')
+                    .eq('group_id', currentGroupId)
+                    .order('name', { ascending: true });
+
+                if (error) throw error;
+                renderFoodRows(foods || []);
+            } catch (err) {
+                console.error("Error loading foods:", err);
+                container.innerHTML = `<div class="text-center py-8 text-rose-500 text-xs">เกิดข้อผิดพลาด: ${err.message}</div>`;
+            }
+        }
+
+        function renderFoodRows(foods) {
+            const container = document.getElementById('foodListContainer');
+            container.innerHTML = '';
+
+            if (foods.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">ไม่มีรายการอาหารในหมวดหมู่นี้</div>`;
+                return;
+            }
+
+            foods.forEach(food => {
+                const row = document.createElement('div');
+                row.className = "bg-white px-2 py-1 rounded-lg shadow-2xs grid grid-cols-12 gap-1 items-center";
+                const safeName = food.name.replace(/'/g, "\\'");
+
+                row.innerHTML = `
+                    <div class="col-span-6 flex items-center overflow-hidden pr-1 gap-1.5">
+                        <button onclick="directDeleteFood(${food.id}, '${safeName}')" 
+                                type="button" 
+                                class="w-5 h-5 flex items-center justify-center rounded-full bg-rose-100 hover:bg-rose-200 text-rose-600 font-bold text-[10px] shrink-0 transition active:scale-90 cursor-pointer" 
+                                title="ลบรายการนี้">
+                            ✕
+                        </button>
+                        <span onclick="openEditMenuModal(${food.id}, '${safeName}', ${food.group_id || currentGroupId})" 
+                              class="font-bold text-slate-800 text-xs truncate cursor-pointer hover:text-indigo-600 active:scale-95 transition flex items-center gap-1 group" 
+                              title="แตะเพื่อแก้ไขชื่อหรือย้ายกลุ่ม">
+                            <span class="truncate">${food.name}</span>
+                        </span>
+                    </div>
+                    <div class="col-span-2">
+                        <input type="number" value="${food.price_2 || 0}" onchange="updatePrice(${food.id}, 'price_2', this.value)" 
+                            class="w-full text-center font-bold text-slate-700 text-xs bg-slate-50 border border-slate-200 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    </div>
+                    <div class="col-span-2">
+                        <input type="number" value="${food.price_1 || 0}" onchange="updatePrice(${food.id}, 'price_1', this.value)" 
+                            class="w-full text-center font-bold text-slate-700 text-xs bg-slate-50 border border-slate-200 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    </div>
+                    <div class="col-span-2">
+                        <input type="number" value="${food.price_3 || 0}" onchange="updatePrice(${food.id}, 'price_3', this.value)" 
+                            class="w-full text-center font-bold text-slate-700 text-xs bg-slate-50 border border-slate-200 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        async function directDeleteFood(foodId, foodName) {
+            if (!confirm(`ต้องการลบเมนู "${foodName}" ใช่หรือไม่?`)) return;
+
+            try {
+                const { error } = await db.from('foods').delete().eq('id', foodId);
+                if (error) throw error;
+                loadCategoryFoods();
+            } catch (err) {
+                showAlertModal('ลบรายการไม่สำเร็จ: ' + err.message, 'error');
+            }
+        }
+
+        async function updatePrice(foodId, priceField, value) {
+            try {
+                const numVal = parseFloat(value) || 0;
+                const { error } = await db.from('foods').update({ [priceField]: numVal }).eq('id', foodId);
+                if (error) throw error;
+            } catch (err) {
+                showAlertModal('ไม่สามารถอัปเดตราคาได้: ' + err.message, 'error');
+            }
+        }
+
+        function closeManageMenuModal() {
+            closeModal('popupModalWrapper');
             loadAllData();
+        }
+
+        // ==========================================
+        // Modal 2: แก้ไขชื่อ ย้ายกลุ่มเมนู
+        // ==========================================
+        function openEditMenuModal(foodId, foodName, groupId) {
+            editingFoodId = foodId;
+            selectedGroupIdForEdit = groupId || currentGroupId;
+
+            document.getElementById('foodNameInput').value = foodName;
+            renderGroupGridForEdit();
+            openModal('editModalWrapper');
+        }
+
+        function renderGroupGridForEdit() {
+            const container = document.getElementById('groupGridContainer');
+            container.innerHTML = '';
+
+            foodGroups.forEach((group, index) => {
+                const icon = categoryIcons[index % categoryIcons.length];
+                const isSelected = String(group.id) === String(selectedGroupIdForEdit);
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `p-2 rounded-xl text-xs font-bold border text-center flex items-center justify-center gap-1.5 transition active:scale-95 min-h-[42px] cursor-pointer ${
+                    isSelected 
+                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs ring-2 ring-indigo-200' 
+                        : 'bg-white border-slate-200/90 text-slate-700 hover:bg-slate-100'
+                }`;
+
+                btn.innerHTML = `<span class="text-sm shrink-0">${icon}</span> <span class="truncate">${group.name}</span>`;
+                btn.onclick = () => {
+                    selectedGroupIdForEdit = group.id;
+                    renderGroupGridForEdit();
+                };
+
+                container.appendChild(btn);
+            });
+        }
+
+        async function saveFoodData() {
+            const newName = document.getElementById('foodNameInput').value.trim();
+            if (!newName) {
+                showAlertModal('กรุณากรอกชื่ออาหาร', 'warning');
+                return;
+            }
+
+            try {
+                const { error } = await db.from('foods').update({ name: newName, group_id: selectedGroupIdForEdit }).eq('id', editingFoodId);
+                if (error) throw error;
+                closeEditModal();
+            } catch (err) {
+                showAlertModal('อัปเดตไม่สำเร็จ: ' + err.message, 'error');
+            }
+        }
+
+        async function deleteFoodData() {
+            if (!editingFoodId) return;
+
+            try {
+                const { error } = await db.from('foods').delete().eq('id', editingFoodId);
+                if (error) throw error;
+                closeEditModal();
+            } catch (err) {
+                showAlertModal('ลบรายการไม่สำเร็จ: ' + err.message, 'error');
+            }
+        }
+
+        function closeEditModal() {
+            closeModal('editModalWrapper');
+            loadCategoryFoods();
+        }
+
+        // ==========================================
+        // Modal 3: เพิ่มเมนูใหม่ (จาก addmenupopup.html)
+        // ==========================================
+        function openAddMenuModal() {
+            document.getElementById('addCategoryDisplay').value = currentGroupName || 'ไม่ระบุกลุ่ม';
+            document.getElementById('addFoodNameInput').value = '';
+            document.getElementById('addPrice1Input').value = '';
+            document.getElementById('addPrice2Input').value = '';
+            document.getElementById('addPrice3Input').value = '';
+
+            openModal('addModalWrapper');
+        }
+
+        function closeAddMenuModal() {
+            closeModal('addModalWrapper');
+        }
+
+        async function saveNewMenuData(e) {
+            if (e) e.preventDefault();
+
+            const foodName = document.getElementById('addFoodNameInput').value.trim();
+            const priceTourist = parseFloat(document.getElementById('addPrice1Input').value) || 0;
+            const priceLocal = parseFloat(document.getElementById('addPrice2Input').value) || 0;
+            const priceSabaidee = parseFloat(document.getElementById('addPrice3Input').value) || 0;
+
+            if (!foodName) {
+                showAlertModal('กรุณากรอกชื่อเมนูอาหาร', 'warning');
+                return;
+            }
+
+            const btnSubmit = document.getElementById('btnSubmitAddMenu');
+            if (btnSubmit) btnSubmit.disabled = true;
+
+            try {
+                const { error } = await db.from('foods').insert([{
+                    name: foodName,
+                    group_id: currentGroupId,
+                    price_1: priceTourist,
+                    price_2: priceLocal,
+                    price_3: priceSabaidee
+                }]);
+
+                if (error) throw error;
+
+                closeAddMenuModal();
+                loadCategoryFoods();
+            } catch (err) {
+                showAlertModal('เกิดข้อผิดพลาดในการบันทึก: ' + err.message, 'error');
+            } finally {
+                if (btnSubmit) btnSubmit.disabled = false;
+            }
+        }
+
+        // ==========================================
+        // Modal 4: จัดการกลุ่มรายการอาหาร
+        // ==========================================
+        function openManageGroupModal() {
+            renderCategoryList();
+            openModal('manageGroupModalWrapper');
+        }
+
+        function closeManageGroupModal() {
+            closeModal('manageGroupModalWrapper');
+            loadAllData();
+        }
+
+        function renderCategoryList() {
+            const container = document.getElementById('categoryListContainer');
+            if (!container) return;
+
+            if (foodGroups.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-400 text-xs py-8">ไม่มีกลุ่มรายการอาหาร</div>`;
+                return;
+            }
+
+            container.innerHTML = foodGroups.map(c => `
+                <div class="flex items-center justify-between bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl px-3.5 py-2 transition shadow-2xs">
+                    <span onclick="openEditCategoryModal(${c.id}, '${c.name.replace(/'/g, "\\'")}')" class="font-bold text-xs text-slate-800 truncate cursor-pointer flex-1 py-0.5 hover:text-indigo-600 transition">
+                        📁 ${c.name}
+                    </span>
+                    <button onclick="openDeleteCategoryModal(${c.id}, '${c.name.replace(/'/g, "\\'")}')" class="w-6 h-6 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-full flex items-center justify-center text-xs font-bold transition shrink-0 ml-2 cursor-pointer" title="ลบหมวดหมู่">
+                        ✕
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function handleSaveCategoryAction() {
+            const input = document.getElementById('addCategoryInput');
+            const name = input.value.trim();
+
+            if (!name) {
+                showAlertModal('กรุณากรอกชื่อกลุ่มรายการอาหาร', 'warning');
+                return;
+            }
+
+            try {
+                const { error } = await db.from('food_groups').insert([{ name: name }]);
+                if (error) throw error;
+
+                input.value = '';
+                await loadAllData();
+            } catch (err) {
+                showAlertModal('ไม่สามารถเพิ่มกลุ่มรายการได้: ' + err.message, 'error');
+            }
+        }
+
+        function openEditCategoryModal(id, currentName) {
+            activeEditingCategoryId = id;
+            document.getElementById('editCategoryNameInput').value = currentName;
+            openModal('editCategoryModal');
+        }
+
+        async function handleUpdateCategory() {
+            if (!activeEditingCategoryId) return;
+
+            const newName = document.getElementById('editCategoryNameInput').value.trim();
+            if (!newName) {
+                showAlertModal('กรุณากรอกชื่อกลุ่มรายการอาหาร', 'warning');
+                return;
+            }
+
+            try {
+                const { error } = await db.from('food_groups').update({ name: newName }).eq('id', activeEditingCategoryId);
+                if (error) throw error;
+
+                closeModal('editCategoryModal');
+                await loadAllData();
+            } catch (err) {
+                showAlertModal('ไม่สามารถอัปเดตได้: ' + err.message, 'error');
+            }
+        }
+
+        function openDeleteCategoryModal(id, name) {
+            activeDeletingCategoryId = id;
+            document.getElementById('deleteTargetCategoryName').textContent = `"${name}"`;
+            openModal('deleteCategoryModal');
+        }
+
+        async function confirmExecuteDeleteCategory() {
+            if (!activeDeletingCategoryId) return;
+
+            try {
+                const { error } = await db.from('food_groups').delete().eq('id', activeDeletingCategoryId);
+                if (error) throw error;
+
+                closeModal('deleteCategoryModal');
+                await loadAllData();
+            } catch (err) {
+                showAlertModal('ไม่สามารถลบได้: ' + err.message, 'error');
+            }
         }
     </script>
 </body>
