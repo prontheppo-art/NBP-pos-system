@@ -8,17 +8,22 @@
     1. Auto-complete / Search Dropdown connected to Supabase 'customers' table.
     2. Duplicate word handling & prevention for customer names.
     3. Sort Cart Items alphabetically (ก-ฮ) using Thai locale comparison in the Preview List.
+    4. Pop-up Modal system with Outside Click Close support & Pre-loading before display.
+    5. Anti-zoom controls with scrolling enabled (Lock Zoom, Allow Scroll).
   - External Libraries (CDNs):
     1. Supabase JS SDK v2 (https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2)
     2. Tailwind CSS (https://cdn.tailwindcss.com)
   - Linked Local Files:
-    1. supabaseClient.js (ไฟล์เปิดใช้งาน Client เชื่อมต่อ Supabase DB)
+    1. supabaseClient.js (ไฟล์เปิดใช้งาน Client เชื่อมต่อ Supabase DB - เปลี่ยนจาก key.js)
+    2. orderentity.html (ลิงก์ย้อนกลับไปแก้ไข)
+    3. printorder.html (ลิงก์ปลายทางส่งออเดอร์ไปพิมพ์)
   ========================================================================
 -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
+    <!-- ข้อกำหนดข้อที่ 2: Viewport ป้องกัน Zoom -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <title>ตรวจสอบออเดอร์ - ลาบหนองบัวลำภู</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -32,12 +37,11 @@
             --success: #16a34a;
         }
 
-        /* ป้องกัน Body เลื่อน เพื่อให้ล็อคหัวล็อคท้ายสมบูรณ์แบบ */
+        /* ข้อกำหนดข้อที่ 2: ปล่อย Body/HTML ให้ Scroll ได้ตามธรรมชาติ ใช้ touch-action บล็อก Gesture Zoom */
         html, body {
             width: 100%;
             height: 100%;
-            overflow: hidden;
-            touch-action: none;
+            touch-action: pan-y;
             -webkit-text-size-adjust: 100%;
             background-color: var(--bg-color);
             color: #1e293b;
@@ -51,21 +55,24 @@
         .page-container {
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            min-height: 100vh;
             max-width: 672px;
             margin: 0 auto;
             box-sizing: border-box;
             background-color: var(--bg-color);
         }
 
-        /* --- 1. ล็อคส่วนหัว --- */
+        /* --- ข้อกำหนดข้อที่ 4: ล็อคส่วนหัว (Sticky Top) --- */
         .fixed-header-wrapper {
+            position: sticky;
+            top: 0;
             flex-shrink: 0;
             width: 100%;
             padding: 12px 12px 6px 12px;
             box-sizing: border-box;
             background-color: var(--bg-color);
-            z-index: 10;
+            z-index: 30;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
         }
 
         .group-btn-v2 {
@@ -127,13 +134,12 @@
             background-color: #fef3c7;
         }
 
-        /* --- 2. กรอบสีเหลืองยืดเต็มพื้นที่ตรงกลาง --- */
+        /* --- กรอบสีเหลืองกลาง --- */
         .main-content-box {
             flex: 1;
             display: flex;
             flex-direction: column;
-            min-height: 0;
-            padding: 0 12px 8px 12px;
+            padding: 6px 12px 12px 12px;
             gap: 6px;
         }
 
@@ -146,7 +152,6 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            min-height: 0;
             box-sizing: border-box;
         }
 
@@ -154,12 +159,9 @@
             flex-shrink: 0;
         }
 
-        /* ส่วนที่ Scroll ได้เฉพาะภายในตาราง */
+        /* ส่วนรายการสินค้า */
         .scrollable-items {
             flex: 1;
-            overflow-y: auto;
-            touch-action: pan-y;
-            -webkit-overflow-scrolling: touch;
             padding-right: 4px;
         }
 
@@ -190,8 +192,10 @@
             color: #b91c1c;
         }
 
-        /* --- 3. ล็อคส่วนท้าย --- */
+        /* --- ข้อกำหนดข้อที่ 4: ล็อคส่วนท้าย (Sticky Bottom) --- */
         .fixed-footer-wrapper {
+            position: sticky;
+            bottom: 0;
             flex-shrink: 0;
             width: 100%;
             background: #ffffff;
@@ -199,27 +203,30 @@
             padding: 10px 12px;
             box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
             box-sizing: border-box;
-            z-index: 20;
+            z-index: 30;
         }
 
-        /* Modal Styles */
+        /* --- ข้อกำหนดข้อที่ 5: ดีไซน์ Pop-up Modal --- */
         .custom-modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(3px);
+            backdrop-filter: blur(4px);
             display: none;
             align-items: center;
             justify-content: center;
             z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
         }
 
         .custom-modal-overlay.active {
             display: flex !important;
+            opacity: 1;
         }
 
         .custom-modal-box {
-            background: white;
+            background: #ffffff;
             border-radius: 20px;
             padding: 20px;
             width: 92%;
@@ -227,15 +234,21 @@
             max-height: 85vh;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            transform: scale(0.95);
+            transition: transform 0.2s ease-in-out;
             touch-action: pan-y;
+        }
+
+        .custom-modal-overlay.active .custom-modal-box {
+            transform: scale(1);
         }
     </style>
 </head>
 <body>
 
 <div class="page-container">
-    <!-- ล็อคส่วนหัว -->
+    <!-- ล็อคส่วนหัว (Sticky Top) -->
     <div class="fixed-header-wrapper">
         <div id="locationSelectorWrapper"></div>
     </div>
@@ -265,7 +278,7 @@
         </div>
     </div>
 
-    <!-- ล็อคส่วนท้าย -->
+    <!-- ล็อคส่วนท้าย (Sticky Bottom) -->
     <div class="fixed-footer-wrapper">
         <div class="flex gap-2.5 max-w-2xl mx-auto">
             <a href="orderentity.html" class="bg-white hover:bg-gray-50 text-slate-800 border border-slate-300 font-bold py-3 px-3 rounded-xl text-xs flex-1 text-center shadow-sm transition flex items-center justify-center gap-1">
@@ -278,18 +291,18 @@
     </div>
 </div>
 
-<!-- Pop-up สถานที่ -->
+<!-- ข้อกำหนดข้อที่ 5: Pop-up สถานที่ (รองรับ Outside Click ปิด Pop-up โดยคงหน้าหลักไว้) -->
 <div id="locationModal" class="custom-modal-overlay" onclick="handleOutsideClick(event, 'locationModal')">
     <div class="custom-modal-box border-t-4 border-amber-500" onclick="event.stopPropagation()">
         <div class="flex justify-between items-center mb-3 pb-2 border-b">
             <h3 class="font-bold text-base text-slate-800 flex items-center gap-1.5">📍 เลือกสถานที่ / ที่พัก</h3>
-            <button onclick="closeModal('locationModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg px-1">✕</button>
+            <button onclick="closeModal('locationModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg px-2 py-1 rounded-lg hover:bg-gray-100 transition">✕</button>
         </div>
         <div id="locationGrid" class="grid grid-cols-2 gap-2 overflow-y-auto py-1 pr-1 max-h-[60vh]"></div>
     </div>
 </div>
 
-<!-- Pop-up โซน -->
+<!-- ข้อกำหนดข้อที่ 5: Pop-up โซน (รองรับ Outside Click ปิด Pop-up โดยคงหน้าหลักไว้) -->
 <div id="zoneModal" class="custom-modal-overlay" onclick="handleOutsideClick(event, 'zoneModal')">
     <div class="custom-modal-box border-t-4 border-blue-500" onclick="event.stopPropagation()">
         <div class="flex justify-between items-center mb-3 pb-2 border-b">
@@ -297,18 +310,22 @@
                 <h3 class="font-bold text-base text-slate-800 flex items-center gap-1.5">🏷️ เลือกโซน / ห้องพัก</h3>
                 <span id="zoneModalSubTitle" class="text-xs text-amber-600 font-semibold block"></span>
             </div>
-            <button onclick="closeModal('zoneModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg px-1">✕</button>
+            <button onclick="closeModal('zoneModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg px-2 py-1 rounded-lg hover:bg-gray-100 transition">✕</button>
         </div>
         <div id="zoneContainer" class="overflow-y-auto py-1 pr-1 max-h-[60vh] space-y-2"></div>
     </div>
 </div>
 
+<!-- ข้อกำหนดข้อที่ 1: เปลี่ยนจาก key.js เป็น supabaseClient.js -->
 <script src="supabaseClient.js"></script>
+
 <script>
-    // ป้องกัน Gesture Zoom
+    // ==========================================
+    // ข้อกำหนดข้อที่ 2: ป้องกัน GESTURE ZOOM (Pinch & Double-tap) แต่ยัง Scroll ได้
+    // ==========================================
     document.addEventListener('touchstart', function(event) {
         if (event.touches.length > 1) {
-            event.preventDefault();
+            event.preventDefault(); // บล็อกใช้นิ้วถ่างซูม
         }
     }, { passive: false });
 
@@ -316,12 +333,12 @@
     document.addEventListener('touchend', function(event) {
         const now = (new Date()).getTime();
         if (now - lastTouchEnd <= 300) {
-            event.preventDefault();
+            event.preventDefault(); // บล็อก Double-tap zoom
         }
         lastTouchEnd = now;
     }, false);
 
-    // Helper Function: ป้องกันและจัดการคำซ้ำ (เช่น "ชด ชด" -> "ชด")
+    // Helper Function: ป้องกันและจัดการคำซ้ำ (เช่น "ตาทอง ตาทอง" -> "ตาทอง")
     function removeDuplicateWords(text) {
         if (!text) return '';
         const parts = text.trim().split(/\s+/);
@@ -496,15 +513,17 @@
     function handleCustomerInput(val, showAll = false) {
         const dropdown = document.getElementById('customerDropdown');
         const btnClear = document.getElementById('btnClearCustomer');
-        const keyword = val.trim().toLowerCase();
+        
+        const cleanVal = removeDuplicateWords(val);
+        const keyword = cleanVal.toLowerCase();
 
-        if (keyword.length > 0) {
+        if (val.trim().length > 0) {
             btnClear.classList.remove('hidden');
         } else {
             btnClear.classList.add('hidden');
         }
 
-        localStorage.setItem('customerPhone', val);
+        localStorage.setItem('customerPhone', cleanVal);
         notifyLocationUpdate();
 
         let matches = [];
@@ -512,7 +531,8 @@
             matches = [...customersList];
         } else if (keyword !== '') {
             matches = customersList.filter(c => {
-                return c.name_phone && c.name_phone.toLowerCase().includes(keyword);
+                const cleanName = removeDuplicateWords(c.name_phone || '').toLowerCase();
+                return cleanName.includes(keyword);
             });
         }
 
@@ -528,7 +548,6 @@
             const item = document.createElement('div');
             item.className = 'customer-dropdown-item';
             
-            // กรองเอาข้อความที่ตัดคำซ้ำออก
             const cleanName = removeDuplicateWords(cust.name_phone || '');
 
             item.innerHTML = `
@@ -560,12 +579,13 @@
         selectedCustomerObj = cust;
         const input = document.getElementById('customerInput');
         
-        input.value = cust.cleanName || removeDuplicateWords(cust.name_phone || '');
+        const cleanName = cust.cleanName || removeDuplicateWords(cust.name_phone || '');
+        input.value = cleanName;
         
         document.getElementById('customerDropdown').classList.remove('active');
         document.getElementById('btnClearCustomer').classList.remove('hidden');
         
-        localStorage.setItem('customerPhone', input.value);
+        localStorage.setItem('customerPhone', cleanName);
         notifyLocationUpdate();
     }
 
@@ -674,10 +694,13 @@
     }
 
     function notifyLocationUpdate() {
+        const rawCustInput = document.getElementById('customerInput')?.value || '';
+        const cleanCustInput = removeDuplicateWords(rawCustInput);
+
         locationData = {
             groupId: Number(document.getElementById('customerGroupSelect')?.value) || 1,
             groupName: document.getElementById('selectedGroupName')?.value || '',
-            phone: document.getElementById('customerInput')?.value || '',
+            phone: cleanCustInput,
             locationName: document.getElementById('selectedLocationName')?.value || '',
             zoneName: document.getElementById('selectedZoneName')?.value || ''
         };
@@ -686,13 +709,16 @@
     }
 
     // ==========================================
-    // 2. MODAL CONTROLLER FUNCTIONS
+    // 2. MODAL CONTROLLER FUNCTIONS (ข้อกำหนดข้อที่ 5)
     // ==========================================
+    
+    // โหลด Render ข้อมูลเข้า Pop-up ก่อนเปิดแสดงผล
     function openLocationModal(locationsData) {
         closeAllModals();
         const grid = document.getElementById('locationGrid');
         grid.innerHTML = '';
 
+        // Pre-load / Render ข้อมูลก่อนเปิด
         locationsData.forEach(loc => {
             let icon = '🏨';
             if (loc.name.includes('บาหลี')) icon = '🏝️';
@@ -711,9 +737,11 @@
             grid.appendChild(btn);
         });
 
+        // เมื่อเตรียมข้อมูลเสร็จแล้วจึงแสดง Pop-up ขึ้นมา
         openModal('locationModal');
     }
 
+    // โหลด Render ข้อมูลโซนเข้า Pop-up ก่อนเปิดแสดงผล
     function openZoneModal(loc, zonesData) {
         tempSelectedLocation = loc;
         document.getElementById('zoneModalSubTitle').innerText = `📍 สถานที่: ${loc.name}`;
@@ -767,6 +795,7 @@
             }
         }
 
+        // เมื่อเตรียมข้อมูลเสร็จแล้วจึงแสดง Pop-up ขึ้นมา
         openModal('zoneModal');
     }
 
@@ -788,8 +817,11 @@
         closeModal('zoneModal');
     }
 
+    // ปิด Pop-up เมื่อคลิกภายนอกกรอบ Pop-up โดยคงหน้าหลักเดิมไว้
     function handleOutsideClick(e, id) {
-        if (e.target.id === id) closeModal(id);
+        if (e.target.id === id) {
+            closeModal(id);
+        }
     }
 
     // ==========================================
@@ -979,26 +1011,32 @@
     // 4. MAIN ACTION & SUBMIT ORDER
     // ==========================================
     async function ensureCustomerSaved(inputValue) {
-        // ทำการลบคำที่ซ้ำกันออกก่อนประมวลผล
         const val = removeDuplicateWords(inputValue);
         if (!val) return null;
 
-        if (selectedCustomerObj) return selectedCustomerObj;
+        if (selectedCustomerObj) {
+            return {
+                ...selectedCustomerObj,
+                cleanName: removeDuplicateWords(selectedCustomerObj.name_phone || val)
+            };
+        }
 
-        // ค้นหาในลูกค้าที่มีอยู่แล้ว
         const existing = customersList.find(c => {
             const cleanCustName = removeDuplicateWords(c.name_phone || '');
             return cleanCustName.toLowerCase() === val.toLowerCase();
         });
 
-        if (existing) return existing;
+        if (existing) {
+            return {
+                ...existing,
+                cleanName: removeDuplicateWords(existing.name_phone || val)
+            };
+        }
 
         try {
             if (typeof supabaseClient !== 'undefined') {
-                // ส่งเฉพาะค่า val ที่ตัดคำซ้ำแล้วบันทึกลง Supabase
                 const newCustPayload = {
-                    name_phone: val,
-                    created_at: new Date().toISOString()
+                    name_phone: val
                 };
 
                 const { data, error } = await supabaseClient
@@ -1009,14 +1047,17 @@
 
                 if (!error && data) {
                     customersList.push(data);
-                    return data;
+                    return {
+                        ...data,
+                        cleanName: val
+                    };
                 }
             }
         } catch (err) {
             console.error('Error inserting new customer:', err);
         }
 
-        return { name_phone: val };
+        return { name_phone: val, cleanName: val };
     }
 
     async function submitOrder() {
@@ -1027,7 +1068,6 @@
 
         const rawCustomerInput = document.getElementById('customerInput')?.value || '';
         
-        // บันทึกลูกค้าและรับค่าข้อความที่สะอาดเรียบร้อย
         const customerInfo = await ensureCustomerSaved(rawCustomerInput);
         const customerDisplayName = customerInfo ? (customerInfo.cleanName || removeDuplicateWords(customerInfo.name_phone || '')) : removeDuplicateWords(rawCustomerInput);
 
@@ -1036,7 +1076,7 @@
             groupId: locationData.groupId,
             groupName: locationData.groupName,
             customerName: customerDisplayName,
-            customerPhone: customerDisplayName,
+            customerPhone: '',
             customerId: customerInfo ? customerInfo.id : null,
             orderNote: '',
             locationName: locationData.locationName,

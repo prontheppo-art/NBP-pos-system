@@ -1,7 +1,7 @@
 <!--
   ========================================
   [File Note]
-  - File Name: reportsummary.html
+  - File Name: reportsales.html
   - Included JavaScript: supabaseClient.js, slender.js
   - Links: report_index.html
   ========================================
@@ -156,8 +156,9 @@
             return cleaned;
         }
 
+        // ปรับปรุงฟังก์ชันดึงวันที่โดยไม่อ้างอิง created_at
         function getOrderDateStr(order) {
-            const rawDate = order.order_date || order.created_at;
+            const rawDate = order.order_date || order.updated_at || order.date;
             if (!rawDate) return '';
             
             if (typeof rawDate === 'string') {

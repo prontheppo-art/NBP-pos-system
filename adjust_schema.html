@@ -1,0 +1,514 @@
+<!--
+======================================================================
+[File Note]
+- File Name: adjust_schema.html
+- Description: เครื่องมือบริหารจัดการข้อมูล Supabase สำหรับตรวจสอบข้อมูลในตาราง, 
+               ล้างข้อมูล (Truncate) พร้อมสร้างคำสั่ง SQL สำหรับรีเซ็ต ID และ
+               ส่งออกโครงสร้างฐานข้อมูลเป็นไฟล์ schema.sql
+- Updates:
+  1. เพิ่มการเรียงลำดับ ID จากน้อยไปมาก (.order('id', { ascending: true })) ในการดึงข้อมูลทุกตาราง
+  2. ลบคอลัมน์ created_at ออกจาก Schema Generator สำหรับทุกตาราง (ยกเว้นตาราง orders)
+- Features:
+  1. ดึงข้อมูลทุกตาราง: แสดงผลตารางแบบ Dynamic เรียงลำดับ ID จากน้อยไปมาก
+  2. เคลียร์ดาต้า & รีเซ็ต ID: ลบข้อมูลในตาราง พร้อมเจนโค้ด TRUNCATE TABLE ... RESTART IDENTITY
+  3. คัดลอก SQL แบบเงียบ (Silent Copy): กดคัดลอกลง Clipboard ทันที ไม่มี Pop-up มาขัดจังหวะ
+  4. ส่งออก Schema: สร้างและดาวน์โหลดไฟล์ schema.sql อัตโนมัติ (ข้าม created_at ยกเว้น orders)
+  5. UI Display Lock: ล็อกขนาดการแสดงผล ห้ามซูมเข้า-ซูมออก (User-Scalable Disabled)
+- External Libraries (CDNs):
+  1. Tailwind CSS (https://cdn.tailwindcss.com)
+  2. Supabase JS SDK v2 (https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2)
+- Linked Local Files:
+  1. supabaseClient.js (ไฟล์เปิดใช้งาน Client เชื่อมต่อ Supabase DB)
+======================================================================
+-->
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+  <title>Supabase - Data Explorer & SQL Exporter</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      background-color: #000000;
+      color: #ffffff;
+      touch-action: manipulation;
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.92) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .animate-modal {
+      animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    pre code {
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body class="min-h-screen p-6 relative">
+
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- Header & Controls -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl space-y-4">
+      <h1 class="text-xl font-bold text-emerald-400 flex items-center gap-2">
+        🔍 Supabase Data Explorer & SQL Exporter
+      </h1>
+      <p class="text-xs text-zinc-400">
+        ดึง จัดการ เคลียร์ข้อมูลทุกตาราง และแปลงเป็นไฟล์ <code class="text-amber-300">schema.sql</code>
+      </p>
+      
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-zinc-300">รายชื่อตาราง (คั่นด้วย ,)</label>
+        <input type="text" id="tablesInput" value="customers, orders, customer_groups, food_groups, foods, locations, zones" class="w-full bg-black border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-emerald-500">
+      </div>
+      
+      <!-- ปุ่มการทำงาน -->
+      <div class="flex flex-wrap gap-2">
+        <button onclick="fetchAllTablesData()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 shadow-lg">
+          🚀 ดึงข้อมูลทุกตารางทันที
+        </button>
+        <button onclick="exportDirectToSQL()" class="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 shadow-lg">
+          ⚡ ส่งออก Schema เป็น schema.sql
+        </button>
+        <button onclick="copySQLToClipboard()" id="copyBtn" disabled class="bg-zinc-800 text-zinc-600 font-bold px-4 py-2.5 rounded-xl text-xs transition cursor-not-allowed">
+          📋 คัดลอก SQL
+        </button>
+      </div>
+
+      <!-- กล่องแสดงผล SQL Preview -->
+      <div id="sqlPreviewContainer" class="hidden space-y-1">
+        <div class="flex justify-between items-center">
+          <label class="block text-xs font-semibold text-zinc-400">SQL Preview:</label>
+          <button onclick="copyCodeFromBlock('sqlOutput')" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] px-2.5 py-1 rounded-lg border border-zinc-700 transition">
+            📋 คัดลอกโค้ด SQL
+          </button>
+        </div>
+        <textarea id="sqlOutput" rows="6" readonly placeholder="คำสั่ง SQL จะแสดงที่นี่..." class="w-full bg-black border border-zinc-800 rounded-xl p-3 text-xs font-mono text-emerald-400 focus:outline-none resize-y"></textarea>
+      </div>
+      
+      <div id="statusText" class="text-xs font-semibold text-center text-zinc-400"></div>
+    </div>
+    
+    <!-- Container สำหรับแสดงผลตาราง -->
+    <div id="tablesContainer" class="space-y-8"></div>
+    
+  </div>
+
+  <!-- CUSTOM MODAL DIALOG BOX -->
+  <div id="customModalOverlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity duration-200">
+    <div class="bg-zinc-900 border border-zinc-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-5 animate-modal relative overflow-hidden">
+      
+      <div id="modalGlow" class="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/10 blur-2xl rounded-full pointer-events-none"></div>
+
+      <div class="flex items-start gap-4">
+        <div id="modalIconContainer" class="p-3 bg-zinc-800 rounded-xl shrink-0 text-2xl border border-zinc-700">
+          ⚠️
+        </div>
+        <div class="space-y-1">
+          <h3 id="modalTitle" class="text-base font-bold text-white leading-tight">แจ้งเตือนระบบ</h3>
+          <p id="modalSubtitle" class="text-xs text-zinc-400">การดำเนินการเสร็จสิ้น</p>
+        </div>
+      </div>
+
+      <div id="modalBody" class="text-xs text-zinc-300 bg-black/60 border border-zinc-800 rounded-xl p-3.5 leading-relaxed font-normal whitespace-pre-line">
+        ข้อความแจ้งเตือนจะแสดงที่นี่...
+      </div>
+
+      <div class="flex justify-end gap-2.5 pt-1">
+        <button id="modalCancelBtn" onclick="closeCustomModal(false)" class="hidden px-4 py-2 rounded-xl text-xs font-semibold text-zinc-300 bg-zinc-800 hover:bg-zinc-700 transition active:scale-95">
+          ยกเลิก
+        </button>
+        <button id="modalConfirmBtn" onclick="closeCustomModal(true)" class="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition active:scale-95 shadow-md">
+          ตกลง
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="supabaseClient.js"></script>
+  
+  <script>
+    let modalResolver = null;
+
+    function showCustomModal({ title, subtitle, message, type = 'info', isConfirm = false }) {
+      return new Promise((resolve) => {
+        modalResolver = resolve;
+
+        const overlay = document.getElementById('customModalOverlay');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalSubtitle = document.getElementById('modalSubtitle');
+        const modalBody = document.getElementById('modalBody');
+        const modalIcon = document.getElementById('modalIconContainer');
+        const modalGlow = document.getElementById('modalGlow');
+        const cancelBtn = document.getElementById('modalCancelBtn');
+        const confirmBtn = document.getElementById('modalConfirmBtn');
+
+        modalTitle.innerText = title || 'แจ้งเตือน';
+        modalSubtitle.innerText = subtitle || 'Supabase Data Explorer';
+        modalBody.innerHTML = message;
+
+        if (type === 'warning') {
+          modalIcon.innerHTML = '⚠️';
+          modalIcon.className = "p-3 bg-amber-500/10 text-amber-400 rounded-xl shrink-0 text-2xl border border-amber-500/30";
+          modalGlow.className = "absolute -top-12 -right-12 w-32 h-32 bg-amber-500/15 blur-2xl rounded-full pointer-events-none";
+          confirmBtn.className = "px-5 py-2 rounded-xl text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 transition active:scale-95 shadow-md";
+        } else if (type === 'danger') {
+          modalIcon.innerHTML = '🗑️';
+          modalIcon.className = "p-3 bg-rose-500/10 text-rose-400 rounded-xl shrink-0 text-2xl border border-rose-500/30";
+          modalGlow.className = "absolute -top-12 -right-12 w-32 h-32 bg-rose-500/15 blur-2xl rounded-full pointer-events-none";
+          confirmBtn.className = "px-5 py-2 rounded-xl text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 transition active:scale-95 shadow-md";
+        } else if (type === 'success') {
+          modalIcon.innerHTML = '✅';
+          modalIcon.className = "p-3 bg-emerald-500/10 text-emerald-400 rounded-xl shrink-0 text-2xl border border-emerald-500/30";
+          modalGlow.className = "absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/15 blur-2xl rounded-full pointer-events-none";
+          confirmBtn.className = "px-5 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition active:scale-95 shadow-md";
+        } else {
+          modalIcon.innerHTML = '💡';
+          modalIcon.className = "p-3 bg-blue-500/10 text-blue-400 rounded-xl shrink-0 text-2xl border border-blue-500/30";
+          modalGlow.className = "absolute -top-12 -right-12 w-32 h-32 bg-blue-500/15 blur-2xl rounded-full pointer-events-none";
+          confirmBtn.className = "px-5 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 transition active:scale-95 shadow-md";
+        }
+
+        if (isConfirm) {
+          cancelBtn.classList.remove('hidden');
+        } else {
+          cancelBtn.classList.add('hidden');
+        }
+
+        overlay.classList.remove('hidden');
+      });
+    }
+
+    function closeCustomModal(result) {
+      const overlay = document.getElementById('customModalOverlay');
+      overlay.classList.add('hidden');
+      if (modalResolver) {
+        modalResolver(result);
+        modalResolver = null;
+      }
+    }
+
+    async function fetchAllTablesData() {
+      const status = document.getElementById('statusText');
+      const container = document.getElementById('tablesContainer');
+      const tablesRaw = document.getElementById('tablesInput').value;
+      
+      const tableList = tablesRaw.split(',').map(t => t.trim()).filter(t => t.length > 0);
+      
+      if (tableList.length === 0) {
+        await showCustomModal({
+          title: 'ข้อผิดพลาด',
+          subtitle: 'กรุณาระบุข้อมูล',
+          message: 'กรุณาระบุชื่อตารางอย่างน้อย 1 ตารางในช่องป้อนข้อมูล',
+          type: 'warning'
+        });
+        return;
+      }
+      
+      status.innerHTML = "⏳ กำลังดึงข้อมูลจากทุกตาราง...";
+      container.innerHTML = "";
+      
+      let totalCount = 0;
+      
+      for (const tableName of tableList) {
+        try {
+          // เพิ่ม .order('id', { ascending: true }) เพื่อให้เรียงลำดับ ID จากน้อยไปหามาก
+          const { data, error } = await supabaseClient
+            .from(tableName)
+            .select('*')
+            .order('id', { ascending: true });
+          
+          if (error) {
+            renderErrorTable(tableName, error.message);
+            continue;
+          }
+          
+          renderTableData(tableName, data);
+          if (data) totalCount += data.length;
+          
+        } catch (err) {
+          renderErrorTable(tableName, err.message);
+        }
+      }
+      
+      status.innerHTML = `<span class="text-emerald-400">✅ ดึงข้อมูลสำเร็จทั้งหมดเรียบร้อยแล้ว (พบข้อมูลรวม ${totalCount} รายการ)</span>`;
+    }
+    
+    function renderTableData(tableName, rows) {
+      const container = document.getElementById('tablesContainer');
+      
+      const section = document.createElement('div');
+      section.className = "bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-lg space-y-3";
+      
+      const countText = rows ? rows.length : 0;
+      let html = `
+        <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
+            <div class="flex items-center gap-2">
+                <h2 class="text-base font-bold text-amber-400">📌 ตาราง: <span class="text-white">${tableName}</span></h2>
+                <span class="bg-zinc-800 text-zinc-300 text-xs px-2.5 py-1 rounded-full border border-zinc-700">${countText} รายการ</span>
+            </div>
+            <button onclick="clearTableData('${tableName}')" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition active:scale-95 flex items-center gap-1 shadow">
+                🗑️ เคลียร์ดาต้า & รีเซ็ต ID
+            </button>
+        </div>
+      `;
+      
+      if (!rows || rows.length === 0) {
+        html += `<p class="text-xs text-zinc-500 py-2 italic">-- ไม่มีข้อมูลในตารางนี้ --</p>`;
+      } else {
+        const headers = Object.keys(rows[0]);
+        
+        html += `
+          <div class="overflow-x-auto max-h-96">
+              <table class="w-full text-left text-xs border-collapse">
+                  <thead class="sticky top-0 bg-black text-emerald-400">
+                      <tr>
+                          ${headers.map(h => `<th class="p-2 border-b border-zinc-800 font-semibold uppercase tracking-wider">${h}</th>`).join('')}
+                      </tr>
+                  </thead>
+                  <tbody class="divide-y divide-zinc-800 text-zinc-300">
+        `;
+        
+        rows.forEach(row => {
+          html += `<tr class="hover:bg-zinc-800/50">`;
+          headers.forEach(h => {
+            let val = row[h];
+            if (typeof val === 'object' && val !== null) {
+              val = JSON.stringify(val);
+            }
+            html += `<td class="p-2 whitespace-nowrap font-mono text-[11px]">${val !== null && val !== undefined ? val : '<span class="text-zinc-600">NULL</span>'}</td>`;
+          });
+          html += `</tr>`;
+        });
+        
+        html += `
+                  </tbody>
+              </table>
+          </div>
+        `;
+      }
+      
+      section.innerHTML = html;
+      container.appendChild(section);
+    }
+
+    async function clearTableData(tableName) {
+      const confirmDelete = await showCustomModal({
+        title: 'ยืนยันการเคลียร์ข้อมูล',
+        subtitle: `ตาราง: ${tableName}`,
+        message: `คุณแน่ใจหรือไม่ว่าต้องการเคลียร์ข้อมูลทั้งหมดในตาราง <b>"${tableName}"</b> ?`,
+        type: 'danger',
+        isConfirm: true
+      });
+
+      if (!confirmDelete) return;
+
+      const status = document.getElementById('statusText');
+      status.innerHTML = `⏳ กำลังเคลียร์ข้อมูลตาราง ${tableName}...`;
+
+      try {
+        const { error: deleteError } = await supabaseClient
+          .from(tableName)
+          .delete()
+          .neq('id', 0);
+
+        if (deleteError) {
+          await showCustomModal({
+            title: 'เกิดข้อผิดพลาดในการลบ',
+            subtitle: `ตาราง: ${tableName}`,
+            message: deleteError.message,
+            type: 'warning'
+          });
+          status.innerHTML = `<span class="text-rose-400">❌ เกิดข้อผิดพลาดในการลบตาราง ${tableName}</span>`;
+          return;
+        }
+
+        const sqlResetCmd = `TRUNCATE TABLE public.${tableName} RESTART IDENTITY CASCADE;`;
+
+        await showCustomModal({
+          title: 'เคลียร์ข้อมูลสำเร็จ!',
+          subtitle: `ตาราง: ${tableName}`,
+          message: `ลบข้อมูลในตาราง <b>"${tableName}"</b> เรียบร้อยแล้ว!\n\n<span class="text-amber-400 font-semibold">📋 ก๊อปปี้โค้ดด้านล่างนี้ไปวางรันใน Supabase -> SQL Editor เพื่อรีเซ็ต ID เริ่มนับ 1 ใหม่ได้เลยครับ:</span>\n\n<div class="relative bg-black p-3 rounded-xl border border-zinc-800 text-[11px] font-mono text-emerald-400 break-all select-all">\n  ${sqlResetCmd}\n</div>\n\n<button onclick="navigator.clipboard.writeText('${sqlResetCmd}')" class="w-full mt-2 bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-1.5 rounded-lg transition text-xs flex items-center justify-center gap-1 border border-zinc-700">\n  📋 กดคัดลอกโค้ด SQL นี้\n</button>`,
+          type: 'success'
+        });
+
+        fetchAllTablesData();
+
+      } catch (err) {
+        await showCustomModal({
+          title: 'เกิดข้อผิดพลาด',
+          subtitle: 'System Error',
+          message: err.message,
+          type: 'warning'
+        });
+      }
+    }
+    
+    function renderErrorTable(tableName, errorMsg) {
+      const container = document.getElementById('tablesContainer');
+      const section = document.createElement('div');
+      section.className = "bg-zinc-900 border border-rose-900/50 rounded-2xl p-5 shadow-lg space-y-2";
+      section.innerHTML = `
+        <div class="flex justify-between items-center border-b border-rose-900/40 pb-2">
+            <h2 class="text-base font-bold text-rose-400">📌 ตาราง: ${tableName}</h2>
+            <button onclick="clearTableData('${tableName}')" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
+                🗑️ เคลียร์ดาต้า & รีเซ็ต ID
+            </button>
+        </div>
+        <p class="text-xs text-rose-300 bg-black/50 p-2.5 rounded-lg border border-rose-900/30">❌ เกิดข้อผิดพลาด: ${errorMsg}</p>
+      `;
+      container.appendChild(section);
+    }
+
+    async function exportDirectToSQL() {
+      const status = document.getElementById('statusText');
+      const sqlArea = document.getElementById('sqlOutput');
+      const previewBox = document.getElementById('sqlPreviewContainer');
+      const tablesRaw = document.getElementById('tablesInput').value;
+      
+      const tableList = tablesRaw.split(',').map(t => t.trim()).filter(t => t.length > 0);
+
+      if (tableList.length === 0) {
+        await showCustomModal({
+          title: 'ข้อผิดพลาด',
+          subtitle: 'กรุณาระบุข้อมูล',
+          message: 'กรุณาระบุชื่อตารางอย่างน้อย 1 ตาราง',
+          type: 'warning'
+        });
+        return;
+      }
+
+      previewBox.classList.remove('hidden');
+      status.innerHTML = "⏳ 1/2 กำลังดึงโครงสร้างตารางจาก Supabase...";
+      sqlArea.value = "";
+
+      let sqlStatements = [
+        "-- ========================================================",
+        "-- FILE: schema.sql",
+        "-- Auto-generated directly from Supabase via Web HTML",
+        `-- Date: ${new Date().toLocaleString()}`,
+        "-- ========================================================\n"
+      ];
+
+      let successCount = 0;
+
+      for (const tableName of tableList) {
+        try {
+          const { data, error } = await supabaseClient
+            .from(tableName)
+            .select('*')
+            .limit(1);
+
+          if (error || !data || data.length === 0) {
+            console.warn(`ข้ามตาราง ${tableName}: ไม่พบข้อมูลหรือเกิดข้อผิดพลาด`, error);
+            continue;
+          }
+
+          const columns = Object.keys(data[0]);
+          
+          sqlStatements.push(`-- ตาราง: ${tableName}`);
+          sqlStatements.push(`CREATE TABLE IF NOT EXISTS public.${tableName} (`);
+          
+          let colDefs = [];
+          columns.forEach(col => {
+            const mapped = mapColumnToSQLType(tableName, col);
+            if (mapped) colDefs.push(mapped);
+          });
+
+          sqlStatements.push(colDefs.join(",\n"));
+          sqlStatements.push(`);\n`);
+          
+          successCount++;
+        } catch (err) {
+          console.error(`Error handling ${tableName}:`, err);
+        }
+      }
+
+      if (successCount === 0) {
+        status.innerHTML = `<span class="text-rose-400">❌ ไม่สามารถดึงข้อมูลได้ (ตารางอาจจะไม่มีข้อมูลตัวอย่าง)</span>`;
+        return;
+      }
+
+      status.innerHTML = "⏳ 2/2 กำลังสร้างและส่งไฟล์ลงโฟลเดอร์ Downloads...";
+      
+      const finalSQL = sqlStatements.join("\n");
+      sqlArea.value = finalSQL;
+
+      const copyBtn = document.getElementById('copyBtn');
+      copyBtn.disabled = false;
+      copyBtn.className = "bg-amber-600 hover:bg-amber-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition cursor-pointer active:scale-95 shadow";
+
+      forceDownloadSQL(finalSQL, "schema.sql");
+
+      status.innerHTML = `<span class="text-emerald-400">✅ ดาวน์โหลดสำเร็จ! ตรวจสอบไฟล์ 'schema.sql' ในโฟลเดอร์ Downloads ได้เลยครับ</span>`;
+    }
+
+    function mapColumnToSQLType(table, col) {
+      if (col === "id") return "    id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY";
+      if (col === "created_at") {
+        return table === "orders" 
+          ? "    created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())"
+          : null; // ข้ามคอลัมน์ created_at สำหรับทุกตารางที่ไม่ใช่ orders
+      }
+      if (col === "updated_at") return "    updated_at TIMESTAMPTZ DEFAULT NOW()";
+      if (col === "order_date") return "    order_date DATE";
+      if (col === "items") return "    items JSONB";
+      if (col === "requires_stock") return "    requires_stock BOOLEAN DEFAULT TRUE";
+      if (["subtotal", "delivery_fee", "total_price", "price_1", "price_2", "price_3", "quantity"].includes(col)) {
+        return `    ${col} NUMERIC DEFAULT 0`;
+      }
+      if (col === "total_qty") return "    total_qty BIGINT DEFAULT 0";
+      if (col === "status") return "    status TEXT DEFAULT 'pending'";
+      
+      if (col.endsWith && col.endsWith("_id")) {
+        let refTable = col.replace("_id", "") + "s";
+        if (col === "customer_group_id" || col === "group_id") {
+          refTable = table === "orders" ? "customer_groups" : "food_groups";
+        }
+        return `    ${col} BIGINT REFERENCES public.${refTable}(id)`;
+      }
+
+      return `    ${col} TEXT`;
+    }
+
+    function forceDownloadSQL(content, filename) {
+      const blob = new Blob([content], { type: 'application/sql;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      
+      const event = new MouseEvent('click', {
+        view: window,
+        bubbles: true,
+        cancelable: true
+      });
+      link.dispatchEvent(event);
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+    }
+
+    function copySQLToClipboard() {
+      copyCodeFromBlock('sqlOutput');
+    }
+
+    function copyCodeFromBlock(elementId) {
+      const textarea = document.getElementById(elementId);
+      textarea.select();
+      navigator.clipboard.writeText(textarea.value);
+    }
+  </script>
+</body>
+</html>

@@ -293,7 +293,7 @@
                 </div>
             </div>
 
-            <!-- ฟอร์มเลือกรายละเอียด (ปรับปรุงตามรูปที่ 2) -->
+            <!-- ฟอร์มเลือกรายละเอียด -->
             <div class="border border-slate-200 rounded-2xl p-3 space-y-2.5 bg-white shadow-xs">
                 <!-- แถวที่ 1: ราคาพิเศษ -->
                 <div class="flex items-center justify-between gap-2">
@@ -575,8 +575,9 @@
             document.getElementById('customPriceInput').value = '';
             document.getElementById('foodNoteInput').value = '';
 
-            const catName = currentCategory ? currentCategory.name : '';
-            const isEggAllowed = (catName.includes('ข้าวผัด') || catName.includes('กระเพรา') || catName.includes('กะเพรา'));
+            // แก้ไข: ตรวจสอบ Group ID จาก Supabase DB (ID 1 = ข้าวกล่อง, ID 15 = ข้าวผัด)
+            const eggAllowedGroupIds = [1, 15];
+            const isEggAllowed = currentCategory && eggAllowedGroupIds.includes(currentCategory.id);
             
             const eggSection = document.getElementById('eggToppingSection');
             eggSection.style.display = isEggAllowed ? 'block' : 'none';

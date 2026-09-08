@@ -186,7 +186,7 @@
             <div class="space-y-3 overflow-y-auto pr-0.5 popup-scrollbar">
                 <div>
                     <label class="block text-[11px] font-bold text-slate-500 mb-1 uppercase tracking-wide">ชื่อรายการอาหาร</label>
-                    <input type="text" id="foodNameInput" placeholder="กรอกชื่ออาหารใหม่" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+                    <input type="text" id="foodNameInput" onkeydown="if(event.key==='Enter') saveFoodData()" placeholder="กรอกชื่ออาหารใหม่" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
                 </div>
 
                 <div>
@@ -212,11 +212,10 @@
         </div>
     </div>
 
-    <!-- Modal 3: addmenupopup (ดีไซน์เดิมจาก addmenupopup.html ปรับสไตล์ขอบแดง 3D UI) -->
+    <!-- Modal 3: addmenupopup -->
     <div id="addModalWrapper" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3">
         <div onclick="event.stopPropagation()" class="w-full max-w-sm bg-white rounded-3xl p-5 border-4 border-red-500 relative z-10 shadow-2xl">
             
-            <!-- Header -->
             <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
                 <div class="flex items-center gap-2">
                     <span class="text-xl text-blue-600 font-extrabold flex items-center justify-center">➕</span>
@@ -225,7 +224,6 @@
                 <button type="button" onclick="closeAddMenuModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold leading-none p-1 transition">&times;</button>
             </div>
 
-            <!-- ฟอร์มกรอกข้อมูล -->
             <form id="addMenuForm" onsubmit="saveNewMenuData(event)" class="space-y-4">
                 <div class="grid grid-cols-2 gap-2.5">
                     <div>
@@ -247,17 +245,17 @@
                     <div class="grid grid-cols-3 gap-2">
                         <div>
                             <span class="block text-[11px] font-bold text-slate-500 text-center mb-1">ชาวบ้าน</span>
-                            <input type="number" id="addPrice2Input" min="0" step="any" placeholder="0" 
+                            <input type="number" id="addPrice2Input" min="0" step="any" placeholder="0" onfocus="this.select()"
                                    class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-center text-xs font-extrabold text-slate-700 outline-none focus:bg-white focus:border-blue-500 transition">
                         </div>
                         <div>
                             <span class="block text-[11px] font-bold text-slate-500 text-center mb-1">นักท่องเที่ยว</span>
-                            <input type="number" id="addPrice1Input" min="0" step="any" placeholder="0" 
+                            <input type="number" id="addPrice1Input" min="0" step="any" placeholder="0" onfocus="this.select()"
                                    class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-center text-xs font-extrabold text-slate-700 outline-none focus:bg-white focus:border-blue-500 transition">
                         </div>
                         <div>
                             <span class="block text-[11px] font-bold text-slate-500 text-center mb-1">สบายดี</span>
-                            <input type="number" id="addPrice3Input" min="0" step="any" placeholder="0" 
+                            <input type="number" id="addPrice3Input" min="0" step="any" placeholder="0" onfocus="this.select()"
                                    class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-center text-xs font-extrabold text-slate-700 outline-none focus:bg-white focus:border-blue-500 transition">
                         </div>
                     </div>
@@ -275,7 +273,7 @@
         </div>
     </div>
 
-    <!-- Modal 4: Manage Category Modal (จัดการกลุ่มรายการอาหาร) -->
+    <!-- Modal 4: Manage Category Modal -->
     <div id="manageGroupModalWrapper" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3">
         <div onclick="event.stopPropagation()" class="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col p-4 space-y-3 relative max-h-[85vh]">
             
@@ -287,12 +285,16 @@
             </div>
 
             <!-- ฟอร์มเพิ่มกลุ่มรายการ -->
-            <div class="bg-slate-50 p-2 rounded-2xl border border-slate-200 shrink-0">
+            <div class="bg-slate-50 p-2 rounded-2xl border border-slate-200 shrink-0 space-y-2">
                 <div class="flex gap-2">
-                    <input type="text" id="addCategoryInput" placeholder="กรอกชื่อกลุ่มรายการ..." class="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none bg-white focus:border-indigo-500 transition font-medium">
+                    <input type="text" id="addCategoryInput" onkeydown="if(event.key==='Enter') handleSaveCategoryAction()" placeholder="กรอกชื่อกลุ่มรายการ..." class="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none bg-white focus:border-indigo-500 transition font-medium">
                     <button type="button" onclick="handleSaveCategoryAction()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer shadow-xs active:scale-95">
                         เพิ่ม
                     </button>
+                </div>
+                <!-- ค้นหากลุ่มรายการ -->
+                <div>
+                    <input type="text" id="searchCategoryInput" oninput="handleSearchCategory()" placeholder="🔍 ค้นหากลุ่มรายการ..." class="w-full border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none bg-white focus:border-indigo-400 transition font-normal text-slate-600">
                 </div>
             </div>
 
@@ -344,7 +346,7 @@
             
             <div>
                 <label class="block text-[11px] font-bold text-slate-600 mb-1.5">ชื่อกลุ่มรายการใหม่:</label>
-                <input type="text" id="editCategoryNameInput" placeholder="เช่น ส้มตำ / ลาบ" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none bg-slate-50 focus:bg-white focus:border-indigo-500 font-bold text-slate-800 transition">
+                <input type="text" id="editCategoryNameInput" onkeydown="if(event.key==='Enter') handleUpdateCategory()" placeholder="เช่น ส้มตำ / ลาบ" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none bg-slate-50 focus:bg-white focus:border-indigo-500 font-bold text-slate-800 transition">
             </div>
 
             <div class="grid grid-cols-2 gap-2 pt-1">
@@ -396,7 +398,8 @@
 
         let db;
         let menus = [];
-        let foodGroups = []; 
+        let foodGroups = [];
+        let filteredFoodGroups = []; 
         let currentGroupId = null;
         let currentGroupName = '';
         
@@ -406,6 +409,22 @@
         let activeDeletingCategoryId = null;
 
         const categoryIcons = ['🍱', '🍲', '🍳', '🍚', '🥩', '⭐', '🥗', '🛍️', '🍽️', '🥢', '🍹'];
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function decodeHtml(html) {
+            const txt = document.createElement('textarea');
+            txt.innerHTML = html;
+            return txt.value;
+        }
 
         function getDbClient() {
             if (db) return db;
@@ -511,8 +530,10 @@
                     return a.name.localeCompare(b.name, 'th');
                 });
 
+                filteredFoodGroups = [...foodGroups];
+
                 renderQuickNav();
-                renderCategoryList();
+                renderCategoryList(filteredFoodGroups);
             } catch (err) {
                 console.error("Error loading data:", err);
                 document.getElementById('quickNavContainer').innerHTML = `<div class="col-span-2 text-center w-full text-rose-500 text-xs py-10 font-medium">เกิดข้อผิดพลาดในการโหลดข้อมูล: ${err.message}</div>`;
@@ -535,7 +556,7 @@
                 btn.className = 'cat-nav-btn';
                 
                 const icon = categoryIcons[index % categoryIcons.length];
-                btn.innerHTML = `<span class="cat-nav-icon">${icon}</span> <span>${cat.name}</span>`;
+                btn.innerHTML = `<span class="cat-nav-icon">${icon}</span> <span>${escapeHtml(cat.name)}</span>`;
                 btn.onclick = () => openCategoryPriceModalHTML(cat);
                 navContainer.appendChild(btn);
             });
@@ -585,7 +606,7 @@
             foods.forEach(food => {
                 const row = document.createElement('div');
                 row.className = "bg-white px-2 py-1 rounded-lg shadow-2xs grid grid-cols-12 gap-1 items-center";
-                const safeName = food.name.replace(/'/g, "\\'");
+                const safeName = escapeHtml(food.name);
 
                 row.innerHTML = `
                     <div class="col-span-6 flex items-center overflow-hidden pr-1 gap-1.5">
@@ -598,20 +619,20 @@
                         <span onclick="openEditMenuModal(${food.id}, '${safeName}', ${food.group_id || currentGroupId})" 
                               class="font-bold text-slate-800 text-xs truncate cursor-pointer hover:text-indigo-600 active:scale-95 transition flex items-center gap-1 group" 
                               title="แตะเพื่อแก้ไขชื่อหรือย้ายกลุ่ม">
-                            <span class="truncate">${food.name}</span>
+                            <span class="truncate">${safeName}</span>
                         </span>
                     </div>
                     <div class="col-span-2">
-                        <input type="number" value="${food.price_2 || 0}" onchange="updatePrice(${food.id}, 'price_2', this.value)" 
-                            class="w-full text-center font-bold text-slate-700 text-xs bg-slate-50 border border-slate-200 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        <input type="number" value="${food.price_2 || 0}" onfocus="this.select()" onchange="updatePrice(${food.id}, 'price_2', this.value)" 
+                            class="w-full text-center font-bold text-slate-700 text-xs bg-slate-50 border border-slate-200 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white transition">
                     </div>
                     <div class="col-span-2">
-                        <input type="number" value="${food.price_1 || 0}" onchange="updatePrice(${food.id}, 'price_1', this.value)" 
-                            class="w-full text-center font-bold text-slate-700 text-xs bg-slate-50 border border-slate-200 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        <input type="number" value="${food.price_1 || 0}" onfocus="this.select()" onchange="updatePrice(${food.id}, 'price_1', this.value)" 
+                            class="w-full text-center font-bold text-slate-700 text-xs bg-slate-50 border border-slate-200 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white transition">
                     </div>
                     <div class="col-span-2">
-                        <input type="number" value="${food.price_3 || 0}" onchange="updatePrice(${food.id}, 'price_3', this.value)" 
-                            class="w-full text-center font-bold text-slate-700 text-xs bg-slate-50 border border-slate-200 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        <input type="number" value="${food.price_3 || 0}" onfocus="this.select()" onchange="updatePrice(${food.id}, 'price_3', this.value)" 
+                            class="w-full text-center font-bold text-slate-700 text-xs bg-slate-50 border border-slate-200 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white transition">
                     </div>
                 `;
                 container.appendChild(row);
@@ -619,7 +640,8 @@
         }
 
         async function directDeleteFood(foodId, foodName) {
-            if (!confirm(`ต้องการลบเมนู "${foodName}" ใช่หรือไม่?`)) return;
+            const decodedName = decodeHtml(foodName);
+            if (!confirm(`ต้องการลบเมนู "${decodedName}" ใช่หรือไม่?`)) return;
 
             try {
                 const { error } = await db.from('foods').delete().eq('id', foodId);
@@ -652,7 +674,7 @@
             editingFoodId = foodId;
             selectedGroupIdForEdit = groupId || currentGroupId;
 
-            document.getElementById('foodNameInput').value = foodName;
+            document.getElementById('foodNameInput').value = decodeHtml(foodName);
             renderGroupGridForEdit();
             openModal('editModalWrapper');
         }
@@ -673,7 +695,7 @@
                         : 'bg-white border-slate-200/90 text-slate-700 hover:bg-slate-100'
                 }`;
 
-                btn.innerHTML = `<span class="text-sm shrink-0">${icon}</span> <span class="truncate">${group.name}</span>`;
+                btn.innerHTML = `<span class="text-sm shrink-0">${icon}</span> <span class="truncate">${escapeHtml(group.name)}</span>`;
                 btn.onclick = () => {
                     selectedGroupIdForEdit = group.id;
                     renderGroupGridForEdit();
@@ -717,7 +739,7 @@
         }
 
         // ==========================================
-        // Modal 3: เพิ่มเมนูใหม่ (จาก addmenupopup.html)
+        // Modal 3: เพิ่มเมนูใหม่
         // ==========================================
         function openAddMenuModal() {
             document.getElementById('addCategoryDisplay').value = currentGroupName || 'ไม่ระบุกลุ่ม';
@@ -773,7 +795,10 @@
         // Modal 4: จัดการกลุ่มรายการอาหาร
         // ==========================================
         function openManageGroupModal() {
-            renderCategoryList();
+            const searchInput = document.getElementById('searchCategoryInput');
+            if (searchInput) searchInput.value = '';
+            filteredFoodGroups = [...foodGroups];
+            renderCategoryList(filteredFoodGroups);
             openModal('manageGroupModalWrapper');
         }
 
@@ -782,25 +807,39 @@
             loadAllData();
         }
 
-        function renderCategoryList() {
+        function handleSearchCategory() {
+            const query = document.getElementById('searchCategoryInput').value.trim().toLowerCase();
+            if (!query) {
+                filteredFoodGroups = [...foodGroups];
+            } else {
+                filteredFoodGroups = foodGroups.filter(c => (c.name || '').toLowerCase().includes(query));
+            }
+            renderCategoryList(filteredFoodGroups);
+        }
+
+        function renderCategoryList(listData) {
             const container = document.getElementById('categoryListContainer');
             if (!container) return;
 
-            if (foodGroups.length === 0) {
-                container.innerHTML = `<div class="text-center text-slate-400 text-xs py-8">ไม่มีกลุ่มรายการอาหาร</div>`;
+            const list = listData || [];
+
+            if (list.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-400 text-xs py-8">ไม่พบกลุ่มรายการอาหาร</div>`;
                 return;
             }
 
-            container.innerHTML = foodGroups.map(c => `
+            container.innerHTML = list.map(c => {
+                const safeName = escapeHtml(c.name);
+                return `
                 <div class="flex items-center justify-between bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl px-3.5 py-2 transition shadow-2xs">
-                    <span onclick="openEditCategoryModal(${c.id}, '${c.name.replace(/'/g, "\\'")}')" class="font-bold text-xs text-slate-800 truncate cursor-pointer flex-1 py-0.5 hover:text-indigo-600 transition">
-                        📁 ${c.name}
+                    <span onclick="openEditCategoryModal(${c.id}, '${safeName}')" class="font-bold text-xs text-slate-800 truncate cursor-pointer flex-1 py-0.5 hover:text-indigo-600 transition">
+                        📁 ${safeName}
                     </span>
-                    <button onclick="openDeleteCategoryModal(${c.id}, '${c.name.replace(/'/g, "\\'")}')" class="w-6 h-6 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-full flex items-center justify-center text-xs font-bold transition shrink-0 ml-2 cursor-pointer" title="ลบหมวดหมู่">
+                    <button onclick="openDeleteCategoryModal(${c.id}, '${safeName}')" class="w-6 h-6 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-full flex items-center justify-center text-xs font-bold transition shrink-0 ml-2 cursor-pointer" title="ลบหมวดหมู่">
                         ✕
                     </button>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         async function handleSaveCategoryAction() {
@@ -825,7 +864,7 @@
 
         function openEditCategoryModal(id, currentName) {
             activeEditingCategoryId = id;
-            document.getElementById('editCategoryNameInput').value = currentName;
+            document.getElementById('editCategoryNameInput').value = decodeHtml(currentName);
             openModal('editCategoryModal');
         }
 
@@ -851,7 +890,7 @@
 
         function openDeleteCategoryModal(id, name) {
             activeDeletingCategoryId = id;
-            document.getElementById('deleteTargetCategoryName').textContent = `"${name}"`;
+            document.getElementById('deleteTargetCategoryName').textContent = `"${decodeHtml(name)}"`;
             openModal('deleteCategoryModal');
         }
 

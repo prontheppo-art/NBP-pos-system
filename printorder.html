@@ -20,13 +20,13 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- ดึงการเชื่อมต่อ Supabase จากไฟล์ supabaseClient.js (ข้อ 1) -->
+    <!-- ดึงการเชื่อมต่อ Supabase จากไฟล์ supabaseClient.js -->
     <script src="supabaseClient.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap');
         
-        /* ข้อ 2: เปิดให้ scroll ได้ (pan-y) และป้องกันการซูม */
+        /* เปิดให้ scroll ได้ (pan-y) และป้องกันการซูม */
         html, body {
             min-height: 100%;
             margin: 0;
@@ -62,7 +62,7 @@
             position: relative;
         }
 
-        /* ข้อ 4: ล็อคส่วนหัว (Sticky Top View) */
+        /* ล็อคส่วนหัว (Sticky Top View) */
         .header-section {
             position: sticky;
             top: 0;
@@ -98,7 +98,7 @@
             padding-right: 2px;
         }
 
-        /* ข้อ 4: ล็อคส่วนท้าย (Sticky Bottom View) */
+        /* ล็อคส่วนท้าย (Sticky Bottom View) */
         .footer-section {
             position: sticky;
             bottom: 0;
@@ -154,7 +154,7 @@
     <div class="app-viewport">
         <div class="print-card">
             
-            <!-- 🟢 ส่วนที่ 1: หัวกระดาษ (Sticky Top View - ข้อ 4) -->
+            <!-- ส่วนที่ 1: หัวกระดาษ (Sticky Top View) -->
             <div class="header-section text-center mb-3 pb-1">
                 <h2 class="font-extrabold text-slate-800 text-lg leading-tight">ลาบหนองบัวลำภู @เขื่อนขุนด่าน</h2>
                 <p class="text-xs text-slate-500 font-semibold mt-0.5">064-565-4951</p>
@@ -163,7 +163,7 @@
                 </p>
             </div>
 
-            <!-- 🟡 ส่วนที่ 2: เนื้อหาตรงกลาง (Scrollable Area) -->
+            <!-- ส่วนที่ 2: เนื้อหาตรงกลาง (Scrollable Area) -->
             <div class="content-scrollable">
                 <!-- กรอบรายการอาหาร (Cart Box) -->
                 <div class="items-box-container">
@@ -201,7 +201,7 @@
                 </div>
             </div>
 
-            <!-- 🟢 ส่วนที่ 3: ปุ่มกดด้านล่าง (Sticky Bottom View - ข้อ 4) -->
+            <!-- ส่วนที่ 3: ปุ่มกดด้านล่าง (Sticky Bottom View) -->
             <div class="footer-section no-print pt-2 border-t border-slate-100">
                 <div class="grid grid-cols-2 gap-2">
                     <button type="button" id="saveOnlyBtn" onclick="handleSaveOrder(false)" class="w-full py-2.5 bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer">
@@ -233,7 +233,7 @@
             return null;
         }
 
-        // ข้อ 2: ป้องกัน Gesture Pinch-to-zoom และ Double-tap zoom บนอุปกรณ์พกพา
+        // ป้องกัน Gesture Pinch-to-zoom และ Double-tap zoom บนอุปกรณ์พกพา
         document.addEventListener('touchstart', (e) => {
             if (e.touches.length > 1) {
                 e.preventDefault();
@@ -260,7 +260,6 @@
             currentOrderData = JSON.parse(pendingOrderRaw);
             const cart = currentOrderData.cart || [];
             
-            // เปรียบเทียบค่าโดยตรง ไม่แปลงประเภทข้อมูลซ้ำซ้อน
             const groupId = currentOrderData.groupId ?? currentOrderData.customerGroupId ?? 1;
 
             // 1. จัดการแสดงผล QR Code (แสดงเฉพาะกลุ่มนักท่องเที่ยว groupId === 2)
@@ -287,7 +286,6 @@
                 let groupDisplay = locDetails.join(' - ') || 'นักท่องเที่ยว';
                 const rawPhone = String(currentOrderData.customerPhone || currentOrderData.phone || '').trim();
 
-                // ตรวจสอบเบอร์โทรศัพท์: ตัวเลขล้วน 10 หลัก
                 const isValidPhone = /^\d{10}$/.test(rawPhone);
                 if (isValidPhone) {
                     groupDisplay += ` โทร: ${rawPhone}`;
@@ -337,7 +335,6 @@
                 const qty = item.qty || 1;
                 let basePrice = 0;
 
-                // ตรวจสอบ Custom Price หรือเปรียบเทียบตาม groupId โดยตรง
                 if ((item.is_custom_price || item.isCustomPrice) && (item.custom_price || item.price) > 0) {
                     basePrice = item.custom_price || item.price;
                 } else {
@@ -427,23 +424,26 @@
                 const _db = getSupabaseClient();
 
                 if (_db) {
-                    const custName = currentOrderData.customerName || '';
-                    const custPhone = currentOrderData.customerPhone || currentOrderData.phone || '';
+                    const custName = (currentOrderData.customerName || '').trim();
+                    const custPhone = (currentOrderData.customerPhone || currentOrderData.phone || '').trim();
                     let finalCustomerId = currentOrderData.selectedCustomerId || null;
 
+                    // กำหนดค่าชื่อลูกค้าที่ต้องการเซฟ
                     const combinedNamePhone = [custName, custPhone].filter(Boolean).join(' ') || 'ลูกค้าทั่วไป';
 
-                    if (!finalCustomerId && (custName || custPhone)) {
-                        let existingCust = null;
+                    // 🛠️ ค้นหาลูกค้าเดิมจาก name_phone
+                    if (!finalCustomerId) {
+                        const { data: existingCust, error: findErr } = await _db
+                            .from('customers')
+                            .select('id')
+                            .eq('name_phone', combinedNamePhone)
+                            .limit(1);
 
-                        if (custPhone) {
-                            const { data } = await _db.from('customers').select('id').ilike('name_phone', `%${custPhone}%`).limit(1);
-                            if (data && data.length > 0) existingCust = data[0];
-                        }
-
-                        if (existingCust) {
-                            finalCustomerId = existingCust.id;
+                        if (!findErr && existingCust && existingCust.length > 0) {
+                            // ดึง ID เดิมมาใช้ ไม่ต้องเพิ่มใหม่
+                            finalCustomerId = existingCust[0].id;
                         } else {
+                            // ถ้าไม่เจอชื่อนี้ในระบบเลย ให้สร้างลูกค้าใหม่ 1 รายการ
                             const { data: newCust, error: custErr } = await _db
                                 .from('customers')
                                 .insert([{ name_phone: combinedNamePhone }])
@@ -458,19 +458,14 @@
 
                     const totalQty = (currentOrderData.cart || []).reduce((sum, item) => sum + (item.qty || 1), 0);
 
-                    const now = new Date();
-                    const year = now.getFullYear();
-                    const month = String(now.getMonth() + 1).padStart(2, '0');
-                    const day = String(now.getDate()).padStart(2, '0');
-                    const todayStr = `${year}-${month}-${day}`;
-
+                    // บันทึกออเดอร์ลงตาราง orders (1 รายการ)
                     const insertPayload = {
                         customer_id: finalCustomerId,
                         customer_group_id: currentOrderData.groupId ?? currentOrderData.customerGroupId ?? 1,
                         customer_group: currentOrderData.groupName || currentOrderData.customerGroup || 'ชาวบ้าน',
-                        phone: custPhone || null,
+                        name_phone: combinedNamePhone,
                         location_id: currentOrderData.locationId || null,
-                        location_name: currentOrderData.locationName || null,
+                        location_name: currentOrderData.locationName || currentOrderData.location_name || null,
                         zone_id: currentOrderData.zoneId || null,
                         zone_name: currentOrderData.zoneName || null,
                         subtotal: currentOrderData.subtotal || 0,
@@ -479,8 +474,7 @@
                         total_qty: totalQty,
                         items: processedItemsForDb.length > 0 ? processedItemsForDb : (currentOrderData.cart || []),
                         status: 'completed',
-                        note: currentOrderData.orderNote || currentOrderData.note || '',
-                        order_date: todayStr
+                        note: currentOrderData.orderNote || currentOrderData.note || ''
                     };
 
                     const { data: orderResult, error: orderErr } = await _db

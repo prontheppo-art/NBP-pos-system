@@ -565,14 +565,11 @@
                 note: userNote
             }];
 
-            const now = new Date();
-            const todayDate = now.toISOString().split('T')[0];
-
             if (typeof supabaseClient !== 'undefined') {
+                // ตัด order_date ออกเพื่อป้องกัน error บันทึกข้อมูล
                 const { error } = await supabaseClient
                     .from('orders')
                     .insert([{
-                        order_date: todayDate,
                         customer_id: customerObj ? customerObj.id : null,
                         customer_group_id: locationData.groupId,
                         customer_group: locationData.groupName,

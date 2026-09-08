@@ -408,6 +408,7 @@
         }, false);
 
         let currentSelectedOrder = null;
+        let currentOrderName = ""; 
         let orderItems = []; 
         let currentGroupId = "1";
         let allFoodsCache = [];   
@@ -423,7 +424,6 @@
         let tempSelectedLocation = null;
         const zoneIcons = ['🏠', '🔑', '🛋️', 'ประตู', '🏡', '🌿', '🛏️', '🔑'];
 
-        // ตัวแปรสำหรับระบบเลือกเมนูแบบใหม่
         let selectedCategory = null;
         let selectedFood = null;
         let mainQty = 1;
@@ -570,13 +570,16 @@
                         displayLocationText += ` - ${savedTouristZone}`;
                     }
                     document.getElementById('locationBtnText').innerText = displayLocationText;
+                    currentOrderName = displayLocationText;
                 } else {
                     document.getElementById('locationBtnText').innerText = 'เลือกสถานที่';
+                    currentOrderName = groupName;
                 }
             } else {
                 locationBtnContainer.classList.add('hidden');
                 document.getElementById('selectedLocationName').value = '';
                 document.getElementById('selectedZoneName').value = '';
+                currentOrderName = groupName;
             }
 
             recalculateItemsPriceByGroup();
@@ -693,6 +696,7 @@
                 displayLocationText += ` - ${zoneName}`;
             }
             document.getElementById('locationBtnText').innerText = displayLocationText || 'เลือกสถานที่';
+            currentOrderName = displayLocationText || locName || 'ออเดอร์ทั่วไป';
             closeAllModals();
         }
 
@@ -875,6 +879,16 @@
             document.getElementById('selectedLocationName').value = locName;
             document.getElementById('selectedZoneName').value = zoneName;
             
+            if (locName && zoneName) {
+                currentOrderName = `${locName} (${zoneName})`;
+            } else if (locName) {
+                currentOrderName = locName;
+            } else if (zoneName) {
+                currentOrderName = zoneName;
+            } else {
+                currentOrderName = order.customer_group || 'ออเดอร์ทั่วไป';
+            }
+
             const custText = order.customer_phone || order.phone || order.customer_name || '';
             document.getElementById('customerSearchInput').value = custText;
             selectedCustomer = custText ? { name_phone: custText } : null;
@@ -954,7 +968,6 @@
 
         function closeDetailModal() { document.getElementById('orderDetailModal').classList.add('hidden'); }
 
-        // --- ฟังก์ชั่นเลือกหมวดหมู่และอาหารแบบใหม่ ---
         function openFoodCategorySelectModal() {
             renderQuickNav();
             document.getElementById('foodCategorySelectModal').classList.add('active');
@@ -1204,13 +1217,12 @@
                 isCustomPrice: !!item.isCustomPrice
             }));
 
-            // ปรับแก้คีย์ให้ตรงกับ Schema ตาราง orders ใน Supabase
+            // ปรับแก้คีย์ให้ตรงกับ Schema ตาราง orders (ลบ phone ออกแล้ว)
             const updatePayload = {
                 items: sanitizedItems,
                 total_price: newTotal,
                 total_qty: totalQty,
                 customer_phone: customerText,
-                phone: customerText,
                 location_name: document.getElementById('selectedLocationName').value,
                 zone_name: document.getElementById('selectedZoneName').value,
                 customer_group_id: Number(currentGroupId) || 1,

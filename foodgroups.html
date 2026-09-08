@@ -52,7 +52,6 @@
         position: relative;
       }
 
-      /* ข้อ 4: ล็อคส่วนหัว (Sticky Top) */
       .header-section {
         position: sticky;
         top: 0;
@@ -69,7 +68,6 @@
         min-height: 0;
       }
 
-      /* ข้อ 4: ล็อคส่วนท้าย (Sticky Bottom) */
       .footer-section {
         position: sticky;
         bottom: 0;
@@ -87,12 +85,16 @@
         <div class="header-section pb-2 pt-1">
             <h2 class="text-xl font-black text-slate-800 text-center mb-3 tracking-tight">📁 จัดการกลุ่มรายการอาหาร</h2>
             
-            <div class="bg-gray-50 p-2 rounded-2xl border border-gray-200">
+            <div class="bg-gray-50 p-2 rounded-2xl border border-gray-200 space-y-2">
                 <div class="flex gap-2">
-                    <input type="text" id="addCategoryInput" placeholder="กรอกชื่อกลุ่มรายการ..." class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-xs outline-none bg-white focus:border-indigo-500 transition font-medium">
+                    <input type="text" id="addCategoryInput" placeholder="กรอกชื่อกลุ่มรายการ..." onkeydown="if(event.key==='Enter') handleSaveCategoryAction()" class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-xs outline-none bg-white focus:border-indigo-500 transition font-medium">
                     <button type="button" onclick="handleSaveCategoryAction()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer shadow-2xs active:scale-95">
                         เพิ่ม
                     </button>
+                </div>
+                <!-- ช่อง Quick Search สำหรับค้นหากลุ่มอาหาร -->
+                <div>
+                    <input type="text" id="searchCategoryInput" oninput="handleSearchCategory()" placeholder="🔍 ค้นหากลุ่มรายการ..." class="w-full border border-gray-200 rounded-xl px-3 py-1.5 text-xs outline-none bg-white focus:border-indigo-400 transition font-normal text-gray-600">
                 </div>
             </div>
             
@@ -104,7 +106,7 @@
         </div>
         
         <!-- รายการหมวดหมู่ (Content - Scrollable Area) -->
-        <div class="content-section py-2">
+        <div class="content-section py-2 overflow-y-auto">
             <div id="categoryListContainer" class="space-y-1.5 pr-1">
                 <div class="text-center text-gray-400 text-xs py-8">⏳ กำลังโหลดกลุ่มรายการ...</div>
             </div>
@@ -148,7 +150,7 @@
             
             <div>
                 <label class="block text-[11px] font-bold text-gray-600 mb-1.5">ชื่อกลุ่มรายการใหม่:</label>
-                <input type="text" id="editCategoryNameInput" placeholder="เช่น ส้มตำ / ลาบ" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-xs outline-none bg-gray-50 focus:bg-white focus:border-indigo-500 font-bold text-gray-800 transition">
+                <input type="text" id="editCategoryNameInput" onkeydown="if(event.key==='Enter') handleUpdateCategory()" placeholder="เช่น ส้มตำ / ลาบ" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-xs outline-none bg-gray-50 focus:bg-white focus:border-indigo-500 font-bold text-gray-800 transition">
             </div>
 
             <div class="grid grid-cols-2 gap-2 pt-1">
@@ -186,7 +188,7 @@
 
     <!-- JavaScript Logic -->
     <script>
-      // ข้อ 2: สคริปต์ป้องกัน Gesture Zoom (Pinch-to-zoom & Double-tap zoom) แต่เปิดให้ไถ Scroll ได้
+      // สคริปต์ป้องกัน Gesture Zoom (Pinch-to-zoom & Double-tap zoom)
       document.addEventListener('touchstart', function(event) {
           if (event.touches.length > 1) {
               event.preventDefault();
@@ -203,6 +205,7 @@
       }, false);
 
       let categories = [];
+      let filteredCategories = [];
       let activeEditingCategoryId = null;
       let activeDeletingCategoryId = null;
       let dbClient = null;
@@ -283,7 +286,14 @@
               if (error) throw error;
 
               categories = data || [];
-              renderCategoryList();
+              filteredCategories = [...categories];
+              
+              const searchInput = document.getElementById('searchCategoryInput');
+              if (searchInput && searchInput.value.trim()) {
+                  handleSearchCategory();
+              } else {
+                  renderCategoryList(filteredCategories);
+              }
           } catch (err) {
               console.error('Error fetching categories:', err);
               if (container) {
@@ -292,30 +302,58 @@
           }
       }
 
-      function renderCategoryList() {
+      function handleSearchCategory() {
+          const query = document.getElementById('searchCategoryInput').value.trim().toLowerCase();
+          if (!query) {
+              filteredCategories = [...categories];
+          } else {
+              filteredCategories = categories.filter(c => (c.name || '').toLowerCase().includes(query));
+          }
+          renderCategoryList(filteredCategories);
+      }
+
+      function escapeHtml(text) {
+          if (!text) return '';
+          return String(text)
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;")
+              .replace(/'/g, "&#039;");
+      }
+
+      function renderCategoryList(listData) {
           const container = document.getElementById('categoryListContainer');
           if (!container) return;
 
-          if (categories.length === 0) {
-              container.innerHTML = `<div class="text-center text-gray-400 text-xs py-8">ไม่มีกลุ่มรายการอาหาร</div>`;
+          const list = listData || [];
+
+          if (list.length === 0) {
+              container.innerHTML = `<div class="text-center text-gray-400 text-xs py-8">ไม่พบกลุ่มรายการอาหาร</div>`;
               return;
           }
 
-          container.innerHTML = categories.map(c => `
-              <div class="flex items-center justify-between bg-white border border-gray-200 hover:border-indigo-300 rounded-2xl px-3.5 py-2 transition shadow-2xs">
-                  <span onclick="openEditCategoryModal(${c.id}, '${c.name.replace(/'/g, "\\'")}')" class="font-bold text-base text-gray-800 truncate cursor-pointer flex-1 py-0.5 hover:text-indigo-600 transition">
-                      📁 ${c.name}
-                  </span>
-                  <button onclick="openDeleteCategoryModal(${c.id}, '${c.name.replace(/'/g, "\\'")}')" class="w-6 h-6 bg-red-50 hover:bg-red-100 text-red-500 rounded-full flex items-center justify-center text-xs font-bold transition shrink-0 ml-2 cursor-pointer" title="ลบหมวดหมู่">
-                      ✕
-                  </button>
-              </div>
-          `).join('');
+          container.innerHTML = list.map(c => {
+              const safeName = escapeHtml(c.name);
+              return `
+                <div class="flex items-center justify-between bg-white border border-gray-200 hover:border-indigo-300 rounded-2xl px-3.5 py-2 transition shadow-2xs">
+                    <span onclick="openEditCategoryModal(${c.id}, '${safeName}')" class="font-bold text-base text-gray-800 truncate cursor-pointer flex-1 py-0.5 hover:text-indigo-600 transition">
+                        📁 ${safeName}
+                    </span>
+                    <button onclick="openDeleteCategoryModal(${c.id}, '${safeName}')" class="w-6 h-6 bg-red-50 hover:bg-red-100 text-red-500 rounded-full flex items-center justify-center text-xs font-bold transition shrink-0 ml-2 cursor-pointer" title="ลบหมวดหมู่">
+                        ✕
+                    </button>
+                </div>
+              `;
+          }).join('');
       }
 
       function openEditCategoryModal(id, currentName) {
           activeEditingCategoryId = id;
-          document.getElementById('editCategoryNameInput').value = currentName;
+          // แปลง HTML Entities กลับเป็นข้อความปกติใส่ Input
+          const txt = document.createElement('textarea');
+          txt.innerHTML = currentName;
+          document.getElementById('editCategoryNameInput').value = txt.value;
           openModal('editCategoryModal');
       }
 
@@ -377,7 +415,9 @@
 
       function openDeleteCategoryModal(id, name) {
           activeDeletingCategoryId = id;
-          document.getElementById('deleteTargetCategoryName').textContent = `"${name}"`;
+          const txt = document.createElement('textarea');
+          txt.innerHTML = name;
+          document.getElementById('deleteTargetCategoryName').textContent = `"${txt.value}"`;
           openModal('deleteCategoryModal');
       }
 
