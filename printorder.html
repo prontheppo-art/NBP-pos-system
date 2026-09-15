@@ -20,13 +20,13 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- ดึงการเชื่อมต่อ Supabase จากไฟล์ supabaseClient.js -->
+    <!-- ดึงการเชื่อมต่อ Supabase จากไฟล์ supabaseClient.js (ข้อ 1) -->
     <script src="supabaseClient.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap');
         
-        /* เปิดให้ scroll ได้ (pan-y) และป้องกันการซูม */
+        /* ข้อ 2: เปิดให้ scroll ได้ (pan-y) และป้องกันการซูม */
         html, body {
             min-height: 100%;
             margin: 0;
@@ -62,7 +62,7 @@
             position: relative;
         }
 
-        /* ล็อคส่วนหัว (Sticky Top View) */
+        /* ข้อ 4: ล็อคส่วนหัว (Sticky Top View) */
         .header-section {
             position: sticky;
             top: 0;
@@ -98,7 +98,7 @@
             padding-right: 2px;
         }
 
-        /* ล็อคส่วนท้าย (Sticky Bottom View) */
+        /* ข้อ 4: ล็อคส่วนท้าย (Sticky Bottom View) */
         .footer-section {
             position: sticky;
             bottom: 0;
@@ -154,7 +154,7 @@
     <div class="app-viewport">
         <div class="print-card">
             
-            <!-- ส่วนที่ 1: หัวกระดาษ (Sticky Top View) -->
+            <!-- 🟢 ส่วนที่ 1: หัวกระดาษ (Sticky Top View - ข้อ 4) -->
             <div class="header-section text-center mb-3 pb-1">
                 <h2 class="font-extrabold text-slate-800 text-lg leading-tight">ลาบหนองบัวลำภู @เขื่อนขุนด่าน</h2>
                 <p class="text-xs text-slate-500 font-semibold mt-0.5">064-565-4951</p>
@@ -163,7 +163,7 @@
                 </p>
             </div>
 
-            <!-- ส่วนที่ 2: เนื้อหาตรงกลาง (Scrollable Area) -->
+            <!-- 🟡 ส่วนที่ 2: เนื้อหาตรงกลาง (Scrollable Area) -->
             <div class="content-scrollable">
                 <!-- กรอบรายการอาหาร (Cart Box) -->
                 <div class="items-box-container">
@@ -201,7 +201,7 @@
                 </div>
             </div>
 
-            <!-- ส่วนที่ 3: ปุ่มกดด้านล่าง (Sticky Bottom View) -->
+            <!-- 🟢 ส่วนที่ 3: ปุ่มกดด้านล่าง (Sticky Bottom View - ข้อ 4) -->
             <div class="footer-section no-print pt-2 border-t border-slate-100">
                 <div class="grid grid-cols-2 gap-2">
                     <button type="button" id="saveOnlyBtn" onclick="handleSaveOrder(false)" class="w-full py-2.5 bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer">
@@ -233,7 +233,7 @@
             return null;
         }
 
-        // ป้องกัน Gesture Pinch-to-zoom และ Double-tap zoom บนอุปกรณ์พกพา
+        // ข้อ 2: ป้องกัน Gesture Pinch-to-zoom และ Double-tap zoom บนอุปกรณ์พกพา
         document.addEventListener('touchstart', (e) => {
             if (e.touches.length > 1) {
                 e.preventDefault();
@@ -260,7 +260,8 @@
             currentOrderData = JSON.parse(pendingOrderRaw);
             const cart = currentOrderData.cart || [];
             
-            const groupId = currentOrderData.groupId ?? currentOrderData.customerGroupId ?? 1;
+            // เปรียบเทียบค่าโดยตรง ไม่แปลงประเภทข้อมูลซ้ำซ้อน
+            const groupId = currentOrderData.groupId ?? currentOrderData.customerGroupId ?? currentOrderData.customer_type_id ?? 1;
 
             // 1. จัดการแสดงผล QR Code (แสดงเฉพาะกลุ่มนักท่องเที่ยว groupId === 2)
             const touristSection = document.getElementById('touristOnlySection');
@@ -286,6 +287,7 @@
                 let groupDisplay = locDetails.join(' - ') || 'นักท่องเที่ยว';
                 const rawPhone = String(currentOrderData.customerPhone || currentOrderData.phone || '').trim();
 
+                // ตรวจสอบเบอร์โทรศัพท์: ตัวเลขล้วน 10 หลัก
                 const isValidPhone = /^\d{10}$/.test(rawPhone);
                 if (isValidPhone) {
                     groupDisplay += ` โทร: ${rawPhone}`;
@@ -335,6 +337,7 @@
                 const qty = item.qty || 1;
                 let basePrice = 0;
 
+                // ตรวจสอบ Custom Price หรือเปรียบเทียบตาม groupId โดยตรง
                 if ((item.is_custom_price || item.isCustomPrice) && (item.custom_price || item.price) > 0) {
                     basePrice = item.custom_price || item.price;
                 } else {
@@ -424,56 +427,50 @@
                 const _db = getSupabaseClient();
 
                 if (_db) {
-                    const custName = (currentOrderData.customerName || '').trim();
-                    const custPhone = (currentOrderData.customerPhone || currentOrderData.phone || '').trim();
-                    let finalCustomerId = currentOrderData.selectedCustomerId || null;
+                    const custName = currentOrderData.customerName || '';
+                    const custPhone = currentOrderData.customerPhone || currentOrderData.phone || '';
+                    let finalCustomerId = currentOrderData.selectedCustomerId || currentOrderData.customer_id || null;
 
-                    // กำหนดค่าชื่อลูกค้าที่ต้องการเซฟ
                     const combinedNamePhone = [custName, custPhone].filter(Boolean).join(' ') || 'ลูกค้าทั่วไป';
 
-                    // 🛠️ ค้นหาลูกค้าเดิมจาก name_phone
-                    if (!finalCustomerId) {
-                        const { data: existingCust, error: findErr } = await _db
-                            .from('customers')
-                            .select('id')
-                            .eq('name_phone', combinedNamePhone)
-                            .limit(1);
+                    // 1. จัดการลูกค้าในตาราง public.customers (ที่มีเฉพาะ customer_id และ name ตาม Schema)
+                    if (!finalCustomerId && (custName || custPhone)) {
+                        let existingCust = null;
 
-                        if (!findErr && existingCust && existingCust.length > 0) {
-                            // ดึง ID เดิมมาใช้ ไม่ต้องเพิ่มใหม่
-                            finalCustomerId = existingCust[0].id;
+                        if (custPhone) {
+                            const { data } = await _db.from('customers').select('customer_id').ilike('name', `%${custPhone}%`).limit(1);
+                            if (data && data.length > 0) existingCust = data[0];
+                        }
+
+                        if (existingCust) {
+                            finalCustomerId = existingCust.customer_id;
                         } else {
-                            // ถ้าไม่เจอชื่อนี้ในระบบเลย ให้สร้างลูกค้าใหม่ 1 รายการ
                             const { data: newCust, error: custErr } = await _db
                                 .from('customers')
-                                .insert([{ name_phone: combinedNamePhone }])
-                                .select('id');
+                                .insert([{ name: combinedNamePhone }])
+                                .select('customer_id');
 
                             if (custErr) console.error('Customer Insert Error:', custErr);
                             if (!custErr && newCust && newCust.length > 0) {
-                                finalCustomerId = newCust[0].id;
+                                finalCustomerId = newCust[0].customer_id;
                             }
                         }
                     }
 
                     const totalQty = (currentOrderData.cart || []).reduce((sum, item) => sum + (item.qty || 1), 0);
 
-                    // บันทึกออเดอร์ลงตาราง orders (1 รายการ)
+                    // 2. จัดการโครงสร้างข้อมูล Payload ตาม public.orders ใน schema.sql
                     const insertPayload = {
                         customer_id: finalCustomerId,
-                        customer_group_id: currentOrderData.groupId ?? currentOrderData.customerGroupId ?? 1,
-                        customer_group: currentOrderData.groupName || currentOrderData.customerGroup || 'ชาวบ้าน',
+                        customer_type_id: currentOrderData.groupId ?? currentOrderData.customerGroupId ?? currentOrderData.customer_type_id ?? 1,
                         name_phone: combinedNamePhone,
-                        location_id: currentOrderData.locationId || null,
-                        location_name: currentOrderData.locationName || currentOrderData.location_name || null,
-                        zone_id: currentOrderData.zoneId || null,
-                        zone_name: currentOrderData.zoneName || null,
+                        location_id: currentOrderData.locationId || currentOrderData.location_id || null,
+                        zone_id: currentOrderData.zoneId || currentOrderData.zone_id || null,
                         subtotal: currentOrderData.subtotal || 0,
                         delivery_fee: currentOrderData.deliveryFee || currentOrderData.delivery_fee || 0,
                         total_price: currentOrderData.grandTotal || currentOrderData.total_price || 0,
                         total_qty: totalQty,
                         items: processedItemsForDb.length > 0 ? processedItemsForDb : (currentOrderData.cart || []),
-                        status: 'completed',
                         note: currentOrderData.orderNote || currentOrderData.note || ''
                     };
 

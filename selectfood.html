@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>เลือกรายการอาหาร - ลาบหนองบัวลำภู</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        html, body { 
+            width: 100%; 
+            height: fit-content; 
+            margin: 0; 
+            padding: 0; 
+            background: #ffffff; 
+            font-family: 'Sarabun', sans-serif; 
+            user-select: none; 
+            touch-action: pan-y;
+            -webkit-text-size-adjust: 100%;
+        }
+        .food-grid { 
+            display: grid; 
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important; 
+            gap: 0.5rem; 
+            align-content: start;
+        }
+        .food-btn { 
+            position: relative; 
+            background: #ffffff; 
+            border: 1.5px solid #10b981; 
+            color: #047857; 
+            font-weight: 700; 
+            font-size: 0.95rem; 
+            padding: 0.6rem 0.4rem; 
+            border-radius: 0.75rem; 
+            text-align: center; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
+            transition: all 0.15s ease; 
+            cursor: pointer; 
+            min-height: 48px; 
+            word-break: break-word; 
+            width: 100%; 
+        }
+        .food-btn:active { background-color: #10b981; color: #ffffff; transform: scale(0.97); }
+        .badge-count { 
+            position: absolute; 
+            top: -0.35rem; 
+            right: -0.35rem; 
+            background-color: #ef4444; 
+            color: white; 
+            font-size: 0.7rem; 
+            font-weight: 800; 
+            width: 1.3rem; 
+            height: 1.3rem; 
+            border-radius: 9999px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            border: 2px solid #ffffff; 
+        }
+        .swal2-popup { font-family: 'Sarabun', sans-serif !important; }
+    </style>
+</head>
+<body class="p-3 flex flex-col justify-between box-border">
+
+    <!-- ตัดส่วน Header ออกแล้ว เพื่อไม่ให้ซ้ำซ้อนกับ Modal ของหน้าหลัก -->
+
+    <!-- ส่วนรายการอาหาร (Food Items Grid) -->
+    <div id="foodGridContainer" class="food-grid my-1 pr-1">
+        <div class="col-span-2 text-center py-6 text-slate-400 font-bold text-xs">⏳ กำลังโหลดรายการอาหาร...</div>
+    </div>
+
+    <script src="supabaseClient.js"></script>
+    <script>
+        // ป้องกัน Zoom
+        document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+
+        let db;
+        let currentCatId = null;
+        let currentCatName = '';
+        let currentCatIcon = '🍱';
+        let foods = [];
+
+        function sendAutoHeight() {
+            setTimeout(() => {
+                const actualHeight = document.body.scrollHeight || document.documentElement.scrollHeight;
+                window.parent.postMessage({
+                    type: 'RESIZE_IFRAME',
+                    action: 'resizeIframe',
+                    iframeId: 'iframeSelectFood',
+                    height: actualHeight
+                }, '*');
+            }, 60);
+        }
+
+        function initDatabase() {
+            if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+                db = supabaseClient;
+            } else if (typeof window.supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_KEY !== 'undefined') {
+                db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            }
+        }
+
+        async function initPage() {
+            initDatabase();
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            currentCatId = urlParams.get('group_id') || urlParams.get('catId') || urlParams.get('cat_id');
+            currentCatName = urlParams.get('name') || urlParams.get('catName') || urlParams.get('cat_name') || '';
+            currentCatIcon = urlParams.get('icon') || urlParams.get('catIcon') || urlParams.get('cat_icon') || '🍱';
+
+            if (currentCatId) {
+                const globalCachedFoods = localStorage.getItem('cache_foods');
+                if (globalCachedFoods) {
+                    try {
+                        const allFoods = JSON.parse(globalCachedFoods);
+                        foods = allFoods.filter(f => 
+                            Number(f.group_id) === Number(currentCatId) || 
+                            Number(f.food_group_id) === Number(currentCatId) ||
+                            Number(f.category_id) === Number(currentCatId)
+                        );
+                        if (foods.length > 0) {
+                            renderCategoryFoodGrid();
+                        }
+                    } catch(e) { console.error('Cache parse error', e); }
+                }
+
+                try {
+                    await fetchFoods();
+                } catch(err) {
+                    console.error("Init page error:", err);
+                } finally {
+                    renderCategoryFoodGrid();
+                }
+            } else {
+                renderCategoryFoodGrid();
+            }
+        }
+
+        async function fetchFoods() {
+            if (!db) initDatabase();
+            if (!db || !currentCatId) return;
+            try {
+                const res = await db.from('foods').select('*');
+                if (res.data) {
+                    foods = res.data.filter(f => 
+                        Number(f.group_id) === Number(currentCatId) || 
+                        Number(f.food_group_id) === Number(currentCatId) ||
+                        Number(f.category_id) === Number(currentCatId)
+                    );
+                    sessionStorage.setItem(`foods_cat_${currentCatId}`, JSON.stringify(foods));
+                }
+            } catch (e) {
+                console.error("Fetch foods error:", e);
+            }
+        }
+
+        function renderCategoryFoodGrid() {
+            const container = document.getElementById('foodGridContainer');
+            container.innerHTML = '';
+            if (!foods || foods.length === 0) {
+                container.innerHTML = '<div class="col-span-2 text-center py-6 text-slate-400 font-bold text-xs">ไม่มีรายการอาหารในหมวดนี้</div>';
+                sendAutoHeight();
+                return;
+            }
+            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+            foods.forEach(food => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'food-btn';
+                
+                const foodId = food.id || food.food_id;
+                const foodName = food.name || food.food_name;
+
+                const qtyInCart = cart.filter(item => Number(item.food_id) === Number(foodId))
+                                      .reduce((sum, item) => sum + (Number(item.qty) || 1), 0);
+                                      
+                const badgeHTML = qtyInCart > 0 ? `<span class="badge-count">${qtyInCart}</span>` : '';
+                btn.innerHTML = `<span>${foodName}</span>${badgeHTML}`;
+                
+                btn.onclick = () => {
+                    window.location.href = `selectitem.html?food_id=${foodId}&name=${encodeURIComponent(foodName)}&cat_id=${currentCatId}`;
+                };
+
+                container.appendChild(btn);
+            });
+
+            sendAutoHeight();
+        }
+
+        window.addEventListener('storage', renderCategoryFoodGrid);
+        window.addEventListener('resize', sendAutoHeight);
+        window.addEventListener('message', async (e) => {
+            if (!e.data) return;
+            const type = e.data.type || e.data.action;
+            if (type === 'REFRESH_FOOD_GRID' || type === 'UPDATE_CART_COUNT' || type === 'UPDATE_CART' || type === 'CART_UPDATED' || type === 'RELOAD_FOODS') {
+                if (e.data.cart) {
+                    localStorage.setItem('cart', JSON.stringify(e.data.cart));
+                }
+                renderCategoryFoodGrid();
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+</html>

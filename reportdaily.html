@@ -90,7 +90,7 @@
     <!-- Content Section (Scrollable Area) -->
     <div class="p-3 overflow-y-auto space-y-3 bg-slate-100 flex-1" id="dailyOrdersContainer" style="-webkit-overflow-scrolling: touch;"></div>
 
-    <!-- Footer Section -->
+    <!-- Footer Section (แก้ไขปลายทางลิงก์เป็น report_index.html) -->
     <div class="p-3 bg-white border-t border-slate-100 shrink-0">
         <a href="report_index.html" class="w-full bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-bold py-3 rounded-xl text-xs text-center transition flex items-center justify-center gap-1.5 shadow-md no-underline">
             ⬅️ กลับหน้าศูนย์รวมรายงาน
@@ -148,11 +148,11 @@
         }
     }
 
-    // นับจำนวนบิลแยกรายวัน (รองรับ CREATED_AT ตัวพิมพ์ใหญ่)
+    // นับจำนวนบิลแยกรายวัน เพื่อส่งให้ปฏิทินแสดงผลจุดแจ้งเตือน
     function getOrderCounts() {
         const counts = {};
         allOrdersCache.forEach(o => {
-            const rawDate = o.CREATED_AT || o.created_at || o.order_date || o.updated_at || o.date;
+            const rawDate = o.order_date || o.created_at;
             if (rawDate) {
                 const oDate = String(rawDate).split('T')[0].split(' ')[0];
                 const status = (o.status || '').toLowerCase();
@@ -227,7 +227,7 @@
         filterOrdersByDate();
     }
 
-    // กรองออร์เดอร์ตามวันที่เลือก และแสดงผล (รองรับ CREATED_AT และ CUSTOMER)
+    // กรองออร์เดอร์ตามวันที่เลือก และแสดงผล
     function filterOrdersByDate() {
         const container = document.getElementById('dailyOrdersContainer');
         if (!container) return;
@@ -236,7 +236,7 @@
 
         let filtered = allOrdersCache.filter(o => {
             let oDate = '';
-            const rawDate = o.CREATED_AT || o.created_at || o.order_date || o.updated_at || o.date;
+            const rawDate = o.order_date || o.created_at;
             if (rawDate) {
                 oDate = String(rawDate).split('T')[0].split(' ')[0];
             }
@@ -287,7 +287,7 @@
                 </tr>`;
             }).join('');
 
-            let rawGroup = order.CUSTOMER || order.customer_group || order.customer || '';
+            let rawGroup = order.customer_group || '';
             let loc = (order.location_name || '').trim();
             let zone = (order.zone_name || '').trim();
             let groupLabel = '';

@@ -2,7 +2,7 @@
   ========================================
   [File Note]
   - File Name: pageadmin.html
-  - Links: foodmapping.html, changepwd.html, index.html
+  - Links: adjust_schema.html, foodmapping.html, changepwd.html, index.html
   ========================================
 -->
 <!DOCTYPE html>
@@ -54,29 +54,34 @@
     <div class="app-container shadow-2xl w-full border border-slate-100">
         
         <!-- Header Section (Fixed Top) -->
-        <div class="py-4 px-4 bg-white border-b border-slate-100 text-center shrink-0 shadow-2xs">
-            <div class="text-3xl mb-1">🔓</div>
-            <h1 class="font-black text-lg text-slate-800 tracking-tight">
+        <div class="py-3 px-4 bg-white border-b border-slate-100 text-center shrink-0 shadow-2xs">
+            <div class="text-2xl mb-0.5">🔓</div>
+            <h1 class="font-black text-base text-slate-800 tracking-tight">
                 ผู้ดูแลระบบ
             </h1>
-            <p class="text-[11px] text-slate-400 font-medium mt-0.5">จัดการระบบร้านอาหารและตรวจสอบข้อมูล</p>
+            <p class="text-[10px] text-slate-400 font-medium mt-0.5">จัดการระบบร้านอาหารและตรวจสอบข้อมูล</p>
         </div>
 
         <!-- Menu List Section (Scroll/Flex Area) -->
-        <div class="p-3 bg-slate-100 flex flex-col justify-between gap-2 overflow-y-auto" style="-webkit-overflow-scrolling: touch;">
+        <div class="p-3 bg-slate-100 flex flex-col gap-2 overflow-y-auto" style="-webkit-overflow-scrolling: touch;">
             
-            <!-- 1. จัดการสูตรอาหาร & วัตถุดิบ -->
-            <a href="foodmapping.html" class="flex-1 min-h-[48px] bg-teal-600 hover:bg-teal-700 active:scale-98 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 shadow-xs transition no-underline px-3">
+            <!-- 1. จัดการฐานข้อมูล & Schema -->
+            <a href="adjust_schema.html" class="min-h-[42px] py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-98 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs transition no-underline px-3">
+                <span>🛠️ จัดการฐานข้อมูล & Schema</span>
+            </a>
+
+            <!-- 2. จัดการสูตรอาหาร & วัตถุดิบ -->
+            <a href="foodmapping.html" class="min-h-[42px] py-2.5 bg-teal-600 hover:bg-teal-700 active:scale-98 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs transition no-underline px-3">
                 <span>🔗 จัดการสูตรอาหาร & วัตถุดิบ</span>
             </a>
             
-            <!-- 2. เปลี่ยนรหัสผ่านแอดมิน -->
-            <a href="changepwd.html" class="flex-1 min-h-[48px] bg-slate-700 hover:bg-slate-800 active:scale-98 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 shadow-xs transition no-underline px-3">
+            <!-- 3. เปลี่ยนรหัสผ่านแอดมิน -->
+            <a href="changepwd.html" class="min-h-[42px] py-2.5 bg-slate-700 hover:bg-slate-800 active:scale-98 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs transition no-underline px-3">
                 <span>🔑 เปลี่ยนรหัสผ่านแอดมิน</span>
             </a>
             
-            <!-- 3. กลับหน้าหลัก -->
-            <a href="index.html" class="flex-1 min-h-[48px] bg-rose-500 hover:bg-rose-600 active:scale-98 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 shadow-xs transition no-underline px-3">
+            <!-- 4. กลับหน้าหลัก -->
+            <a href="index.html" class="min-h-[42px] py-2.5 bg-rose-500 hover:bg-rose-600 active:scale-98 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs transition no-underline px-3">
                 <span>🏠 กลับหน้าหลัก</span>
             </a>
 

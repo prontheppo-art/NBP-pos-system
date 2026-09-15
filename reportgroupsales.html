@@ -155,11 +155,11 @@
         return dateString;
     }
 
-    // ฟังก์ชั่นสรุปจำนวนบิลรายวันเพื่อส่งให้ปฏิทินแสดงผล (รองรับ CREATED_AT)
+    // ฟังก์ชั่นสรุปจำนวนบิลรายวันเพื่อส่งให้ปฏิทินแสดงผล
     function getOrderCounts() {
         const counts = {};
         allOrdersCache.forEach(o => {
-            const rawDate = o.CREATED_AT || o.created_at || o.order_date || o.updated_at || o.date;
+            const rawDate = o.order_date || o.created_at;
             if (rawDate) {
                 const oDate = String(rawDate).split('T')[0].split(' ')[0];
                 const status = (o.status || '').toLowerCase();
@@ -242,7 +242,7 @@
 
         let filteredOrders = allOrdersCache.filter(o => {
             let oDate = '';
-            const rawDate = o.CREATED_AT || o.created_at || o.order_date || o.updated_at || o.date;
+            const rawDate = o.order_date || o.created_at;
             if (rawDate) {
                 oDate = String(rawDate).split('T')[0].split(' ')[0];
             }
@@ -263,9 +263,7 @@
         let grandTotalPrice = 0;
 
         filteredOrders.forEach(order => {
-            // ดึงข้อมูลกลุ่มลูกค้า รองรับ CUSTOMER และ customer_group
-            let rawGroup = order.CUSTOMER || order.customer_group || order.customer || 'ทั่วไป';
-            let groupName = String(rawGroup).trim();
+            let groupName = order.customer_group || 'ทั่วไป';
             if (groupName.includes(' ')) {
                 groupName = groupName.split(' ')[0];
             }
@@ -344,15 +342,15 @@
         let listHtml = '';
         group.orders.forEach((o, index) => {
             let timeStr = "";
-            const rawTime = o.CREATED_AT || o.created_at || o.order_date || o.updated_at || o.date;
-            if (rawTime && String(rawTime).includes('T')) {
-                let timePart = String(rawTime).split('T')[1];
+            const rawTime = o.created_at || o.order_date;
+            if (rawTime && rawTime.includes('T')) {
+                let timePart = rawTime.split('T')[1];
                 if (timePart) {
                     let parts = timePart.split(':');
                     timeStr = ` (${parts[0]}:${parts[1]} น.)`;
                 }
-            } else if (rawTime && String(rawTime).includes(' ')) {
-                let timePart = String(rawTime).split(' ')[1];
+            } else if (rawTime && rawTime.includes(' ')) {
+                let timePart = rawTime.split(' ')[1];
                 if (timePart) {
                     let parts = timePart.split(':');
                     timeStr = ` (${parts[0]}:${parts[1]} น.)`;

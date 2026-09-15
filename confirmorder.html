@@ -3,27 +3,16 @@
   [File Note]
   - File Name: confirmorder.html
   - Description: หน้าตรวจสอบและยืนยันคำสั่งซื้อ (Confirm Order / Summary)
-  - Layout Fix: Fixed Header & Footer, Inner Scrollable Cart Area
   - Features:
     1. Auto-complete / Search Dropdown connected to Supabase 'customers' table.
-    2. Duplicate word handling & prevention for customer names.
-    3. Sort Cart Items alphabetically (ก-ฮ) using Thai locale comparison in the Preview List.
-    4. Pop-up Modal system with Outside Click Close support & Pre-loading before display.
-    5. Anti-zoom controls with scrolling enabled (Lock Zoom, Allow Scroll).
-  - External Libraries (CDNs):
-    1. Supabase JS SDK v2 (https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2)
-    2. Tailwind CSS (https://cdn.tailwindcss.com)
-  - Linked Local Files:
-    1. supabaseClient.js (ไฟล์เปิดใช้งาน Client เชื่อมต่อ Supabase DB - เปลี่ยนจาก key.js)
-    2. orderentity.html (ลิงก์ย้อนกลับไปแก้ไข)
-    3. printorder.html (ลิงก์ปลายทางส่งออเดอร์ไปพิมพ์)
+    2. Modals for Locations and Zones with DIRECT ADD (+ เพิ่มสถานที่ / + เพิ่มโซน)
+    3. Sort Cart Items alphabetically (ก-ฮ) using Thai locale comparison.
   ========================================================================
 -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <!-- ข้อกำหนดข้อที่ 2: Viewport ป้องกัน Zoom -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <title>ตรวจสอบออเดอร์ - ลาบหนองบัวลำภู</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -37,11 +26,11 @@
             --success: #16a34a;
         }
 
-        /* ข้อกำหนดข้อที่ 2: ปล่อย Body/HTML ให้ Scroll ได้ตามธรรมชาติ ใช้ touch-action บล็อก Gesture Zoom */
         html, body {
             width: 100%;
             height: 100%;
-            touch-action: pan-y;
+            overflow: hidden;
+            touch-action: none;
             -webkit-text-size-adjust: 100%;
             background-color: var(--bg-color);
             color: #1e293b;
@@ -51,28 +40,23 @@
             user-select: none;
         }
 
-        /* โครงสร้างหน้าจอเต็มความสูง App Container */
         .page-container {
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
+            height: 100vh;
             max-width: 672px;
             margin: 0 auto;
             box-sizing: border-box;
             background-color: var(--bg-color);
         }
 
-        /* --- ข้อกำหนดข้อที่ 4: ล็อคส่วนหัว (Sticky Top) --- */
         .fixed-header-wrapper {
-            position: sticky;
-            top: 0;
             flex-shrink: 0;
             width: 100%;
             padding: 12px 12px 6px 12px;
             box-sizing: border-box;
             background-color: var(--bg-color);
-            z-index: 30;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            z-index: 10;
         }
 
         .group-btn-v2 {
@@ -89,7 +73,6 @@
             box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
         }
 
-        /* Customer Autocomplete Dropdown Styles */
         .customer-autocomplete-wrapper {
             position: relative;
             width: 100%;
@@ -134,12 +117,12 @@
             background-color: #fef3c7;
         }
 
-        /* --- กรอบสีเหลืองกลาง --- */
         .main-content-box {
             flex: 1;
             display: flex;
             flex-direction: column;
-            padding: 6px 12px 12px 12px;
+            min-height: 0;
+            padding: 0 12px 8px 12px;
             gap: 6px;
         }
 
@@ -152,6 +135,7 @@
             flex: 1;
             display: flex;
             flex-direction: column;
+            min-height: 0;
             box-sizing: border-box;
         }
 
@@ -159,9 +143,11 @@
             flex-shrink: 0;
         }
 
-        /* ส่วนรายการสินค้า */
         .scrollable-items {
             flex: 1;
+            overflow-y: auto;
+            touch-action: pan-y;
+            -webkit-overflow-scrolling: touch;
             padding-right: 4px;
         }
 
@@ -192,10 +178,7 @@
             color: #b91c1c;
         }
 
-        /* --- ข้อกำหนดข้อที่ 4: ล็อคส่วนท้าย (Sticky Bottom) --- */
         .fixed-footer-wrapper {
-            position: sticky;
-            bottom: 0;
             flex-shrink: 0;
             width: 100%;
             background: #ffffff;
@@ -203,30 +186,26 @@
             padding: 10px 12px;
             box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
             box-sizing: border-box;
-            z-index: 30;
+            z-index: 20;
         }
 
-        /* --- ข้อกำหนดข้อที่ 5: ดีไซน์ Pop-up Modal --- */
         .custom-modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(4px);
+            backdrop-filter: blur(3px);
             display: none;
             align-items: center;
             justify-content: center;
             z-index: 9999;
-            opacity: 0;
-            transition: opacity 0.2s ease-in-out;
         }
 
         .custom-modal-overlay.active {
             display: flex !important;
-            opacity: 1;
         }
 
         .custom-modal-box {
-            background: #ffffff;
+            background: white;
             border-radius: 20px;
             padding: 20px;
             width: 92%;
@@ -234,26 +213,18 @@
             max-height: 85vh;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-            transform: scale(0.95);
-            transition: transform 0.2s ease-in-out;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
             touch-action: pan-y;
-        }
-
-        .custom-modal-overlay.active .custom-modal-box {
-            transform: scale(1);
         }
     </style>
 </head>
 <body>
 
 <div class="page-container">
-    <!-- ล็อคส่วนหัว (Sticky Top) -->
     <div class="fixed-header-wrapper">
         <div id="locationSelectorWrapper"></div>
     </div>
 
-    <!-- ส่วนกรอบสีเหลืองกลาง -->
     <div class="main-content-box">
         <div class="flex justify-between items-center px-1 text-xs font-bold text-slate-700 shrink-0">
             <span class="flex items-center gap-1.5">🛒 ตะกร้าสินค้าปัจจุบัน:</span>
@@ -261,7 +232,6 @@
         </div>
 
         <div class="cart-preview-box">
-            <!-- หัวตารางในกรอบ -->
             <div class="cart-preview-header flex justify-between items-center mb-2 pb-2 border-b border-dashed border-green-300">
                 <div class="font-bold text-green-700 text-sm flex items-center gap-1.5">
                     📋 รายการที่เลือกไว้แล้ว
@@ -269,7 +239,6 @@
                 <div id="cartTotalPrice" class="font-black text-red-600 text-base">รวม 0.-</div>
             </div>
             
-            <!-- รายการสินค้า -->
             <div class="scrollable-items">
                 <div id="cartPreviewList" class="flex flex-col">
                     <span class="text-gray-400 text-xs py-4 text-center block">⏳ กำลังโหลดรายการ...</span>
@@ -278,7 +247,6 @@
         </div>
     </div>
 
-    <!-- ล็อคส่วนท้าย (Sticky Bottom) -->
     <div class="fixed-footer-wrapper">
         <div class="flex gap-2.5 max-w-2xl mx-auto">
             <a href="orderentity.html" class="bg-white hover:bg-gray-50 text-slate-800 border border-slate-300 font-bold py-3 px-3 rounded-xl text-xs flex-1 text-center shadow-sm transition flex items-center justify-center gap-1">
@@ -291,41 +259,58 @@
     </div>
 </div>
 
-<!-- ข้อกำหนดข้อที่ 5: Pop-up สถานที่ (รองรับ Outside Click ปิด Pop-up โดยคงหน้าหลักไว้) -->
+<!-- Pop-up สถานที่ -->
 <div id="locationModal" class="custom-modal-overlay" onclick="handleOutsideClick(event, 'locationModal')">
     <div class="custom-modal-box border-t-4 border-amber-500" onclick="event.stopPropagation()">
-        <div class="flex justify-between items-center mb-3 pb-2 border-b">
+        <div class="flex justify-between items-center mb-2 pb-2 border-b">
             <h3 class="font-bold text-base text-slate-800 flex items-center gap-1.5">📍 เลือกสถานที่ / ที่พัก</h3>
-            <button onclick="closeModal('locationModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg px-2 py-1 rounded-lg hover:bg-gray-100 transition">✕</button>
+            <button onclick="closeModal('locationModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg px-1">✕</button>
         </div>
-        <div id="locationGrid" class="grid grid-cols-2 gap-2 overflow-y-auto py-1 pr-1 max-h-[60vh]"></div>
+        
+        <!-- ฟอร์มเพิ่มสถานที่แบบด่วน -->
+        <div class="mb-3 bg-amber-50/70 p-2 rounded-xl border border-amber-200 shrink-0">
+            <div class="flex gap-1.5">
+                <input type="text" id="newLocationInput" placeholder="➕ เพิ่มสถานที่ใหม่..." class="flex-1 h-8 px-2.5 text-xs rounded-lg border border-amber-300 bg-white focus:outline-none focus:border-amber-500">
+                <button type="button" onclick="addNewLocation()" class="h-8 px-3 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg shadow-sm active:scale-95 transition shrink-0">
+                    + เพิ่ม
+                </button>
+            </div>
+        </div>
+
+        <div id="locationGrid" class="grid grid-cols-2 gap-2 overflow-y-auto py-1 pr-1 max-h-[55vh]"></div>
     </div>
 </div>
 
-<!-- ข้อกำหนดข้อที่ 5: Pop-up โซน (รองรับ Outside Click ปิด Pop-up โดยคงหน้าหลักไว้) -->
+<!-- Pop-up โซน -->
 <div id="zoneModal" class="custom-modal-overlay" onclick="handleOutsideClick(event, 'zoneModal')">
     <div class="custom-modal-box border-t-4 border-blue-500" onclick="event.stopPropagation()">
-        <div class="flex justify-between items-center mb-3 pb-2 border-b">
+        <div class="flex justify-between items-center mb-2 pb-2 border-b">
             <div>
                 <h3 class="font-bold text-base text-slate-800 flex items-center gap-1.5">🏷️ เลือกโซน / ห้องพัก</h3>
                 <span id="zoneModalSubTitle" class="text-xs text-amber-600 font-semibold block"></span>
             </div>
-            <button onclick="closeModal('zoneModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg px-2 py-1 rounded-lg hover:bg-gray-100 transition">✕</button>
+            <button onclick="closeModal('zoneModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg px-1">✕</button>
         </div>
-        <div id="zoneContainer" class="overflow-y-auto py-1 pr-1 max-h-[60vh] space-y-2"></div>
+
+        <!-- ฟอร์มเพิ่มโซน/ห้องพักแบบด่วน -->
+        <div class="mb-3 bg-blue-50/70 p-2 rounded-xl border border-blue-200 shrink-0">
+            <div class="flex gap-1.5">
+                <input type="text" id="newZoneInput" placeholder="➕ เพิ่มโซน / ห้องพักใหม่..." class="flex-1 h-8 px-2.5 text-xs rounded-lg border border-blue-300 bg-white focus:outline-none focus:border-blue-500">
+                <button type="button" onclick="addNewZone()" class="h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-sm active:scale-95 transition shrink-0">
+                    + เพิ่ม
+                </button>
+            </div>
+        </div>
+
+        <div id="zoneContainer" class="overflow-y-auto py-1 pr-1 max-h-[55vh] space-y-2"></div>
     </div>
 </div>
 
-<!-- ข้อกำหนดข้อที่ 1: เปลี่ยนจาก key.js เป็น supabaseClient.js -->
 <script src="supabaseClient.js"></script>
-
 <script>
-    // ==========================================
-    // ข้อกำหนดข้อที่ 2: ป้องกัน GESTURE ZOOM (Pinch & Double-tap) แต่ยัง Scroll ได้
-    // ==========================================
     document.addEventListener('touchstart', function(event) {
         if (event.touches.length > 1) {
-            event.preventDefault(); // บล็อกใช้นิ้วถ่างซูม
+            event.preventDefault();
         }
     }, { passive: false });
 
@@ -333,12 +318,11 @@
     document.addEventListener('touchend', function(event) {
         const now = (new Date()).getTime();
         if (now - lastTouchEnd <= 300) {
-            event.preventDefault(); // บล็อก Double-tap zoom
+            event.preventDefault();
         }
         lastTouchEnd = now;
     }, false);
 
-    // Helper Function: ป้องกันและจัดการคำซ้ำ (เช่น "ตาทอง ตาทอง" -> "ตาทอง")
     function removeDuplicateWords(text) {
         if (!text) return '';
         const parts = text.trim().split(/\s+/);
@@ -348,7 +332,6 @@
         return text.trim();
     }
 
-    // State Variables
     let tempSelectedLocation = null;
     const zoneIcons = ['🏠', '🔑', '🛋️', '🚪', '🏡', '🌿', '🛏️', '🔑'];
 
@@ -366,7 +349,9 @@
         groupName: '',
         phone: '',
         locationName: '',
-        zoneName: ''
+        zoneName: '',
+        locationId: null,
+        zoneId: null
     };
 
     let locationsData = [];
@@ -376,12 +361,13 @@
 
     let savedTouristLocation = localStorage.getItem('selectedLocationName') || '';
     let savedTouristZone = localStorage.getItem('selectedZoneName') || '';
+    let savedLocationId = localStorage.getItem('selectedLocationId') || null;
+    let savedZoneId = localStorage.getItem('selectedZoneId') || null;
 
     let cart = JSON.parse(localStorage.getItem('cart')) || [];
     let dbFoodsMap = {}; 
     let isDeliveryFeeWaived = false;
 
-    // --- Initialization ---
     window.addEventListener('DOMContentLoaded', async () => {
         await initLocationComponent('locationSelectorWrapper');
         await fetchCustomersData();
@@ -397,9 +383,6 @@
         notifyLocationUpdate();
     });
 
-    // ==========================================
-    // 1. LOCATION & CUSTOMER COMPONENT FUNCTIONS
-    // ==========================================
     function renderLocationComponent(targetContainerId) {
         const container = document.getElementById(targetContainerId);
         if (!container) return;
@@ -460,6 +443,8 @@
                 <input type="hidden" id="selectedGroupName" value="ชาวบ้าน">
                 <input type="hidden" id="selectedLocationName" value="">
                 <input type="hidden" id="selectedZoneName" value="">
+                <input type="hidden" id="selectedLocationId" value="">
+                <input type="hidden" id="selectedZoneId" value="">
             </div>
         `;
     }
@@ -481,8 +466,8 @@
         try {
             if (typeof supabaseClient !== 'undefined') {
                 const [locRes, zoneRes] = await Promise.all([
-                    supabaseClient.from('locations').select('*'),
-                    supabaseClient.from('zones').select('*')
+                    supabaseClient.from('locations').select('*').order('name', { ascending: true }),
+                    supabaseClient.from('zones').select('*').order('name', { ascending: true })
                 ]);
 
                 if (locRes.data) locationsData = locRes.data;
@@ -493,14 +478,84 @@
         }
     }
 
-    // --- AUTOCOMPLETE CUSTOMER LOGIC ---
+    // --- เพิ่มสถานที่ และ เพิ่มโซน ลง SUPABASE โดยตรง ---
+    async function addNewLocation() {
+        const input = document.getElementById('newLocationInput');
+        const locName = input ? input.value.trim() : '';
+
+        if (!locName) {
+            alert('กรุณากรอกชื่อสถานที่');
+            return;
+        }
+
+        try {
+            if (typeof supabaseClient !== 'undefined') {
+                const { data, error } = await supabaseClient
+                    .from('locations')
+                    .insert([{ name: locName }])
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                if (data) {
+                    locationsData.push(data);
+                    input.value = '';
+                    openLocationModal(locationsData);
+                }
+            }
+        } catch (err) {
+            console.error('Error adding new location:', err);
+            alert('ไม่สามารถเพิ่มสถานที่ได้: ' + (err.message || err));
+        }
+    }
+
+    async function addNewZone() {
+        const input = document.getElementById('newZoneInput');
+        const zoneName = input ? input.value.trim() : '';
+
+        if (!zoneName) {
+            alert('กรุณากรอกชื่อโซน/ห้องพัก');
+            return;
+        }
+
+        if (!tempSelectedLocation || !tempSelectedLocation.location_id) {
+            alert('ไม่พบข้อมูลสถานที่ที่เลือก');
+            return;
+        }
+
+        try {
+            if (typeof supabaseClient !== 'undefined') {
+                const { data, error } = await supabaseClient
+                    .from('zones')
+                    .insert([{ 
+                        name: zoneName, 
+                        location_id: tempSelectedLocation.location_id 
+                    }])
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                if (data) {
+                    zonesData.push(data);
+                    input.value = '';
+                    openZoneModal(tempSelectedLocation, zonesData);
+                }
+            }
+        } catch (err) {
+            console.error('Error adding new zone:', err);
+            alert('ไม่สามารถเพิ่มโซนได้: ' + (err.message || err));
+        }
+    }
+
     async function fetchCustomersData() {
         try {
             if (typeof supabaseClient !== 'undefined') {
                 const { data, error } = await supabaseClient
                     .from('customers')
                     .select('*')
-                    .order('name_phone', { ascending: true });
+                    .order('name', { ascending: true });
 
                 if (error) throw error;
                 if (data) customersList = data;
@@ -531,7 +586,7 @@
             matches = [...customersList];
         } else if (keyword !== '') {
             matches = customersList.filter(c => {
-                const cleanName = removeDuplicateWords(c.name_phone || '').toLowerCase();
+                const cleanName = removeDuplicateWords(c.name || '').toLowerCase();
                 return cleanName.includes(keyword);
             });
         }
@@ -548,7 +603,7 @@
             const item = document.createElement('div');
             item.className = 'customer-dropdown-item';
             
-            const cleanName = removeDuplicateWords(cust.name_phone || '');
+            const cleanName = removeDuplicateWords(cust.name || '');
 
             item.innerHTML = `
                 <span class="font-semibold text-slate-700">${cleanName}</span>
@@ -579,7 +634,7 @@
         selectedCustomerObj = cust;
         const input = document.getElementById('customerInput');
         
-        const cleanName = cust.cleanName || removeDuplicateWords(cust.name_phone || '');
+        const cleanName = cust.cleanName || removeDuplicateWords(cust.name || '');
         input.value = cleanName;
         
         document.getElementById('customerDropdown').classList.remove('active');
@@ -615,10 +670,14 @@
 
             savedTouristLocation = localStorage.getItem('selectedLocationName') || '';
             savedTouristZone = localStorage.getItem('selectedZoneName') || '';
+            savedLocationId = localStorage.getItem('selectedLocationId') || '';
+            savedZoneId = localStorage.getItem('selectedZoneId') || '';
 
             if (savedTouristLocation && savedTouristZone) {
                 document.getElementById('selectedLocationName').value = savedTouristLocation;
                 document.getElementById('selectedZoneName').value = savedTouristZone;
+                document.getElementById('selectedLocationId').value = savedLocationId;
+                document.getElementById('selectedZoneId').value = savedZoneId;
                 
                 let displayLocationText = savedTouristLocation;
                 if (savedTouristZone && savedTouristZone !== savedTouristLocation) {
@@ -629,6 +688,8 @@
             } else {
                 document.getElementById('selectedLocationName').value = '';
                 document.getElementById('selectedZoneName').value = '';
+                document.getElementById('selectedLocationId').value = '';
+                document.getElementById('selectedZoneId').value = '';
                 document.getElementById('locationBtnText').innerText = 'เลือกสถานที่';
                 applyCustomerGroupSelection(2, 'นักท่องเที่ยว');
             }
@@ -636,6 +697,8 @@
             locationBtnContainer.classList.add('hidden');
             document.getElementById('selectedLocationName').value = '';
             document.getElementById('selectedZoneName').value = '';
+            document.getElementById('selectedLocationId').value = '';
+            document.getElementById('selectedZoneId').value = '';
             applyCustomerGroupSelection(groupId, groupName);
         }
     }
@@ -649,9 +712,9 @@
         closeAllModals();
 
         if (loc.name.includes('หน้าร้าน')) {
-            const defaultZone = zonesData.find(z => z.location_id === loc.id && z.name.includes('หน้าร้าน')) 
-                             || zonesData.find(z => z.location_id === loc.id)
-                             || { name: 'หน้าร้าน' };
+            const defaultZone = zonesData.find(z => z.location_id === loc.location_id && z.name.includes('หน้าร้าน')) 
+                             || zonesData.find(z => z.location_id === loc.location_id)
+                             || { zone_id: null, name: 'หน้าร้าน' };
             selectZone(defaultZone);
         } else {
             openZoneModal(loc, zonesData);
@@ -660,16 +723,24 @@
 
     function selectZone(zone) {
         const locName = tempSelectedLocation ? tempSelectedLocation.name : '';
+        const locId = tempSelectedLocation ? tempSelectedLocation.location_id : '';
         const zoneName = zone.name;
+        const zoneId = zone.zone_id || null;
 
         savedTouristLocation = locName;
         savedTouristZone = zoneName;
+        savedLocationId = locId;
+        savedZoneId = zoneId;
 
         localStorage.setItem('selectedLocationName', locName);
         localStorage.setItem('selectedZoneName', zoneName);
+        localStorage.setItem('selectedLocationId', locId);
+        localStorage.setItem('selectedZoneId', zoneId);
 
         document.getElementById('selectedLocationName').value = locName;
         document.getElementById('selectedZoneName').value = zoneName;
+        document.getElementById('selectedLocationId').value = locId;
+        document.getElementById('selectedZoneId').value = zoneId;
 
         let displayLocationText = locName;
         if (zoneName && zoneName !== locName) {
@@ -702,23 +773,19 @@
             groupName: document.getElementById('selectedGroupName')?.value || '',
             phone: cleanCustInput,
             locationName: document.getElementById('selectedLocationName')?.value || '',
-            zoneName: document.getElementById('selectedZoneName')?.value || ''
+            zoneName: document.getElementById('selectedZoneName')?.value || '',
+            locationId: document.getElementById('selectedLocationId')?.value || null,
+            zoneId: document.getElementById('selectedZoneId')?.value || null
         };
         
         renderOrderSummary();
     }
 
-    // ==========================================
-    // 2. MODAL CONTROLLER FUNCTIONS (ข้อกำหนดข้อที่ 5)
-    // ==========================================
-    
-    // โหลด Render ข้อมูลเข้า Pop-up ก่อนเปิดแสดงผล
     function openLocationModal(locationsData) {
         closeAllModals();
         const grid = document.getElementById('locationGrid');
         grid.innerHTML = '';
 
-        // Pre-load / Render ข้อมูลก่อนเปิด
         locationsData.forEach(loc => {
             let icon = '🏨';
             if (loc.name.includes('บาหลี')) icon = '🏝️';
@@ -737,18 +804,16 @@
             grid.appendChild(btn);
         });
 
-        // เมื่อเตรียมข้อมูลเสร็จแล้วจึงแสดง Pop-up ขึ้นมา
         openModal('locationModal');
     }
 
-    // โหลด Render ข้อมูลโซนเข้า Pop-up ก่อนเปิดแสดงผล
     function openZoneModal(loc, zonesData) {
         tempSelectedLocation = loc;
         document.getElementById('zoneModalSubTitle').innerText = `📍 สถานที่: ${loc.name}`;
         const container = document.getElementById('zoneContainer');
         container.innerHTML = '';
 
-        const filteredZones = zonesData.filter(z => z.location_id === loc.id);
+        const filteredZones = zonesData.filter(z => z.location_id === loc.location_id);
 
         if (filteredZones.length === 0) {
             container.innerHTML = '<span class="text-center text-gray-400 text-xs py-6 block">ไม่มีรายการโซนสำหรับสถานที่นี้</span>';
@@ -769,7 +834,10 @@
                         <span class="text-sm shrink-0">${icon}</span>
                         <span class="text-sm font-bold text-slate-800 truncate leading-tight">${z.name}</span>
                     `;
-                    btn.onclick = () => sendZoneToIframe(z);
+                    btn.onclick = () => {
+                        selectZone(z);
+                        closeAllModals();
+                    };
                     grid3.appendChild(btn);
                 });
                 container.appendChild(grid3);
@@ -788,20 +856,17 @@
                         <span class="text-sm shrink-0">${icon}</span>
                         <span class="text-sm font-bold text-slate-800 truncate leading-tight">${z.name}</span>
                     `;
-                    btn.onclick = () => sendZoneToIframe(z);
+                    btn.onclick = () => {
+                        selectZone(z);
+                        closeAllModals();
+                    };
                     grid2.appendChild(btn);
                 });
                 container.appendChild(grid2);
             }
         }
 
-        // เมื่อเตรียมข้อมูลเสร็จแล้วจึงแสดง Pop-up ขึ้นมา
         openModal('zoneModal');
-    }
-
-    function sendZoneToIframe(zone) {
-        selectZone(zone);
-        closeAllModals();
     }
 
     function openModal(id) {
@@ -817,16 +882,10 @@
         closeModal('zoneModal');
     }
 
-    // ปิด Pop-up เมื่อคลิกภายนอกกรอบ Pop-up โดยคงหน้าหลักเดิมไว้
     function handleOutsideClick(e, id) {
-        if (e.target.id === id) {
-            closeModal(id);
-        }
+        if (e.target.id === id) closeModal(id);
     }
 
-    // ==========================================
-    // 3. SELECT & CART PREVIEW FUNCTIONS
-    // ==========================================
     async function fetchLatestFoods() {
         try {
             if (typeof supabaseClient !== 'undefined') {
@@ -835,7 +894,7 @@
                 if (data) {
                     dbFoodsMap = {};
                     data.forEach(f => {
-                        dbFoodsMap[f.id] = f;
+                        dbFoodsMap[f.food_id] = f;
                     });
                 }
             }
@@ -1007,9 +1066,6 @@
         }
     }
 
-    // ==========================================
-    // 4. MAIN ACTION & SUBMIT ORDER
-    // ==========================================
     async function ensureCustomerSaved(inputValue) {
         const val = removeDuplicateWords(inputValue);
         if (!val) return null;
@@ -1017,28 +1073,25 @@
         if (selectedCustomerObj) {
             return {
                 ...selectedCustomerObj,
-                cleanName: removeDuplicateWords(selectedCustomerObj.name_phone || val)
+                cleanName: removeDuplicateWords(selectedCustomerObj.name || val)
             };
         }
 
         const existing = customersList.find(c => {
-            const cleanCustName = removeDuplicateWords(c.name_phone || '');
+            const cleanCustName = removeDuplicateWords(c.name || '');
             return cleanCustName.toLowerCase() === val.toLowerCase();
         });
 
         if (existing) {
             return {
                 ...existing,
-                cleanName: removeDuplicateWords(existing.name_phone || val)
+                cleanName: removeDuplicateWords(existing.name || val)
             };
         }
 
         try {
             if (typeof supabaseClient !== 'undefined') {
-                const newCustPayload = {
-                    name_phone: val
-                };
-
+                const newCustPayload = { name: val };
                 const { data, error } = await supabaseClient
                     .from('customers')
                     .insert([newCustPayload])
@@ -1047,17 +1100,14 @@
 
                 if (!error && data) {
                     customersList.push(data);
-                    return {
-                        ...data,
-                        cleanName: val
-                    };
+                    return { ...data, cleanName: val };
                 }
             }
         } catch (err) {
             console.error('Error inserting new customer:', err);
         }
 
-        return { name_phone: val, cleanName: val };
+        return { name: val, cleanName: val };
     }
 
     async function submitOrder() {
@@ -1067,23 +1117,25 @@
         }
 
         const rawCustomerInput = document.getElementById('customerInput')?.value || '';
-        
         const customerInfo = await ensureCustomerSaved(rawCustomerInput);
-        const customerDisplayName = customerInfo ? (customerInfo.cleanName || removeDuplicateWords(customerInfo.name_phone || '')) : removeDuplicateWords(rawCustomerInput);
+        const customerDisplayName = customerInfo ? (customerInfo.cleanName || removeDuplicateWords(customerInfo.name || '')) : removeDuplicateWords(rawCustomerInput);
 
         const orderData = {
             cart: currentOrderSummary.processedCart,
             groupId: locationData.groupId,
             groupName: locationData.groupName,
             customerName: customerDisplayName,
-            customerPhone: '',
-            customerId: customerInfo ? customerInfo.id : null,
+            customerPhone: '', 
+            customer_id: customerInfo ? (customerInfo.customer_id || customerInfo.id) : null,
             orderNote: '',
             locationName: locationData.locationName,
             zoneName: locationData.zoneName,
+            location_id: locationData.locationId ? Number(locationData.locationId) : null,
+            zone_id: locationData.zoneId ? Number(locationData.zoneId) : null,
             subtotal: currentOrderSummary.subtotal,
             deliveryFee: currentOrderSummary.deliveryFee,
             grandTotal: currentOrderSummary.grandTotal,
+            customer_type_id: locationData.groupId,
             createdAt: new Date().toISOString()
         };
 
@@ -1091,6 +1143,8 @@
 
         localStorage.removeItem('selectedLocationName');
         localStorage.removeItem('selectedZoneName');
+        localStorage.removeItem('selectedLocationId');
+        localStorage.removeItem('selectedZoneId');
         localStorage.removeItem('orderNote');
         localStorage.removeItem('customerPhone');
 

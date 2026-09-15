@@ -1,8 +1,9 @@
 <!-- 
   File Note (สรุปไฟล์ที่เชื่อมโยง):
+  - ชื่อไฟล์นี้: index.html
   - สคริปต์ภายนอก (External Scripts): Tailwind CSS (CDN), Supabase Client (supabaseClient.js)
   - ไฟล์ที่ต้องดึงมาใช้ (Dependencies): ฐานข้อมูล/การเชื่อมต่อ Supabase สำหรับระบบจัดการร้านอาหาร
-  - ลิงก์ปลายทาง (Destination Links): orderentity.html, editorder.html, managemenu.html, foodgroups.html, report_index.html, stockmanager.html, admin_index.html
+  - ลิงก์ปลายทาง (Destination Links): orderentity.html, editorder.html, managemenu.html, report_index.html, admin_index.html
 -->
 <!DOCTYPE html>
 <html lang="th">
@@ -101,8 +102,6 @@
 
         .btn-blue { background-color: #2563eb; }
         .btn-amber-600 { background-color: #d97706; }
-        .btn-amber-500 { background-color: #f59e0b; }
-        .btn-purple { background-color: #9333ea; }
         .btn-slate { background-color: #334155; }
 
         @keyframes scaleUp {
@@ -142,22 +141,12 @@
                 <span>📋 จัดการรายการอาหาร & ราคา</span>
             </button>
 
-            <!-- 4. จัดการกลุ่มอาหาร -->
-            <button type="button" onclick="goToPage('foodgroups.html')" class="menu-btn btn-amber-500">
-                <span>📁 จัดการกลุ่มอาหาร</span>
-            </button>
-
-            <!-- 5. รายงานการขาย -->
+            <!-- 4. รายงานการขาย -->
             <button type="button" onclick="goToPage('report_index.html')" class="menu-btn btn-amber-600">
                 <span>📊 รายงานการขาย</span>
             </button>
 
-            <!-- 6. สต็อกสินค้าคงเหลือ -->
-            <button type="button" onclick="goToPage('stockmanager.html')" class="menu-btn btn-purple">
-                <span>📦 สต็อกสินค้าคงเหลือ</span>
-            </button>
-
-            <!-- 7. ผู้ดูแลระบบ -->
+            <!-- 5. ผู้ดูแลระบบ -->
             <button type="button" onclick="openAdminModal()" class="menu-btn btn-slate">
                 <span>🔒 ผู้ดูแลระบบ</span>
             </button>

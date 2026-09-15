@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>เลือกหมวดหมู่อาหาร</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html, body { 
+            touch-action: none; 
+            -webkit-text-size-adjust: 100%; 
+            user-select: none; 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Sarabun', sans-serif; 
+            background: transparent; 
+            overflow: hidden; 
+            width: 100%;
+            height: max-content;
+        }
+        .category-nav-wrap { 
+            display: grid; 
+            grid-template-columns: repeat(2, minmax(0, 1fr)); 
+            gap: 0.5rem; 
+            padding: 0.25rem 0.1rem; 
+            width: 100%; 
+            box-sizing: border-box;
+        }
+        .cat-nav-btn {
+            position: relative; 
+            background-color: #ffffff; 
+            border: 1.5px solid #cbd5e1;
+            color: #1e293b; 
+            font-size: 0.95rem; 
+            font-weight: 700; 
+            padding: 0.5rem 0.35rem;
+            border-radius: 0.85rem; 
+            text-align: center; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            transition: all 0.15s ease; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 0.35rem; 
+            min-height: 52px; 
+            cursor: pointer;
+        }
+        .cat-nav-btn:active { 
+            background-color: #10b981; 
+            color: #ffffff; 
+            border-color: #10b981; 
+            transform: scale(0.96); 
+        }
+        .cat-nav-icon { font-size: 1.2rem; flex-shrink: 0; }
+        .cat-text-long { font-size: 0.85rem !important; line-height: 1.2; word-break: break-word; }
+        .cat-badge-main {
+            position: absolute; 
+            top: -0.35rem; 
+            right: -0.35rem; 
+            background-color: #ef4444;
+            color: #ffffff; 
+            font-size: 0.75rem; 
+            font-weight: 800; 
+            width: 1.35rem; 
+            height: 1.35rem;
+            border-radius: 9999px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            border: 2px solid #ffffff;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="quickNavContainer" class="category-nav-wrap">
+        <div class="col-span-2 text-center py-6 text-slate-400 font-bold text-xs">⏳ กำลังโหลดหมวดหมู่...</div>
+    </div>
+
+    <script src="supabaseClient.js"></script>
+    <script>
+        // ป้องกัน Gesture Zoom
+        document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+
+        let db;
+        const categoryIcons = ['🍱', '🍲', '🍳', '🍚', '🥩', '⭐', '🥗', '🛍️', '🍽️'];
+
+        function sendAutoHeight() {
+            setTimeout(() => {
+                const actualHeight = document.body.scrollHeight || document.documentElement.scrollHeight;
+                window.parent.postMessage({
+                    type: 'RESIZE_IFRAME',
+                    action: 'resizeIframe',
+                    iframeId: 'iframeSelectFoodGroup',
+                    height: actualHeight
+                }, '*');
+            }, 50);
+        }
+
+        function initDB() {
+            if (typeof supabaseClient !== 'undefined') db = supabaseClient;
+            else if (typeof window.supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined') {
+                db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            }
+        }
+
+        function renderCategories(categories, foods) {
+            const navContainer = document.getElementById('quickNavContainer');
+            if (!categories || categories.length === 0) return;
+
+            navContainer.innerHTML = '';
+            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+
+            categories.forEach((cat, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'cat-nav-btn';
+                const icon = categoryIcons[index % categoryIcons.length];
+                
+                let catTotalQty = 0;
+
+                if (cat.name === 'เมนูพิเศษ') {
+                    catTotalQty = cart.reduce((sum, item) => {
+                        const isCustomItem = item.is_custom === true || 
+                                             item.is_special === true || 
+                                             Number(item.food_group_id) === Number(cat.food_group_id) || 
+                                             item.category === 'เมนูพิเศษ' ||
+                                             (!item.food_id && item.name);
+                        const itemQty = Number(item.qty) || 1;
+                        return isCustomItem ? sum + itemQty : sum;
+                    }, 0);
+                } else {
+                    // แก้ไข: ใช้ food_group_id และ food_id ให้ตรงกับฐานข้อมูลจริง
+                    const catFoodIds = (foods || []).filter(f => Number(f.food_group_id) === Number(cat.food_group_id)).map(f => Number(f.food_id));
+                    catTotalQty = cart.reduce((sum, item) => {
+                        const matchById = item.food_id && catFoodIds.includes(Number(item.food_id));
+                        const matchByGroup = item.food_group_id && Number(item.food_group_id) === Number(cat.food_group_id);
+                        const itemQty = Number(item.qty) || 1;
+                        return (matchById || matchByGroup) ? sum + itemQty : sum;
+                    }, 0);
+                }
+
+                const badgeHTML = catTotalQty > 0 ? `<span class="cat-badge-main">${catTotalQty}</span>` : '';
+                const textClass = cat.name.length > 8 ? 'cat-text-long' : '';
+                
+                btn.innerHTML = `<span class="cat-nav-icon">${icon}</span> <span class="${textClass}">${cat.name}</span>${badgeHTML}`;
+                
+                btn.onclick = () => {
+                    if (cat.name === 'เมนูพิเศษ') {
+                        window.parent.postMessage({
+                            type: 'OPEN_SPECIAL_MENU',
+                            action: 'openSpecialMenu',
+                            category: { id: cat.food_group_id, food_group_id: cat.food_group_id, name: cat.name, icon: icon }
+                        }, '*');
+                    } else {
+                        window.parent.postMessage({
+                            type: 'OPEN_SELECT_FOOD',
+                            action: 'OPEN_SELECT_FOOD',
+                            category: { id: cat.food_group_id, food_group_id: cat.food_group_id, name: cat.name, icon: icon },
+                            catId: cat.food_group_id,
+                            catName: cat.name,
+                            catIcon: icon
+                        }, '*');
+                    }
+                };
+
+                navContainer.appendChild(btn);
+            });
+
+            sendAutoHeight();
+        }
+
+        async function loadCategories() {
+            const cachedCat = localStorage.getItem('cache_food_groups');
+            const cachedFoods = localStorage.getItem('cache_foods');
+
+            if (cachedCat) {
+                try {
+                    const parsedCat = JSON.parse(cachedCat);
+                    const parsedFoods = cachedFoods ? JSON.parse(cachedFoods) : [];
+                    renderCategories(parsedCat, parsedFoods);
+                } catch(e) { console.error('Cache render error', e); }
+            }
+
+            initDB();
+            if (!db) return;
+
+            try {
+                // แก้ไข: เปลี่ยนไปใช้ food_group_id และ food_id ในคำสั่ง order()
+                const [catRes, foodRes] = await Promise.all([
+                    db.from('food_groups').select('*').order('food_group_id', { ascending: true }),
+                    db.from('foods').select('*').order('food_id', { ascending: true })
+                ]);
+
+                if (catRes.data && foodRes.data) {
+                    const specialCategories = ['เมนูพิเศษ', 'ลูกค้าฝากซื้อ'];
+                    const categories = catRes.data.sort((a, b) => {
+                        const isASpecial = specialCategories.includes(a.name);
+                        const isBSpecial = specialCategories.includes(b.name);
+                        if (isASpecial && !isBSpecial) return 1;
+                        if (!isASpecial && isBSpecial) return -1;
+                        return a.name.localeCompare(b.name, 'th');
+                    });
+
+                    localStorage.setItem('cache_food_groups', JSON.stringify(categories));
+                    localStorage.setItem('cache_foods', JSON.stringify(foodRes.data));
+
+                    renderCategories(categories, foodRes.data);
+                }
+            } catch (err) { 
+                console.error('Load Categories Error:', err); 
+            }
+        }
+
+        window.addEventListener('storage', loadCategories);
+        window.addEventListener('message', (event) => {
+            if (event.data && (
+                event.data.type === 'UPDATE_CART' || 
+                event.data.type === 'CART_UPDATED' || 
+                event.data.type === 'SYNC_CART' || 
+                event.data.action === 'updateCart' || 
+                event.data.action === 'cartUpdated'
+            )) {
+                if (event.data.cart) {
+                    localStorage.setItem('cart', JSON.stringify(event.data.cart));
+                }
+                loadCategories();
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', loadCategories);
+        window.addEventListener('resize', sendAutoHeight);
+    </script>
+</body>
+</html>
