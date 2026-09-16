@@ -16,6 +16,7 @@
             padding: 0; 
             background: #ffffff; 
             font-family: 'Sarabun', sans-serif; 
+            font-size: 15px !important;
             user-select: none; 
             overflow: hidden; 
             touch-action: pan-y;
@@ -23,15 +24,28 @@
         }
         .swal2-popup { font-family: 'Sarabun', sans-serif !important; }
 
+        /* ปรับขนาดตัวอักษรของ Input และ Label ให้เป็น 15px */
+        input[type="number"], input[type="text"] {
+            font-size: 15px !important;
+        }
+
+        .custom-label {
+            font-size: 15px !important;
+            font-weight: 700;
+        }
+
         /* ปุ่มเพิ่ม/ลด จำนวน (+ -) ให้เล็กลงพอดี */
         .qty-btn {
             width: 28px; height: 28px; border-radius: 8px;
             background-color: #ffffff; border: 1px solid #cbd5e1;
-            font-weight: 800; font-size: 0.85rem; color: #334155;
+            font-weight: 800; font-size: 15px; color: #334155;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; user-select: none;
         }
         .qty-btn:active { background-color: #e2e8f0; transform: scale(0.95); }
+
+        /* ซ่อน Scrollbar ของหน้าต่างหลัก */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
     </style>
 </head>
 <body class="p-3 flex flex-col justify-between box-border bg-white">
@@ -40,11 +54,11 @@
 
         <!-- ================= แสดงชื่อรายการอาหาร และปุ่มบันทึกมุมขวา ================= -->
         <div class="flex justify-between items-center px-1 py-1">
-            <span id="foodTitleName" class="text-lg font-extrabold text-slate-900 tracking-wide truncate pr-2">
+            <span id="foodTitleName" class="font-extrabold text-slate-900 tracking-wide truncate pr-2 text-[15px]">
                 📌 กำลังโหลด...
             </span>
             <!-- ปุ่มบันทึกย้ายมามุมขวาบน -->
-            <button type="button" onclick="saveToCart()" class="bg-emerald-600 hover:bg-emerald-750 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow-md active:scale-95 transition cursor-pointer flex items-center gap-1 shrink-0">
+            <button type="button" onclick="saveToCart()" class="bg-emerald-600 hover:bg-emerald-750 text-white font-bold px-3 py-1.5 rounded-xl text-[15px] shadow-md active:scale-95 transition cursor-pointer flex items-center gap-1 shrink-0">
                 <span>💾 บันทึก</span>
             </button>
         </div>
@@ -52,10 +66,10 @@
         <!-- ================= ส่วนแสดงเฉพาะรายการในตะกร้าที่เป็นชื่อเมนูนี้ ================= -->
         <div id="selectedCartItemsBox" class="bg-slate-50 border border-slate-200 rounded-xl p-2 hidden">
             <div class="flex justify-between items-center mb-1">
-                <span id="cartBoxTitle" class="text-[11px] text-slate-600 font-bold flex items-center gap-1">🛒 รายการเมนูนี้ที่เลือกไว้แล้ว:</span>
-                <span id="selectedCartCountBadge" class="bg-emerald-600 text-white font-extrabold text-[10px] px-1.5 py-0.2 rounded-full">0 รายการ</span>
+                <span id="cartBoxTitle" class="text-[13px] text-slate-600 font-bold flex items-center gap-1">🛒 รายการเมนูนี้ที่เลือกไว้แล้ว:</span>
+                <span id="selectedCartCountBadge" class="bg-emerald-600 text-white font-extrabold text-[12px] px-2 py-0.5 rounded-full">0 รายการ</span>
             </div>
-            <div id="selectedCartList" class="space-y-1 text-[11px] text-slate-700 max-h-24 overflow-y-auto pr-0.5">
+            <div id="selectedCartList" class="space-y-1 text-[13px] text-slate-700 max-h-24 overflow-y-auto pr-0.5">
                 <!-- รายการสินค้าเฉพาะเมนูปัจจุบันจะแสดงที่นี่ ไม่ปะปนกับเมนูอื่น -->
             </div>
         </div>
@@ -63,15 +77,15 @@
         <!-- ราคา และ จำนวน -->
         <div class="grid grid-cols-2 gap-2.5 items-center">
             <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">ราคาพิเศษ (ถ้ามี)</label>
-                <input type="number" id="foodPrice" placeholder="ระบุราคา" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-500 text-center">
+                <label class="block custom-label text-slate-700 mb-1">ราคาพิเศษ (ถ้ามี)</label>
+                <input type="number" id="foodPrice" placeholder="ระบุราคา" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 font-bold text-slate-800 focus:outline-none focus:border-emerald-500 text-center">
             </div>
             <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">จำนวน</label>
+                <label class="block custom-label text-slate-700 mb-1">จำนวน</label>
                 <div class="flex items-center justify-between bg-slate-50 border border-slate-300 rounded-xl px-2 py-1.5">
-                    <button type="button" onclick="adjustQty(-1)" class="w-7 h-7 bg-white border border-slate-200 rounded-lg text-slate-600 font-bold flex items-center justify-center shadow-sm active:scale-95 cursor-pointer">-</button>
-                    <span id="foodQty" class="font-extrabold text-sm text-slate-800">1</span>
-                    <button type="button" onclick="adjustQty(1)" class="w-7 h-7 bg-white border border-slate-200 rounded-lg text-slate-600 font-bold flex items-center justify-center shadow-sm active:scale-95 cursor-pointer">+</button>
+                    <button type="button" onclick="adjustQty(-1)" class="w-7 h-7 bg-white border border-slate-200 rounded-lg text-slate-600 font-bold flex items-center justify-center shadow-sm active:scale-95 cursor-pointer text-[15px]">-</button>
+                    <span id="foodQty" class="font-extrabold text-[15px] text-slate-800">1</span>
+                    <button type="button" onclick="adjustQty(1)" class="w-7 h-7 bg-white border border-slate-200 rounded-lg text-slate-600 font-bold flex items-center justify-center shadow-sm active:scale-95 cursor-pointer text-[15px]">+</button>
                 </div>
             </div>
         </div>
@@ -79,27 +93,27 @@
         <!-- ไข่ดาว / ไข่เจียว (แสดงเฉพาะ food_group_id ไอดี 1 หรือ 2 เท่านั้น) -->
         <div id="eggSection" class="grid grid-cols-2 gap-2.5 items-center hidden">
             <div class="bg-slate-50 border border-slate-200 p-2 rounded-xl flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-700">ไข่ดาว</span>
+                <span class="custom-label text-slate-700">ไข่ดาว</span>
                 <div class="flex items-center gap-1.5">
-                    <button type="button" onclick="adjustExtra('friedEgg', -1)" class="w-6 h-6 bg-white border border-slate-200 rounded-md text-slate-600 font-bold text-xs flex items-center justify-center shadow-sm active:scale-95 cursor-pointer">-</button>
-                    <span id="friedEggQty" class="font-bold text-xs text-slate-800 w-4 text-center">0</span>
-                    <button type="button" onclick="adjustExtra('friedEgg', 1)" class="w-6 h-6 bg-white border border-slate-200 rounded-md text-slate-600 font-bold text-xs flex items-center justify-center shadow-sm active:scale-95 cursor-pointer">+</button>
+                    <button type="button" onclick="adjustExtra('friedEgg', -1)" class="w-6 h-6 bg-white border border-slate-200 rounded-md text-slate-600 font-bold text-[15px] flex items-center justify-center shadow-sm active:scale-95 cursor-pointer">-</button>
+                    <span id="friedEggQty" class="font-bold text-[15px] text-slate-800 w-4 text-center">0</span>
+                    <button type="button" onclick="adjustExtra('friedEgg', 1)" class="w-6 h-6 bg-white border border-slate-200 rounded-md text-slate-600 font-bold text-[15px] flex items-center justify-center shadow-sm active:scale-95 cursor-pointer">+</button>
                 </div>
             </div>
             <div class="bg-slate-50 border border-slate-200 p-2 rounded-xl flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-700">ไข่เจียว</span>
+                <span class="custom-label text-slate-700">ไข่เจียว</span>
                 <div class="flex items-center gap-1.5">
-                    <button type="button" onclick="adjustExtra('omelet', -1)" class="w-6 h-6 bg-white border border-slate-200 rounded-md text-slate-600 font-bold text-xs flex items-center justify-center shadow-sm active:scale-95 cursor-pointer">-</button>
-                    <span id="omeletQty" class="font-bold text-xs text-slate-800 w-4 text-center">0</span>
-                    <button type="button" onclick="adjustExtra('omelet', 1)" class="w-6 h-6 bg-white border border-slate-200 rounded-md text-slate-600 font-bold text-xs flex items-center justify-center shadow-sm active:scale-95 cursor-pointer">+</button>
+                    <button type="button" onclick="adjustExtra('omelet', -1)" class="w-6 h-6 bg-white border border-slate-200 rounded-md text-slate-600 font-bold text-[15px] flex items-center justify-center shadow-sm active:scale-95 cursor-pointer">-</button>
+                    <span id="omeletQty" class="font-bold text-[15px] text-slate-800 w-4 text-center">0</span>
+                    <button type="button" onclick="adjustExtra('omelet', 1)" class="w-6 h-6 bg-white border border-slate-200 rounded-md text-slate-600 font-bold text-[15px] flex items-center justify-center shadow-sm active:scale-95 cursor-pointer">+</button>
                 </div>
             </div>
         </div>
 
         <!-- หมายเหตุ -->
         <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">หมายเหตุ</label>
-            <input type="text" id="foodNote" placeholder="(เช่น เผ็ดน้อย, ไม่ใส่ผัก)" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500">
+            <label class="block custom-label text-slate-700 mb-1">หมายเหตุ</label>
+            <input type="text" id="foodNote" placeholder="(เช่น เผ็ดน้อย, ไม่ใส่ผัก)" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-emerald-500">
         </div>
 
     </div>
@@ -236,7 +250,7 @@
                 div.innerHTML = `
                     <div class="font-bold text-slate-700 truncate pr-1">
                         <span class="text-emerald-600">${item.qty}x</span> ${item.name} ${item.price !== null && item.price !== undefined ? `<span class="text-amber-600">(${item.price}฿)</span>` : ''}${eggText}
-                        ${item.note ? `<br><span class="text-slate-400 font-normal text-[9px]">(${item.note})</span>` : ''}
+                        ${item.note ? `<br><span class="text-slate-400 font-normal text-[11px]">(${item.note})</span>` : ''}
                     </div>
                     <button type="button" onclick="deleteCartItem('${item.item_id}')" class="text-rose-500 hover:text-rose-700 font-extrabold px-1.5 py-0.5 text-xs cursor-pointer">✕</button>
                 `;
@@ -268,12 +282,10 @@
 
             let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
-            // ตรวจสอบความถูกต้องของการเปรียบเทียบข้อมูลแบบยืดหยุ่น (String / Null Safe)
             const existingIndex = cart.findIndex(item => {
                 const sameFood = (foodId && String(item.food_id) === String(foodId)) || 
                                  (foodName && String(item.name).trim() === String(foodName).trim());
                 
-                // ตรวจสอบราคา (แปลงเป็น String เพื่อหลีกเลี่ยง null/undefined เปรียบเทียบไม่ตรงกัน)
                 const itemPriceStr = (item.price !== null && item.price !== undefined) ? String(item.price) : 'null';
                 const finalPriceStr = finalPrice !== null ? String(finalPrice) : 'null';
                 const samePrice = itemPriceStr === finalPriceStr;
@@ -286,13 +298,11 @@
             });
 
             if (existingIndex !== -1) {
-                // หากตัวเลือกเหมือนกันทุกประการ ให้บวกเพิ่มจำนวน (qty)
                 cart[existingIndex].qty = Number(cart[existingIndex].qty || 0) + Number(currentQty);
                 if (cart[existingIndex].price !== null && cart[existingIndex].price !== undefined) {
                     cart[existingIndex].totalPrice = cart[existingIndex].price * cart[existingIndex].qty;
                 }
             } else {
-                // หากไม่เหมือนกัน ให้สร้างรายการใหม่
                 cart.push({
                     item_id: Date.now() + '_' + Math.random().toString(36).substring(2, 6),
                     food_id: foodId,
@@ -311,7 +321,6 @@
 
             localStorage.setItem('cart', JSON.stringify(cart));
 
-            // รีเซ็ตค่าหน้าจอ
             document.getElementById('foodPrice').value = '';
             document.getElementById('foodNote').value = '';
             currentQty = 1;

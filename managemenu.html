@@ -2,9 +2,9 @@
   ========================================================================
   [File Note]
   - File Name: managemenu.html
-  - Description: หน้าดูแลและแก้ไขตารางราคา (จัดการเมนู กลุ่มอาหาร และป๊อปอัปรายการในไฟล์เดียว)
+  - Description: หน้าจัดการเมนู (เฉพาะ "เมนูพิเศษ" โหลด specialmenu.html เป็น iframe popup, นอกนั้นใช้ popup ปกติ)
   - Included JavaScript: supabaseClient.js
-  - Links: index.html
+  - Links: index.html, specialmenu.html
   ========================================================================
 -->
 <!DOCTYPE html>
@@ -77,6 +77,7 @@
           min-height: 52px;
           cursor: pointer;
           width: 100%;
+          text-decoration: none;
       }
 
       .cat-nav-btn:active {
@@ -102,6 +103,11 @@
     </style>
 </head>
 <body class="bg-slate-100 flex items-center justify-center antialiased">
+
+    <!-- ปุ่มก๊อปปี้โค้ดทั้งหมด -->
+    <button onclick="copyAllCode()" id="copyBtn" class="absolute top-3 right-3 z-50 bg-slate-800 hover:bg-slate-900 active:scale-95 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-lg border border-slate-700 flex items-center gap-1.5 transition cursor-pointer">
+        <span>📋</span> <span id="copyText">คัดลอกโค้ดทั้งหมด</span>
+    </button>
 
     <div class="app-container shadow-2xl w-full border border-slate-100">
         
@@ -134,9 +140,9 @@
 
     </div>
 
-    <!-- Modal 1: managemenupopup (แสดงรายการอาหารและตารางราคา) -->
-    <div id="popupModalWrapper" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2">
-        <div onclick="event.stopPropagation()" class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border-4 border-blue-600 overflow-hidden flex flex-col max-h-[90vh] z-10">
+    <!-- Modal 1: managemenupopup (แสดงรายการอาหารและตารางราคาเป็น Pop-up สำหรับหมวดปกติ) -->
+    <div id="popupModalWrapper" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+        <div onclick="event.stopPropagation()" class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border-4 border-blue-600 overflow-hidden flex flex-col h-[60vh] max-h-[60vh] z-10">
             
             <div class="bg-slate-700 text-white p-4 flex items-center justify-between shrink-0">
                 <div class="flex items-center gap-2">
@@ -146,9 +152,6 @@
                 <div class="flex items-center gap-2">
                     <button onclick="openAddMenuModal()" class="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1 shadow transition cursor-pointer">
                         <span>➕</span> เมนู
-                    </button>
-                    <button onclick="closeManageMenuModal()" class="bg-slate-600 hover:bg-slate-500 text-slate-200 rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg active:scale-95 transition cursor-pointer">
-                        ✕
                     </button>
                 </div>
             </div>
@@ -164,10 +167,27 @@
                 <div class="text-center py-8 text-slate-400 text-xs">⏳ กำลังโหลดรายการอาหาร...</div>
             </div>
 
-            <div class="p-3 bg-white border-t border-slate-100 shrink-0">
-                <button onclick="closeManageMenuModal()" class="w-full bg-slate-700 hover:bg-slate-800 text-white font-bold py-3 rounded-2xl text-sm shadow active:scale-[0.98] transition cursor-pointer">
-                    ปิดหน้าต่าง
+        </div>
+    </div>
+
+    <!-- Modal 1.2: External iframe Popup สำหรับโหลดไฟล์ specialmenu.html -->
+    <div id="externalIframeModalWrapper" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+        <div onclick="event.stopPropagation()" class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border-4 border-indigo-600 overflow-hidden flex flex-col h-[420px] max-h-[75vh] z-20 relative">
+            
+            <!-- Header ป๊อปอัพ iframe -->
+            <div class="bg-indigo-700 text-white p-3 px-4 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">⭐</span>
+                    <h3 id="iframeTitleText" class="font-bold text-base text-amber-300">เมนูพิเศษ</h3>
+                </div>
+                <button onclick="closeExternalIframeModal()" class="bg-indigo-800 hover:bg-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-base active:scale-95 transition cursor-pointer shadow">
+                    ✕
                 </button>
+            </div>
+
+            <!-- เนื้อหา iframe โหลดไฟล์ specialmenu.html -->
+            <div class="flex-1 w-full bg-slate-50 relative overflow-hidden">
+                <iframe id="specialMenuIframe" src="" class="w-full h-full border-0"></iframe>
             </div>
 
         </div>
@@ -246,12 +266,12 @@
                     <div class="grid grid-cols-3 gap-2">
                         <div>
                             <span class="block text-[11px] font-bold text-slate-500 text-center mb-1">ชาวบ้าน</span>
-                            <input type="number" id="addPrice2Input" min="0" step="any" placeholder="0" 
+                            <input type="number" id="addPrice1Input" min="0" step="any" placeholder="0" 
                                    class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-center text-xs font-extrabold text-slate-700 outline-none focus:bg-white focus:border-blue-500 transition">
                         </div>
                         <div>
                             <span class="block text-[11px] font-bold text-slate-500 text-center mb-1">นักท่องเที่ยว</span>
-                            <input type="number" id="addPrice1Input" min="0" step="any" placeholder="0" 
+                            <input type="number" id="addPrice2Input" min="0" step="any" placeholder="0" 
                                    class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-center text-xs font-extrabold text-slate-700 outline-none focus:bg-white focus:border-blue-500 transition">
                         </div>
                         <div>
@@ -379,6 +399,23 @@
 
     <!-- JavaScript Core Logic -->
     <script>
+        // ฟังก์ชันสำหรับกดปุ่มก๊อปปี้โค้ดทั้งหมด
+        function copyAllCode() {
+            const htmlContent = document.documentElement.outerHTML;
+            navigator.clipboard.writeText(htmlContent).then(() => {
+                const textEl = document.getElementById('copyText');
+                const btnEl = document.getElementById('copyBtn');
+                textEl.textContent = 'คัดลอกสำเร็จ!';
+                btnEl.classList.replace('bg-slate-800', 'bg-emerald-600');
+                setTimeout(() => {
+                    textEl.textContent = 'คัดลอกโค้ดทั้งหมด';
+                    btnEl.classList.replace('bg-emerald-600', 'bg-slate-800');
+                }, 2000);
+            }).catch(err => {
+                alert('ไม่สามารถคัดลอกได้: ' + err);
+            });
+        }
+
         document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
         document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
         document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
@@ -427,6 +464,7 @@
         function setupOutsideClickClose() {
             const modals = [
                 { id: 'popupModalWrapper', closeFn: closeManageMenuModal },
+                { id: 'externalIframeModalWrapper', closeFn: closeExternalIframeModal },
                 { id: 'editModalWrapper', closeFn: closeEditModal },
                 { id: 'addModalWrapper', closeFn: closeAddMenuModal },
                 { id: 'manageGroupModalWrapper', closeFn: closeManageGroupModal },
@@ -499,17 +537,15 @@
                     rawGroups = uniqueCats.map((cat) => ({ id: cat, name: `กลุ่ม ${cat}` }));
                 }
 
-                const specialCategories = ['เมนูพิเศษ', 'ลูกค้าฝากซื้อ'];
-
+                // จัดลำดับพิเศษ: ให้ "เมนูพิเศษ" หรือ ID 100 อยู่ท้ายสุดเสมอ
                 foodGroups = rawGroups.sort((a, b) => {
-                    const isASpecial = specialCategories.includes(a.name);
-                    const isBSpecial = specialCategories.includes(b.name);
+                    const isASpecial = a.name === 'เมนูพิเศษ' || Number(a.id) === 100;
+                    const isBSpecial = b.name === 'เมนูพิเศษ' || Number(b.id) === 100;
 
                     if (isASpecial && !isBSpecial) return 1;
                     if (!isASpecial && isBSpecial) return -1;
-                    if (isASpecial && isBSpecial) return specialCategories.indexOf(a.name) - specialCategories.indexOf(b.name);
 
-                    return a.name.localeCompare(b.name, 'th');
+                    return Number(a.id) - Number(b.id);
                 });
 
                 renderQuickNav();
@@ -531,15 +567,35 @@
             }
 
             foodGroups.forEach((cat, index) => {
+                // ซ่อนปุ่ม importmain ไม่ให้แสดงผล
+                if (cat.name === 'importmain') return;
+
+                const icon = categoryIcons[index % categoryIcons.length];
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'cat-nav-btn';
-                
-                const icon = categoryIcons[index % categoryIcons.length];
                 btn.innerHTML = `<span class="cat-nav-icon">${icon}</span> <span>${cat.name}</span>`;
-                btn.onclick = () => openCategoryPriceModalHTML(cat);
+
+                // เช็คเงื่อนไขทั้งชื่อ "เมนูพิเศษ" หรือ food_group_id เป็น 100 ให้เปิด iframe popup
+                if (cat.name === 'เมนูพิเศษ' || Number(cat.id) === 100) {
+                    btn.onclick = () => openExternalIframeModal(cat.name);
+                } else {
+                    btn.onclick = () => openCategoryPriceModalHTML(cat);
+                }
+
                 navContainer.appendChild(btn);
             });
+        }
+
+        function openExternalIframeModal(titleName) {
+            document.getElementById('iframeTitleText').textContent = titleName;
+            document.getElementById('specialMenuIframe').src = 'specialmenu.html';
+            openModal('externalIframeModalWrapper');
+        }
+
+        function closeExternalIframeModal() {
+            document.getElementById('specialMenuIframe').src = ''; 
+            closeModal('externalIframeModalWrapper');
         }
 
         async function openCategoryPriceModalHTML(cat) {
@@ -599,14 +655,17 @@
                             <span class="truncate">${food.name}</span>
                         </span>
                     </div>
-                    <div class="col-span-2">
-                        <input type="number" value="${food.price_2 || 0}" onchange="updatePrice(${food.food_id}, 'price_2', this.value)" 
-                            class="w-full text-center font-bold text-slate-700 text-xs bg-slate-50 border border-slate-200 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    </div>
+                    <!-- ชาวบ้าน (price_1) -->
                     <div class="col-span-2">
                         <input type="number" value="${food.price_1 || 0}" onchange="updatePrice(${food.food_id}, 'price_1', this.value)" 
                             class="w-full text-center font-bold text-slate-700 text-xs bg-slate-50 border border-slate-200 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
                     </div>
+                    <!-- นักท่องเที่ยว (price_2) -->
+                    <div class="col-span-2">
+                        <input type="number" value="${food.price_2 || 0}" onchange="updatePrice(${food.food_id}, 'price_2', this.value)" 
+                            class="w-full text-center font-bold text-slate-700 text-xs bg-slate-50 border border-slate-200 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    </div>
+                    <!-- สบายดี (price_3) -->
                     <div class="col-span-2">
                         <input type="number" value="${food.price_3 || 0}" onchange="updatePrice(${food.food_id}, 'price_3', this.value)" 
                             class="w-full text-center font-bold text-slate-700 text-xs bg-slate-50 border border-slate-200 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
@@ -729,8 +788,8 @@
             if (e) e.preventDefault();
 
             const foodName = document.getElementById('addFoodNameInput').value.trim();
-            const priceTourist = parseFloat(document.getElementById('addPrice1Input').value) || 0;
-            const priceLocal = parseFloat(document.getElementById('addPrice2Input').value) || 0;
+            const priceLocal = parseFloat(document.getElementById('addPrice1Input').value) || 0;
+            const priceTourist = parseFloat(document.getElementById('addPrice2Input').value) || 0;
             const priceSabaidee = parseFloat(document.getElementById('addPrice3Input').value) || 0;
 
             if (!foodName) {
@@ -745,8 +804,8 @@
                 const { error } = await db.from('foods').insert([{
                     name: foodName,
                     food_group_id: currentGroupId,
-                    price_1: priceTourist,
-                    price_2: priceLocal,
+                    price_1: priceLocal,
+                    price_2: priceTourist,
                     price_3: priceSabaidee
                 }]);
 

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>เลือกวันที่ออเดอร์</title>
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS Client (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- ไฟล์ Initialization ของ Supabase -->
+    <script src="supabaseClient.js"></script>
+
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: transparent; margin: 0; padding: 0; }
+    </style>
+</head>
+<body class="flex items-center justify-center p-1">
+
+    <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-sm flex flex-col space-y-4">
+        
+        <!-- หัวข้อเดือน/ปี และปุ่มเปลี่ยนเดือน -->
+        <div class="flex justify-between items-center px-2">
+            <button type="button" onclick="CalendarSystem.changeMonth(-1)" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 font-bold flex items-center justify-center text-sm cursor-pointer">❮</button>
+            <h2 id="calMonthYearTitle" class="font-bold text-sm text-slate-800">เดือน ปี</h2>
+            <button type="button" onclick="CalendarSystem.changeMonth(1)" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 font-bold flex items-center justify-center text-sm cursor-pointer">❯</button>
+        </div>
+
+        <!-- หัวตารางวันในสัปดาห์ -->
+        <div class="grid grid-cols-7 text-center text-[11px] font-bold text-slate-400">
+            <div>อา</div><div>จ</div><div>อ</div><div>พ</div><div>พฤ</div><div>ศ</div><div>ส</div>
+        </div>
+
+        <!-- ตารางแสดงวัน -->
+        <div id="calDaysGrid" class="grid grid-cols-7 gap-1 text-center text-xs">
+            <div class="col-span-7 text-slate-400 py-6 text-xs font-medium">กำลังโหลดปฏิทิน...</div>
+        </div>
+
+        <!-- ปุ่มล่าง -->
+        <div class="flex gap-2 pt-2 border-t">
+            <button type="button" onclick="CalendarSystem.selectToday()" class="flex-1 bg-emerald-50 text-emerald-700 font-bold py-2 rounded-xl text-xs hover:bg-emerald-100 border border-emerald-200 cursor-pointer">📅 วันนี้</button>
+            <button type="button" onclick="CalendarSystem.close()" class="flex-1 bg-slate-100 text-slate-700 font-bold py-2 rounded-xl text-xs hover:bg-slate-200 cursor-pointer">ปิด</button>
+        </div>
+    </div>
+
+    <script>
+        let db = null;
+
+        const CalendarSystem = {
+            activeYear: new Date().getFullYear(),
+            activeMonth: new Date().getMonth(),
+            eventsData: {}, // เก็บข้อมูลจำนวนออร์เดอร์แยกตามวันที่ เช่น { '2026-08-27': 10 }
+
+            async init() {
+                // เชื่อมต่อ Supabase Client จากไฟล์ supabaseClient.js
+                if (typeof window.supabaseClient !== 'undefined') {
+                    db = window.supabaseClient;
+                } else if (typeof supabaseClient !== 'undefined') {
+                    db = supabaseClient;
+                }
+
+                await this.fetchOrderCounts();
+                this.render();
+            },
+
+            // ดึงข้อมูลออร์เดอร์จาก Supabase เพื่อนำมานับจำนวนต่อวัน
+            async fetchOrderCounts() {
+                if (!db) {
+                    console.error("Supabase client not found in calendar!");
+                    return;
+                }
+                try {
+                    // ดึงข้อมูลทั้งหมดจากตาราง orders (เลือกฟิลด์ที่เกี่ยวข้องกับวันที่)
+                    const { data, error } = await db.from('orders').select('*');
+                    
+                    if (error) {
+                        console.error("Error fetching order counts for calendar:", error);
+                        return;
+                    }
+
+                    this.eventsData = {};
+                    if (data && data.length > 0) {
+                        // ตรวจสอบฟิลด์ตัวอย่างจากแถวแรกเพื่อดูว่าฐานข้อมูลใช้ชื่อคอลัมน์อะไรเก็บวันที่
+                        console.log("Sample order row from DB:", data[0]);
+
+                        data.forEach(order => {
+                            // ค้นหาคอลัมน์ที่เป็นวันที่ (รองรับทั้ง created_at, order_date, date หรือชื่ออื่นๆ)
+                            const rawDate = order.created_at || order.order_date || order.date || order.sale_date;
+                            if (rawDate) {
+                                // แปลงรูปแบบวันที่ให้เป็น YYYY-MM-DD
+                                const dateStr = String(rawDate).split('T')[0].split(' ')[0];
+                                if (dateStr && dateStr.length >= 10) {
+                                    if (!this.eventsData[dateStr]) {
+                                        this.eventsData[dateStr] = 0;
+                                    }
+                                    this.eventsData[dateStr] += 1;
+                                }
+                            }
+                        });
+                        console.log("Processed Calendar Events Data:", this.eventsData);
+                    } else {
+                        console.log("No orders found in table 'orders'.");
+                    }
+                } catch (err) {
+                    console.error("Exception fetching order counts:", err);
+                }
+            },
+
+            async changeMonth(dir) {
+                this.activeMonth += dir;
+                if (this.activeMonth > 11) { 
+                    this.activeMonth = 0; 
+                    this.activeYear++; 
+                } else if (this.activeMonth < 0) { 
+                    this.activeMonth = 11; 
+                    this.activeYear--; 
+                }
+                this.render();
+            },
+
+            selectToday() {
+                let d = new Date();
+                let dStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                this.sendDateToParent(dStr);
+            },
+
+            sendDateToParent(dStr) {
+                if (window.parent !== window) {
+                    window.parent.postMessage({ action: 'SELECT_DATE', selectedDate: dStr }, '*');
+                }
+            },
+
+            close() {
+                if (window.parent !== window) {
+                    window.parent.postMessage({ action: 'CLOSE_MODAL' }, '*');
+                }
+            },
+
+            render() {
+                const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+                document.getElementById('calMonthYearTitle').textContent = `${thaiMonths[this.activeMonth]} ${this.activeYear + 543}`;
+                
+                const grid = document.getElementById('calDaysGrid');
+                grid.innerHTML = '';
+                
+                let firstDay = new Date(this.activeYear, this.activeMonth, 1).getDay();
+                let totalDays = new Date(this.activeYear, this.activeMonth + 1, 0).getDate();
+
+                let now = new Date();
+                let todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+                // เว้นช่องว่างวันก่อนเริ่มวันที่ 1 ของเดือน
+                for(let i = 0; i < firstDay; i++) {
+                    grid.appendChild(document.createElement('div'));
+                }
+                
+                // สร้างปุ่มวันในเดือน
+                for(let d = 1; d <= totalDays; d++) {
+                    let dStr = `${this.activeYear}-${String(this.activeMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    let btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'relative h-9 w-9 mx-auto rounded-full font-bold text-xs flex items-center justify-center transition cursor-pointer ';
+
+                    let isToday = (dStr === todayStr);
+
+                    if (isToday) {
+                        btn.className += ' border-2 border-rose-500 text-rose-600 bg-rose-50 ';
+                    } else {
+                        btn.className += ' text-slate-700 hover:bg-slate-100';
+                    }
+
+                    // ดึงจำนวนออร์เดอร์ของวันนี้จากข้อมูลที่ดึงมา
+                    let eventCount = this.eventsData[dStr] || 0;
+                    let badgeHtml = '';
+                    if (eventCount > 0) {
+                        badgeHtml = `<span class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] flex items-center justify-center shadow-sm border border-white leading-none">${eventCount}</span>`;
+                    }
+
+                    btn.innerHTML = `<span>${d}</span>${badgeHtml}`;
+                    btn.onclick = () => { this.sendDateToParent(dStr); };
+                    grid.appendChild(btn);
+                }
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            CalendarSystem.init();
+        });
+    </script>
+</body>
+</html>

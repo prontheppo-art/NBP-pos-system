@@ -3,7 +3,6 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <!-- ล็อค Zoom ห้ามถ่างซูมเข้า/ออก -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <title>สั่งรายการอาหารพิเศษ</title>
     
@@ -12,33 +11,70 @@
     <style>
         :root { --bg-color: #ffffff; }
         
-        /* ล็อคการถ่างซูม อนุญาตเฉพาะ Scroll แนวตั้ง */
         html, body { 
             width: 100%; 
-            min-height: 100%;
+            min-height: auto;
             touch-action: pan-y; 
             -webkit-text-size-adjust: 100%;
             background-color: var(--bg-color); 
             color: #1e293b;
             font-family: 'Sarabun', sans-serif; 
+            font-size: 15px !important;
             margin: 0; 
             padding: 0; 
             user-select: none; 
-            overflow: hidden;
+            overflow-y: auto; /* ป้องกันหน้าจอขาวและพื้นที่ว่างเกินจริง */
         }
 
-        /* ปุ่มเพิ่ม/ลด จำนวน (+ -) ให้เล็กลงพอดีไม่ล้นจอ */
+        input[type="number"], input[type="text"] {
+            font-size: 15px !important;
+        }
+
+        .custom-label {
+            font-size: 15px !important;
+            font-weight: 700;
+        }
+
         .qty-btn {
-            width: 22px; height: 22px; border-radius: 5px;
+            width: 26px; height: 26px; border-radius: 5px;
             background-color: #ffffff; border: 1px solid #cbd5e1;
-            font-weight: 800; font-size: 0.75rem; color: #334155;
+            font-weight: 800; font-size: 15px; color: #334155;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer;
             user-select: none;
         }
         .qty-btn:active { background-color: #e2e8f0; transform: scale(0.95); }
 
-        /* Animation ป๊อปอัพเด้งสวยๆ */
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+            max-height: 160px;
+            overflow-y: auto;
+            z-index: 50;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .autocomplete-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+            border-bottom: 1px solid #f1f5f9;
+            transition: background 0.15s;
+        }
+        .autocomplete-item:last-child { border-bottom: none; }
+        .autocomplete-item:hover, .autocomplete-item:active {
+            background-color: #f0fdf4;
+            color: #059669;
+        }
+
         @keyframes modalBounce {
             0% { transform: scale(0.8); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
@@ -46,114 +82,110 @@
         .animate-bounce-in {
             animation: modalBounce 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
+
+        ::-webkit-scrollbar { width: 4px; background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
 </head>
 <body class="bg-white text-slate-800 antialiased flex flex-col">
 
-    <!-- Content Wrapper แบบปรับความสูงอัตโนมัติตามเนื้อหา -->
     <div class="flex flex-col max-w-md mx-auto w-full p-2 justify-between relative space-y-2">
 
-        <!-- ================= ส่วนหัวข้อ และปุ่มบันทึกมุมขวา ================= -->
         <div class="flex justify-between items-center px-1">
             <div class="flex items-center gap-2">
-                <span class="text-base font-extrabold text-slate-900">📌 เมนูพิเศษ</span>
-                <!-- ป้ายนับจำนวน (ย้ายมาไว้ข้างหน้าตามต้องการ) -->
-                <span id="selectedCartCountBadge" class="bg-emerald-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-full hidden">0 รายการ</span>
+                <span class="font-extrabold text-slate-900 text-[15px]">📌 เมนูพิเศษ</span>
+                <span id="selectedCartCountBadge" class="bg-emerald-600 text-white font-extrabold text-[12px] px-2 py-0.5 rounded-full hidden">0 รายการ</span>
             </div>
-            <!-- ปุ่มบันทึกย้ายมามุมขวาบน -->
-            <button type="button" onclick="saveCustomItemDetail()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow-md active:scale-95 transition cursor-pointer flex items-center gap-1 shrink-0">
+            <button type="button" onclick="saveCustomItemDetail()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl text-[15px] shadow-md active:scale-95 transition cursor-pointer flex items-center gap-1 shrink-0">
                 <span>💾 บันทึก</span>
             </button>
         </div>
 
-        <!-- ================= รายการในตะกร้าที่เลือกไว้ (ย่อแสดงเฉพาะรายการ) ================= -->
         <div id="selectedCartItemsBox" class="bg-slate-50 border border-slate-200 rounded-xl p-2 hidden">
-            <div id="selectedCartList" class="space-y-1 text-[11px] text-slate-700 max-h-24 overflow-y-auto pr-0.5">
-                <!-- รายการสินค้าพิเศษที่กดบันทึกแล้วจะแสดงตรงนี้ -->
-            </div>
+            <div id="selectedCartList" class="space-y-1 text-[13px] text-slate-700 max-h-24 overflow-y-auto pr-0.5"></div>
         </div>
 
-        <!-- ================= ฟอร์มกรอกข้อมูลแบบกระชับ ================= -->
-        <div class="border border-slate-200 rounded-xl p-2 space-y-1.5 bg-white shadow-xs">
+        <div class="border border-slate-200 rounded-xl p-2 space-y-2 bg-white shadow-xs">
             
-            <!-- แถวที่ 1: ชื่อรายการอาหาร -->
-            <div class="flex items-center justify-between gap-2 w-full">
-                <span class="font-bold text-slate-900 text-[11px] whitespace-nowrap flex-shrink-0">
-                    ชื่อรายการ <span class="text-rose-600 font-extrabold text-xs">*</span>
+            <div class="flex items-center justify-between gap-2 w-full relative">
+                <span class="custom-label text-slate-900 whitespace-nowrap flex-shrink-0">
+                    ชื่อรายการ <span class="text-rose-600 font-extrabold text-[15px]">*</span>
                 </span>
-                <input type="text" id="customFoodName" placeholder="เช่น กะเพราลูกชิ้น" 
-                       class="flex-1 min-w-0 px-2 py-1 border border-rose-300 focus:border-rose-500 rounded-lg text-[11px] font-bold text-slate-800 focus:outline-none bg-rose-50/30 placeholder:text-slate-400 placeholder:font-normal transition">
+                
+                <div class="relative flex-1 min-w-0">
+                    <div class="flex items-center bg-rose-50/30 border border-rose-300 focus-within:border-rose-500 rounded-lg overflow-hidden transition">
+                        <input type="text" id="customFoodName" placeholder="พิมพ์ชื่อรายการ..." autocomplete="off"
+                               oninput="onFoodInput(this.value)" onfocus="onFoodInput(this.value)"
+                               class="w-full px-2 py-1 font-bold text-slate-800 focus:outline-none bg-transparent placeholder:text-slate-400 placeholder:font-normal">
+                        <button type="button" onclick="toggleDropdown()" class="px-2 text-slate-400 hover:text-slate-600 text-xs flex items-center justify-center cursor-pointer">
+                            ▼
+                        </button>
+                    </div>
+
+                    <div id="autocompleteList" class="autocomplete-dropdown hidden"></div>
+                </div>
             </div>
 
-            <!-- แถวที่ 2: ราคา (ซ้าย) / จำนวน (ขวา) -->
             <div class="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-100">
-                <!-- ราคา -->
                 <div class="flex items-center justify-between gap-1 w-full">
-                    <span class="font-bold text-amber-700 text-[11px] whitespace-nowrap flex-shrink-0">
-                        ราคา <span class="text-rose-600 font-extrabold text-xs">*</span>
+                    <span class="custom-label text-amber-700 whitespace-nowrap flex-shrink-0">
+                        ราคา <span class="text-rose-600 font-extrabold text-[15px]">*</span>
                     </span>
                     <input type="number" id="customPriceInput" min="0" step="any" placeholder="ระบุราคา" 
-                           class="flex-1 min-w-0 px-1.5 py-0.5 border border-amber-300 focus:border-amber-500 rounded-md text-center font-bold text-[11px] text-slate-800 focus:outline-none bg-amber-50/40 placeholder:text-slate-400 placeholder:font-normal transition">
+                           class="flex-1 min-w-0 px-1.5 py-0.5 border border-amber-300 focus:border-amber-500 rounded-md text-center font-bold text-slate-800 focus:outline-none bg-amber-50/40 placeholder:text-slate-400 placeholder:font-normal transition">
                 </div>
-                <!-- จำนวน -->
                 <div class="flex items-center justify-between gap-1 w-full">
-                    <span class="font-bold text-slate-700 text-[11px] whitespace-nowrap flex-shrink-0">จำนวน</span>
+                    <span class="custom-label text-slate-700 whitespace-nowrap flex-shrink-0">จำนวน</span>
                     <div class="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-md p-0.5">
                         <button type="button" class="qty-btn" onclick="changeQty('main', -1)">-</button>
-                        <span id="mainQtyText" class="w-5 text-center font-extrabold text-[11px] text-slate-800">1</span>
+                        <span id="mainQtyText" class="w-5 text-center font-extrabold text-[15px] text-slate-800">1</span>
                         <button type="button" class="qty-btn" onclick="changeQty('main', 1)">+</button>
                     </div>
                 </div>
             </div>
 
-            <!-- แถวที่ 3: ไข่ดาว (ซ้าย) / ไข่เจียว (ขวา) -->
             <div class="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-100">
-                <!-- ไข่ดาว -->
                 <div class="flex items-center justify-between gap-1 w-full">
-                    <span class="font-bold text-slate-700 text-[11px] whitespace-nowrap flex-shrink-0">ไข่ดาว</span>
+                    <span class="custom-label text-slate-700 whitespace-nowrap flex-shrink-0">ไข่ดาว</span>
                     <div class="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-md p-0.5">
                         <button type="button" class="qty-btn" onclick="changeQty('friedEgg', -1)">-</button>
-                        <span id="friedEggQtyText" class="w-5 text-center font-extrabold text-[11px] text-slate-800">0</span>
+                        <span id="friedEggQtyText" class="w-5 text-center font-extrabold text-[15px] text-slate-800">0</span>
                         <button type="button" class="qty-btn" onclick="changeQty('friedEgg', 1)">+</button>
                     </div>
                 </div>
-                <!-- ไข่เจียว -->
                 <div class="flex items-center justify-between gap-1 w-full">
-                    <span class="font-bold text-slate-700 text-[11px] whitespace-nowrap flex-shrink-0">ไข่เจียว</span>
+                    <span class="custom-label text-slate-700 whitespace-nowrap flex-shrink-0">ไข่เจียว</span>
                     <div class="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-md p-0.5">
                         <button type="button" class="qty-btn" onclick="changeQty('omelet', -1)">-</button>
-                        <span id="omeletQtyText" class="w-5 text-center font-extrabold text-[11px] text-slate-800">0</span>
+                        <span id="omeletQtyText" class="w-5 text-center font-extrabold text-[15px] text-slate-800">0</span>
                         <button type="button" class="qty-btn" onclick="changeQty('omelet', 1)">+</button>
                     </div>
                 </div>
             </div>
 
-            <!-- แถวที่ 4: หมายเหตุ -->
             <div class="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-100 w-full">
-                <span class="font-bold text-slate-700 text-[11px] whitespace-nowrap flex-shrink-0">หมายเหตุ</span>
+                <span class="custom-label text-slate-700 whitespace-nowrap flex-shrink-0">หมายเหตุ</span>
                 <input type="text" id="foodNoteInput" placeholder="(เช่น เผ็ดน้อย, ไม่ใส่ผัก)" 
-                       class="flex-1 min-w-0 px-2 py-1 border border-slate-200 rounded-lg text-[11px] focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder:text-slate-300">
+                       class="flex-1 min-w-0 px-2 py-1 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder:text-slate-300">
             </div>
 
         </div>
 
     </div>
 
-    <!-- ================= Custom Popup Modal แจ้งเตือนสไตล์สวยงาม ================= -->
     <div id="customAlertOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white rounded-3xl p-5 max-w-xs w-full text-center shadow-2xl border-2 border-slate-100 animate-bounce-in">
             <div id="alertIconBg" class="w-14 h-14 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl shadow-inner">
                 ⚠️
             </div>
-            <h3 id="alertTitle" class="text-base font-extrabold text-slate-800 mb-1">แจ้งเตือน</h3>
-            <p id="alertMessage" class="text-xs font-bold text-slate-600 mb-5 leading-relaxed">กรุณากรอกข้อมูลให้ครบถ้วน</p>
-            <button type="button" onclick="closeCustomAlert()" class="w-full bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-bold py-2.5 rounded-xl text-xs transition shadow cursor-pointer">
+            <h3 id="alertTitle" class="text-[15px] font-extrabold text-slate-800 mb-1">แจ้งเตือน</h3>
+            <p id="alertMessage" class="text-[15px] font-bold text-slate-600 mb-5 leading-relaxed">กรุณากรอกข้อมูลให้ครบถ้วน</p>
+            <button type="button" onclick="closeCustomAlert()" class="w-full bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-bold py-2.5 rounded-xl text-[15px] transition shadow cursor-pointer">
                 ตกลง
             </button>
         </div>
     </div>
 
-    <!-- Script ควบคุมการทำงาน -->
     <script>
         let mainQty = 1;
         let friedEggQty = 0;
@@ -161,32 +193,94 @@
         const EGG_PRICE = 10;
         let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
-        // ป้องกัน Gesture Zoom
         document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
-        document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
-        document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
 
-        let lastTouchEnd = 0;
-        document.addEventListener('touchend', (event) => {
-            const now = (new Date()).getTime();
-            if (now - lastTouchEnd <= 300) event.preventDefault();
-            lastTouchEnd = now;
-        }, { passive: false });
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('autocompleteList');
+            const input = document.getElementById('customFoodName');
+            if (e.target !== input && !e.target.closest('#autocompleteList') && !e.target.closest('button[onclick="toggleDropdown()"]')) {
+                dropdown.classList.add('hidden');
+            }
+        });
 
         window.addEventListener('DOMContentLoaded', () => {
             renderSelectedCartList();
-            sendHeightToParent();
         });
 
-        window.addEventListener('load', () => {
-            sendHeightToParent();
-        });
+        function getUniqueHistoryNames() {
+            const historyList = JSON.parse(localStorage.getItem('specialFoodHistory')) || [];
+            const currentCartNames = cart
+                .filter(item => item.is_custom === true || item.is_special === true)
+                .map(item => item.name);
+            return Array.from(new Set([...historyList, ...currentCartNames])).filter(n => n && n.trim() !== '');
+        }
 
-        // ส่งความสูงปัจจุบันไปให้หน้าหลักปรับขนาด Iframe อัตโนมัติ
-        function sendHeightToParent() {
-            if (window.parent) {
-                const height = document.documentElement.scrollHeight || document.body.scrollHeight;
-                window.parent.postMessage({ action: 'resizeIframe', height: height + 10 }, '*');
+        function onFoodInput(searchTerm) {
+            const dropdown = document.getElementById('autocompleteList');
+            const term = searchTerm.trim().toLowerCase();
+
+            if (!term) {
+                dropdown.classList.add('hidden');
+                return;
+            }
+
+            const allNames = getUniqueHistoryNames();
+            const filtered = allNames.filter(name => name.toLowerCase().includes(term));
+
+            if (filtered.length === 0) {
+                dropdown.classList.add('hidden');
+                return;
+            }
+
+            dropdown.innerHTML = '';
+            filtered.forEach(name => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'autocomplete-item';
+                itemDiv.innerHTML = highlightMatch(name, searchTerm);
+                itemDiv.onclick = () => selectFoodName(name);
+                dropdown.appendChild(itemDiv);
+            });
+
+            dropdown.classList.remove('hidden');
+        }
+
+        function highlightMatch(text, query) {
+            if (!query.trim()) return text;
+            const reg = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            return text.replace(reg, '<span class="text-emerald-600 font-extrabold">$1</span>');
+        }
+
+        function selectFoodName(name) {
+            document.getElementById('customFoodName').value = name;
+            document.getElementById('autocompleteList').classList.add('hidden');
+        }
+
+        function toggleDropdown() {
+            const dropdown = document.getElementById('autocompleteList');
+            if (dropdown.classList.contains('hidden')) {
+                const allNames = getUniqueHistoryNames();
+                if (allNames.length === 0) return;
+
+                dropdown.innerHTML = '';
+                allNames.forEach(name => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'autocomplete-item';
+                    itemDiv.textContent = name;
+                    itemDiv.onclick = () => selectFoodName(name);
+                    dropdown.appendChild(itemDiv);
+                });
+                dropdown.classList.remove('hidden');
+            } else {
+                dropdown.classList.add('hidden');
+            }
+        }
+
+        function saveNameToHistory(name) {
+            if (!name) return;
+            let historyList = JSON.parse(localStorage.getItem('specialFoodHistory')) || [];
+            if (!historyList.includes(name)) {
+                historyList.push(name);
+                localStorage.setItem('specialFoodHistory', JSON.stringify(historyList));
             }
         }
 
@@ -203,12 +297,10 @@
             }
 
             document.getElementById('customAlertOverlay').classList.remove('hidden');
-            sendHeightToParent();
         }
 
         function closeCustomAlert() {
             document.getElementById('customAlertOverlay').classList.add('hidden');
-            sendHeightToParent();
         }
 
         function changeQty(type, delta) {
@@ -237,7 +329,6 @@
             if (customCartItems.length === 0) {
                 boxContainer.classList.add('hidden');
                 badge.classList.add('hidden');
-                sendHeightToParent();
                 return;
             }
 
@@ -257,14 +348,12 @@
                 div.innerHTML = `
                     <div class="font-bold text-slate-700 truncate pr-1">
                         <span class="text-emerald-600">${item.qty}x</span> ${item.name} <span class="text-amber-600">(${item.price}฿)</span>${eggText}
-                        ${item.note ? `<br><span class="text-slate-400 font-normal text-[9px]">(${item.note})</span>` : ''}
+                        ${item.note ? `<br><span class="text-slate-400 font-normal text-[11px]">(${item.note})</span>` : ''}
                     </div>
                     <button type="button" onclick="deleteCartItem('${item.item_id}')" class="text-rose-500 hover:text-rose-700 font-extrabold px-1.5 py-0.5 text-xs cursor-pointer">✕</button>
                 `;
                 listContainer.appendChild(div);
             });
-
-            setTimeout(sendHeightToParent, 50);
         }
 
         function deleteCartItem(itemId) {
@@ -290,6 +379,8 @@
                 document.getElementById('customPriceInput').focus();
                 return;
             }
+
+            saveNameToHistory(nameInput);
 
             const totalEggPrice = (friedEggQty + omeletQty) * EGG_PRICE;
             const unitPrice = priceInput + totalEggPrice;
@@ -330,7 +421,6 @@
 
             localStorage.setItem('cart', JSON.stringify(cart));
 
-            // รีเซ็ตฟอร์ม
             document.getElementById('customFoodName').value = '';
             document.getElementById('customPriceInput').value = '';
             document.getElementById('foodNoteInput').value = '';
@@ -340,6 +430,7 @@
             document.getElementById('mainQtyText').textContent = '1';
             document.getElementById('friedEggQtyText').textContent = '0';
             document.getElementById('omeletQtyText').textContent = '0';
+            document.getElementById('autocompleteList').classList.add('hidden');
 
             renderSelectedCartList();
             notifyParentUpdate();

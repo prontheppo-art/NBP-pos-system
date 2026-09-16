@@ -1,4 +1,10 @@
-<!-- ไฟล์: orderentity.html -->
+<!--
+  ========================================
+  [File Note]
+  - File Name: orderentity.html
+  - Description: หน้าเลือกหมวดหมู่และสั่งอาหาร (ซ่อนหมวดหมู่ importmain / ID 100 แล้ว)
+  ========================================
+-->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -31,7 +37,9 @@
         }
         .cat-nav-btn {
             position: relative; background-color: #ffffff; border: 1.5px solid #cbd5e1;
-            color: #1e293b; font-size: 1.05rem; font-weight: 700; padding: 0.6rem 0.4rem;
+            color: #1e293b; 
+            font-size: 15px !important; 
+            font-weight: 700; padding: 0.6rem 0.4rem;
             border-radius: 0.85rem; text-align: center;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.15s ease;
             display: flex; align-items: center; justify-content: center; gap: 0.35rem;
@@ -40,7 +48,11 @@
         .cat-nav-btn:active { background-color: #10b981; color: #ffffff; border-color: #10b981; transform: scale(0.96); }
         .cat-nav-icon { font-size: 1.25rem; flex-shrink: 0; }
         
-        .cat-text-long { font-size: 0.9rem !important; line-height: 1.2; word-break: break-word; }
+        .cat-text-long { 
+            font-size: 15px !important; 
+            line-height: 1.2; 
+            word-break: break-word; 
+        }
 
         /* Badge แสดงจำนวนชิ้นที่มุมขวาบนของปุ่มหมวดหมู่ */
         .cat-badge-main {
@@ -50,7 +62,7 @@
             border: 2px solid #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.15);
         }
 
-        /* Modal Overlay - กดพื้นหลังด้านนอกเพื่อปิด */
+        /* Modal Overlay หลัก */
         .custom-modal-overlay { 
             position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
             background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); 
@@ -93,10 +105,9 @@
         </div>
     </div>
 
-    <!-- Modal Pop-up -->
+    <!-- Modal Pop-up แสดงหน้าเลือกเมนู/เมนูพิเศษ -->
     <div id="externalPageModalOverlay" class="custom-modal-overlay" onclick="closeExternalModal()">
         <div class="w-full max-w-lg bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-2xl max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
-            <!-- Header Modal -->
             <div class="flex justify-between items-center p-3.5 bg-slate-100 border-b border-slate-200">
                 <div class="flex items-center gap-2">
                     <span id="externalModalIcon" class="text-xl">🍱</span>
@@ -109,7 +120,7 @@
         </div>
     </div>
 
-    <!-- Modal ยืนยันการล้างตะกร้า (ปรับแต่งเส้นขอบใหม่เป็นแบบแบนเรียบ สบายตา) -->
+    <!-- Modal ยืนยันการล้างตะกร้า -->
     <div id="confirmClearModalOverlay" class="custom-modal-overlay" onclick="closeConfirmClearModal()">
         <div class="bg-white rounded-3xl max-w-xs w-full p-5 text-center border border-slate-200 shadow-2xl transform transition-all" onclick="event.stopPropagation()">
             <div class="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl font-bold border border-rose-100">🗑️</div>
@@ -119,6 +130,16 @@
                 <button type="button" onclick="closeConfirmClearModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-xl transition cursor-pointer">ยกเลิก</button>
                 <button type="button" onclick="executeClearAllCart()" class="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs rounded-xl shadow-sm transition cursor-pointer">ยืนยันการลบ</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal แจ้งเตือนข้อความทั่วไป (แทนระบบ Alert ปกติ) -->
+    <div id="noticeModalOverlay" class="custom-modal-overlay" onclick="closeNoticeModal()">
+        <div class="bg-white rounded-3xl max-w-xs w-full p-5 text-center border border-slate-200 shadow-2xl transform transition-all" onclick="event.stopPropagation()">
+            <div class="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl font-bold border border-amber-100">⚠️</div>
+            <h3 class="text-base font-extrabold text-slate-800 mb-1">การแจ้งเตือน</h3>
+            <p id="noticeModalMessage" class="text-xs text-slate-500 mb-5 leading-relaxed">เกิดข้อผิดพลาด</p>
+            <button type="button" onclick="closeNoticeModal()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow-sm transition cursor-pointer">ตกลง</button>
         </div>
     </div>
 
@@ -132,13 +153,14 @@
 
         const categoryIcons = ['🍱', '🍲', '🍳', '🍚', '🥩', '⭐', '🥗', '🛍️', '🍽️'];
 
+        // ป้องกันการ Zoom บนอุปกรณ์พกพา
         document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
 
         window.addEventListener('DOMContentLoaded', async () => {
             if (typeof window.supabaseClient !== 'undefined') {
                 db = window.supabaseClient;
             } else {
-                console.error('❌ ไม่พบ Supabase Client จากไฟล์ supabaseClient.js');
+                showNoticeModal('ไม่พบการเชื่อมต่อ Supabase Client จากไฟล์ supabaseClient.js');
             }
             updateCartCountOnly();
             await loadData();
@@ -154,7 +176,18 @@
 
                 const specialCategories = ['เมนูพิเศษ', 'ลูกค้าฝากซื้อ'];
 
-                categories = (catRes.data || []).sort((a, b) => {
+                // กรองหมวดหมู่: ตัด ID 100 และชื่อ 'importmain' ออก ไม่ให้แสดงผล
+                const rawCategories = catRes.data || [];
+                const filteredCategories = rawCategories.filter(cat => {
+                    const catId = Number(cat.food_group_id || cat.id);
+                    const catName = (cat.name || '').trim().toLowerCase();
+                    if (catId === 100 || catName === 'importmain' || catName === 'import_main') {
+                        return false;
+                    }
+                    return true;
+                });
+
+                categories = filteredCategories.sort((a, b) => {
                     const isASpecial = specialCategories.includes(a.name);
                     const isBSpecial = specialCategories.includes(b.name);
 
@@ -167,7 +200,9 @@
 
                 foods = foodRes.data || [];
                 renderQuickNav();
-            } catch (err) { console.error('Error loading data:', err); }
+            } catch (err) { 
+                showNoticeModal('เกิดข้อผิดพลาดในการโหลดข้อมูลเมนู');
+            }
         }
 
         function renderQuickNav() {
@@ -185,12 +220,10 @@
                 const catId = Number(cat.food_group_id || cat.id);
                 const catName = (cat.name || '').trim();
 
-                // หารหัสอาหารทั้งหมดที่อยู่ในหมวดหมู่นี้จากตาราง foods
                 const catFoodIds = foods
                     .filter(f => Number(f.food_group_id || f.group_id || f.category_id) === catId)
                     .map(f => Number(f.food_id || f.id));
 
-                // คำนวณจำนวนชิ้นในตะกร้าที่ตรงกับหมวดหมู่นี้
                 const catTotalQty = currentCart
                     .filter(item => {
                         const itemFoodId = Number(item.food_id || item.id);
@@ -256,6 +289,15 @@
             renderQuickNav();
         }
         function goToSummary() { window.location.href = 'confirmorder.html'; }
+
+        /* ระบบแจ้งเตือนแทน Alert แบบปกติ */
+        function showNoticeModal(msg) {
+            document.getElementById('noticeModalMessage').textContent = msg;
+            document.getElementById('noticeModalOverlay').classList.add('active');
+        }
+        function closeNoticeModal() {
+            document.getElementById('noticeModalOverlay').classList.remove('active');
+        }
 
         window.addEventListener('message', (e) => {
             if (!e.data) return;

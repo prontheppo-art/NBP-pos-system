@@ -3,10 +3,7 @@
   [File Note]
   - File Name: confirmorder.html
   - Description: หน้าตรวจสอบและยืนยันคำสั่งซื้อ (Confirm Order / Summary)
-  - Features:
-    1. Auto-complete / Search Dropdown connected to Supabase 'customers' table.
-    2. Modals for Locations and Zones with DIRECT ADD (+ เพิ่มสถานที่ / + เพิ่มโซน)
-    3. Sort Cart Items alphabetically (ก-ฮ) using Thai locale comparison.
+  - Updated: ปรับปรุงระบบคำนวณราคา โดยให้ความสำคัญกับ "ราคาพิเศษ" เป็นอันดับแรก หากไม่มีจึงเลือกตามกลุ่มลูกค้า (Price 1, 2, 3)
   ========================================================================
 -->
 <!DOCTYPE html>
@@ -478,7 +475,6 @@
         }
     }
 
-    // --- เพิ่มสถานที่ และ เพิ่มโซน ลง SUPABASE โดยตรง ---
     async function addNewLocation() {
         const input = document.getElementById('newLocationInput');
         const locName = input ? input.value.trim() : '';
@@ -490,18 +486,37 @@
 
         try {
             if (typeof supabaseClient !== 'undefined') {
-                const { data, error } = await supabaseClient
+                const maxId = locationsData.length > 0 
+                    ? Math.max(...locationsData.map(l => Number(l.location_id || l.id) || 0)) 
+                    : 0;
+                const nextId = maxId + 1;
+
+                let { data, error } = await supabaseClient
                     .from('locations')
                     .insert([{ name: locName }])
                     .select()
                     .single();
+
+                if (error && error.message.includes('locations_pkey')) {
+                    const fallbackRes = await supabaseClient
+                        .from('locations')
+                        .insert([{ location_id: nextId, name: locName }])
+                        .select()
+                        .single();
+                    
+                    data = fallbackRes.data;
+                    error = fallbackRes.error;
+                }
 
                 if (error) throw error;
 
                 if (data) {
                     locationsData.push(data);
                     input.value = '';
-                    openLocationModal(locationsData);
+                    
+                    tempSelectedLocation = data;
+                    closeModal('locationModal');
+                    openZoneModal(data, zonesData);
                 }
             }
         } catch (err) {
@@ -519,21 +534,43 @@
             return;
         }
 
-        if (!tempSelectedLocation || !tempSelectedLocation.location_id) {
+        if (!tempSelectedLocation || (!tempSelectedLocation.location_id && !tempSelectedLocation.id)) {
             alert('ไม่พบข้อมูลสถานที่ที่เลือก');
             return;
         }
 
+        const targetLocId = tempSelectedLocation.location_id || tempSelectedLocation.id;
+
         try {
             if (typeof supabaseClient !== 'undefined') {
-                const { data, error } = await supabaseClient
+                const maxId = zonesData.length > 0 
+                    ? Math.max(...zonesData.map(z => Number(z.zone_id || z.id) || 0)) 
+                    : 0;
+                const nextId = maxId + 1;
+
+                let { data, error } = await supabaseClient
                     .from('zones')
                     .insert([{ 
                         name: zoneName, 
-                        location_id: tempSelectedLocation.location_id 
+                        location_id: targetLocId 
                     }])
                     .select()
                     .single();
+
+                if (error && error.message.includes('zones_pkey')) {
+                    const fallbackRes = await supabaseClient
+                        .from('zones')
+                        .insert([{ 
+                            zone_id: nextId,
+                            name: zoneName, 
+                            location_id: targetLocId 
+                        }])
+                        .select()
+                        .single();
+
+                    data = fallbackRes.data;
+                    error = fallbackRes.error;
+                }
 
                 if (error) throw error;
 
@@ -711,9 +748,11 @@
         tempSelectedLocation = loc;
         closeAllModals();
 
+        const targetLocId = loc.location_id || loc.id;
+
         if (loc.name.includes('หน้าร้าน')) {
-            const defaultZone = zonesData.find(z => z.location_id === loc.location_id && z.name.includes('หน้าร้าน')) 
-                             || zonesData.find(z => z.location_id === loc.location_id)
+            const defaultZone = zonesData.find(z => String(z.location_id) === String(targetLocId) && z.name.includes('หน้าร้าน')) 
+                             || zonesData.find(z => String(z.location_id) === String(targetLocId))
                              || { zone_id: null, name: 'หน้าร้าน' };
             selectZone(defaultZone);
         } else {
@@ -723,9 +762,9 @@
 
     function selectZone(zone) {
         const locName = tempSelectedLocation ? tempSelectedLocation.name : '';
-        const locId = tempSelectedLocation ? tempSelectedLocation.location_id : '';
+        const locId = tempSelectedLocation ? (tempSelectedLocation.location_id || tempSelectedLocation.id) : '';
         const zoneName = zone.name;
-        const zoneId = zone.zone_id || null;
+        const zoneId = zone.zone_id || zone.id || null;
 
         savedTouristLocation = locName;
         savedTouristZone = zoneName;
@@ -813,10 +852,15 @@
         const container = document.getElementById('zoneContainer');
         container.innerHTML = '';
 
-        const filteredZones = zonesData.filter(z => z.location_id === loc.location_id);
+        const targetLocId = loc.location_id || loc.id;
+        const filteredZones = zonesData.filter(z => String(z.location_id) === String(targetLocId));
 
         if (filteredZones.length === 0) {
-            container.innerHTML = '<span class="text-center text-gray-400 text-xs py-6 block">ไม่มีรายการโซนสำหรับสถานที่นี้</span>';
+            container.innerHTML = `
+                <div class="text-center text-amber-600 text-xs py-6 font-semibold bg-amber-50/60 rounded-xl border border-dashed border-amber-200">
+                    ⚠️ ยังไม่มีโซนในสถานที่นี้<br>กรุณากรอกชื่อโซน/ห้องพักที่ช่องด้านบน แล้วกด "+ เพิ่ม"
+                </div>
+            `;
         } else {
             const shortZones = filteredZones.filter(z => z.name.length <= 7);
             const longZones = filteredZones.filter(z => z.name.length > 7);
@@ -903,32 +947,45 @@
         }
     }
 
+    // =========================================================================
+    // ฟังก์ชันคำนวณราคาฐาน (รองรับราคาพิเศษเป็นอันดับแรก และราคาตามกลุ่มลูกค้า)
+    // =========================================================================
     function getGroupBasePrice(item, groupId) {
-        const hasCustomPrice = item.isCustomPrice || item.is_custom_price;
-        const customPriceVal = Number(item.price !== undefined ? item.price : item.custom_price);
-
-        if (hasCustomPrice && customPriceVal > 0) {
-            return customPriceVal;
+        // 1. ตรวจสอบว่ามีราคาพิเศษหรือราคาที่กำหนดเอง (Special / Custom Price) หรือไม่
+        const hasCustomPrice = item.isCustomPrice || item.is_custom_price || item.is_custom || item.isCustom || (item.custom_price !== undefined && item.custom_price !== null && item.custom_price !== '');
+        
+        if (hasCustomPrice) {
+            const customVal = Number(item.custom_price !== undefined && item.custom_price !== '' ? item.custom_price : item.price);
+            if (customVal > 0) {
+                return customVal;
+            }
         }
 
+        // 2. หากเป็นรายการ Quick Order หรือรายการพิเศษที่ไม่มีในฐานข้อมูลราคามาตรฐาน
+        if (item.food_id == 9999 || item.food_id === '9999') {
+            return Number(item.price || item.unit_price || 0);
+        }
+
+        // 3. หากไม่มีราคาพิเศษ ให้เลือกราคาตามกลุ่มลูกค้า (Price 1, 2, 3) จากฐานข้อมูลอาหาร
         const gId = Number(groupId) || 1;
         const foodObj = dbFoodsMap[item.food_id || item.id];
 
         if (foodObj) {
-            const pLocal = Number(foodObj.price_1 || 0);
-            const pTourist = Number(foodObj.price_2 || 0);
-            const pSabaidee = Number(foodObj.price_3 || 0);
+            const pLocal = Number(foodObj.price_1 || 0);     // ชาวบ้าน
+            const pTourist = Number(foodObj.price_2 || 0);   // นักท่องเที่ยว
+            const pSabaidee = Number(foodObj.price_3 || 0);  // สบายดี
 
             if (gId === 1) { 
-                return pLocal > 0 ? pLocal : pTourist;
+                return pLocal > 0 ? pLocal : (pTourist > 0 ? pTourist : Number(item.price || 0));
             } else if (gId === 2) { 
-                return pTourist > 0 ? pTourist : pLocal;
+                return pTourist > 0 ? pTourist : (pLocal > 0 ? pLocal : Number(item.price || 0));
             } else if (gId === 3) { 
-                return pSabaidee > 0 ? pSabaidee : pLocal;
+                return pSabaidee > 0 ? pSabaidee : (pLocal > 0 ? pLocal : Number(item.price || 0));
             }
         }
 
-        return Number(item.price || 0);
+        // 4. กรณี Fallback ทั่วไป
+        return Number(item.price || item.unit_price || 0);
     }
 
     function removeDeliveryFee() {
@@ -979,7 +1036,7 @@
             totalCartPrice += itemTotalPrice;
 
             let details = [];
-            const hasCustomPrice = item.isCustomPrice || item.is_custom_price;
+            const hasCustomPrice = item.isCustomPrice || item.is_custom_price || item.is_custom || item.isCustom || item.custom_price !== undefined;
             if (hasCustomPrice && basePrice > 0) {
                 details.push(`⭐ ราคาพิเศษ ${basePrice}.-`);
             }
@@ -1091,12 +1148,25 @@
 
         try {
             if (typeof supabaseClient !== 'undefined') {
-                const newCustPayload = { name: val };
-                const { data, error } = await supabaseClient
+                const maxCustId = customersList.length > 0 
+                    ? Math.max(...customersList.map(c => Number(c.customer_id || c.id) || 0)) 
+                    : 0;
+                
+                let { data, error } = await supabaseClient
                     .from('customers')
-                    .insert([newCustPayload])
+                    .insert([{ name: val }])
                     .select()
                     .single();
+
+                if (error && error.message.includes('customers_pkey')) {
+                    const fallbackRes = await supabaseClient
+                        .from('customers')
+                        .insert([{ customer_id: maxCustId + 1, name: val }])
+                        .select()
+                        .single();
+                    data = fallbackRes.data;
+                    error = fallbackRes.error;
+                }
 
                 if (!error && data) {
                     customersList.push(data);

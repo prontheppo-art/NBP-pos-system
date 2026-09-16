@@ -1,8 +1,9 @@
+<!-- ไฟล์: selectfood.html -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <title>เลือกรายการอาหาร - ลาบหนองบัวลำภู</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -15,7 +16,9 @@
             padding: 0; 
             background: #ffffff; 
             font-family: 'Sarabun', sans-serif; 
+            font-size: 15px !important;
             user-select: none; 
+            overflow: hidden;
             touch-action: pan-y;
             -webkit-text-size-adjust: 100%;
         }
@@ -31,7 +34,7 @@
             border: 1.5px solid #10b981; 
             color: #047857; 
             font-weight: 700; 
-            font-size: 0.95rem; 
+            font-size: 15px !important; 
             padding: 0.6rem 0.4rem; 
             border-radius: 0.75rem; 
             text-align: center; 
@@ -52,10 +55,10 @@
             right: -0.35rem; 
             background-color: #ef4444; 
             color: white; 
-            font-size: 0.7rem; 
+            font-size: 12px !important; 
             font-weight: 800; 
-            width: 1.3rem; 
-            height: 1.3rem; 
+            width: 1.4rem; 
+            height: 1.4rem; 
             border-radius: 9999px; 
             display: flex; 
             align-items: center; 
@@ -63,6 +66,9 @@
             border: 2px solid #ffffff; 
         }
         .swal2-popup { font-family: 'Sarabun', sans-serif !important; }
+
+        /* ซ่อน Scrollbar ของหน้าต่างหลัก */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
     </style>
 </head>
 <body class="p-3 flex flex-col justify-between box-border">
@@ -71,7 +77,7 @@
 
     <!-- ส่วนรายการอาหาร (Food Items Grid) -->
     <div id="foodGridContainer" class="food-grid my-1 pr-1">
-        <div class="col-span-2 text-center py-6 text-slate-400 font-bold text-xs">⏳ กำลังโหลดรายการอาหาร...</div>
+        <div class="col-span-2 text-center py-6 text-slate-400 font-bold text-[15px]">⏳ กำลังโหลดรายการอาหาร...</div>
     </div>
 
     <script src="supabaseClient.js"></script>
@@ -166,7 +172,7 @@
             const container = document.getElementById('foodGridContainer');
             container.innerHTML = '';
             if (!foods || foods.length === 0) {
-                container.innerHTML = '<div class="col-span-2 text-center py-6 text-slate-400 font-bold text-xs">ไม่มีรายการอาหารในหมวดนี้</div>';
+                container.innerHTML = '<div class="col-span-2 text-center py-6 text-slate-400 font-bold text-[15px]">ไม่มีรายการอาหารในหมวดนี้</div>';
                 sendAutoHeight();
                 return;
             }
