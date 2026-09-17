@@ -24,7 +24,6 @@
         }
         .swal2-popup { font-family: 'Sarabun', sans-serif !important; }
 
-        /* ปรับขนาดตัวอักษรของ Input และ Label ให้เป็น 15px */
         input[type="number"], input[type="text"] {
             font-size: 15px !important;
         }
@@ -34,7 +33,6 @@
             font-weight: 700;
         }
 
-        /* ปุ่มเพิ่ม/ลด จำนวน (+ -) ให้เล็กลงพอดี */
         .qty-btn {
             width: 28px; height: 28px; border-radius: 8px;
             background-color: #ffffff; border: 1px solid #cbd5e1;
@@ -44,7 +42,6 @@
         }
         .qty-btn:active { background-color: #e2e8f0; transform: scale(0.95); }
 
-        /* ซ่อน Scrollbar ของหน้าต่างหลัก */
         ::-webkit-scrollbar { width: 0px; background: transparent; }
     </style>
 </head>
@@ -57,21 +54,18 @@
             <span id="foodTitleName" class="font-extrabold text-slate-900 tracking-wide truncate pr-2 text-[15px]">
                 📌 กำลังโหลด...
             </span>
-            <!-- ปุ่มบันทึกย้ายมามุมขวาบน -->
             <button type="button" onclick="saveToCart()" class="bg-emerald-600 hover:bg-emerald-750 text-white font-bold px-3 py-1.5 rounded-xl text-[15px] shadow-md active:scale-95 transition cursor-pointer flex items-center gap-1 shrink-0">
                 <span>💾 บันทึก</span>
             </button>
         </div>
 
-        <!-- ================= ส่วนแสดงเฉพาะรายการในตะกร้าที่เป็นชื่อเมนูนี้ ================= -->
+        <!-- ================= ส่วนแสดงรายการในตะกร้า ================= -->
         <div id="selectedCartItemsBox" class="bg-slate-50 border border-slate-200 rounded-xl p-2 hidden">
             <div class="flex justify-between items-center mb-1">
                 <span id="cartBoxTitle" class="text-[13px] text-slate-600 font-bold flex items-center gap-1">🛒 รายการเมนูนี้ที่เลือกไว้แล้ว:</span>
                 <span id="selectedCartCountBadge" class="bg-emerald-600 text-white font-extrabold text-[12px] px-2 py-0.5 rounded-full">0 รายการ</span>
             </div>
-            <div id="selectedCartList" class="space-y-1 text-[13px] text-slate-700 max-h-24 overflow-y-auto pr-0.5">
-                <!-- รายการสินค้าเฉพาะเมนูปัจจุบันจะแสดงที่นี่ ไม่ปะปนกับเมนูอื่น -->
-            </div>
+            <div id="selectedCartList" class="space-y-1 text-[13px] text-slate-700 max-h-24 overflow-y-auto pr-0.5"></div>
         </div>
 
         <!-- ราคา และ จำนวน -->
@@ -90,7 +84,7 @@
             </div>
         </div>
 
-        <!-- ไข่ดาว / ไข่เจียว (แสดงเฉพาะ food_group_id ไอดี 1 หรือ 2 เท่านั้น) -->
+        <!-- ไข่ดาว / ไข่เจียว -->
         <div id="eggSection" class="grid grid-cols-2 gap-2.5 items-center hidden">
             <div class="bg-slate-50 border border-slate-200 p-2 rounded-xl flex items-center justify-between">
                 <span class="custom-label text-slate-700">ไข่ดาว</span>
@@ -134,8 +128,7 @@
         let defaultFoodData = {};
         const EGG_PRICE = 10;
 
-        // ผูกเงื่อนไขไข่ดาว/ไข่เจียวด้วย food_group_id: '1' (ข้าวกล่อง) และ '2' (ข้าวผัด)
-        const EGG_CATEGORY_IDS = ['1', '2'];
+        const EGG_CATEGORY_IDS = ['2', '3', '98'];
 
         function sendAutoHeight() {
             setTimeout(() => {
@@ -216,6 +209,33 @@
             sendAutoHeight();
         }
 
+        // ฟังก์ชันช่วยจัดกลุ่มรายการที่เหมือนกันทุกประการ ให้ยุบรวมเป็นตัวคูณ (เช่น 2x, 3x)
+        function groupCartItems(items) {
+            const map = new Map();
+            items.forEach(item => {
+                const priceKey = (item.price !== null && item.price !== undefined) ? String(item.price) : 'null';
+                const fEggKey = Number(item.friedEggQty || 0);
+                const oMelKey = Number(item.omeletQty || 0);
+                const noteKey = String(item.note || '').trim();
+                const nameKey = String(item.name || '').trim();
+
+                // สร้างกุญแจ (Signature) สำหรับเช็คความเหมือนกันทุกประการ
+                const signature = `${nameKey}_${priceKey}_${fEggKey}_${oMelKey}_${noteKey}`;
+
+                if (map.has(signature)) {
+                    let existing = map.get(signature);
+                    existing.qty += Number(item.qty || 0);
+                    if (existing.price !== null && existing.price !== undefined) {
+                        existing.totalPrice = existing.price * existing.qty;
+                    }
+                } else {
+                    // clone object เพื่อไม่ให้กระทบต้นฉบับโดยตรง
+                    map.set(signature, { ...item });
+                }
+            });
+            return Array.from(map.values());
+        }
+
         function renderSelectedCartList() {
             let cart = JSON.parse(localStorage.getItem('cart')) || [];
             const boxContainer = document.getElementById('selectedCartItemsBox');
@@ -224,16 +244,29 @@
             
             listContainer.innerHTML = '';
 
-            const currentFoodCartItems = cart.filter(item => 
-                (foodId && String(item.food_id) === String(foodId)) || 
-                (foodName && String(item.name).trim() === String(foodName).trim())
-            );
+            let rawFilteredItems = [];
 
-            if (currentFoodCartItems.length === 0) {
+            if (String(catId) === '98') {
+                rawFilteredItems = cart.filter(item => 
+                    String(item.food_group_id || item.cat_id) === '98' || item.isSpecialMenu === true
+                );
+                document.getElementById('cartBoxTitle').textContent = `🛒 รายการเมนูพิเศษทั้งหมดในตะกร้า:`;
+            } else {
+                rawFilteredItems = cart.filter(item => 
+                    (foodId && String(item.food_id) === String(foodId)) || 
+                    (foodName && String(item.name).trim() === String(foodName).trim())
+                );
+                document.getElementById('cartBoxTitle').textContent = `🛒 รายการเมนูนี้ที่เลือกไว้แล้ว:`;
+            }
+
+            if (rawFilteredItems.length === 0) {
                 boxContainer.classList.add('hidden');
                 sendAutoHeight();
                 return;
             }
+
+            // จัดกลุ่มรายการที่เหมือนกันให้รวมร่างกันก่อนนำมาแสดงผล
+            const currentFoodCartItems = groupCartItems(rawFilteredItems);
 
             boxContainer.classList.remove('hidden');
             
@@ -252,7 +285,7 @@
                         <span class="text-emerald-600">${item.qty}x</span> ${item.name} ${item.price !== null && item.price !== undefined ? `<span class="text-amber-600">(${item.price}฿)</span>` : ''}${eggText}
                         ${item.note ? `<br><span class="text-slate-400 font-normal text-[11px]">(${item.note})</span>` : ''}
                     </div>
-                    <button type="button" onclick="deleteCartItem('${item.item_id}')" class="text-rose-500 hover:text-rose-700 font-extrabold px-1.5 py-0.5 text-xs cursor-pointer">✕</button>
+                    <button type="button" onclick="deleteCartItemMatch('${item.name}', ${item.price}, ${item.friedEggQty || 0}, ${item.omeletQty || 0}, '${item.note || ''}')" class="text-rose-500 hover:text-rose-700 font-extrabold px-1.5 py-0.5 text-xs cursor-pointer">✕</button>
                 `;
                 listContainer.appendChild(div);
             });
@@ -260,9 +293,24 @@
             setTimeout(sendAutoHeight, 50);
         }
 
-        function deleteCartItem(itemId) {
+        // ฟังก์ชันลบรายการที่ถูกยุบรวม (ลบตามเงื่อนไขคุณลักษณะที่เหมือนกันทั้งหมด)
+        function deleteCartItemMatch(name, price, fEgg, oMel, note) {
             let cart = JSON.parse(localStorage.getItem('cart')) || [];
-            cart = cart.filter(item => String(item.item_id) !== String(itemId));
+            
+            cart = cart.filter(item => {
+                const sameName = String(item.name || '').trim() === String(name).trim();
+                const itemPrice = (item.price !== null && item.price !== undefined) ? Number(item.price) : null;
+                const targetPrice = (price !== null && price !== undefined && !isNaN(price)) ? Number(price) : null;
+                const samePrice = itemPrice === targetPrice;
+                const sameFEgg = Number(item.friedEggQty || 0) === Number(fEgg);
+                const sameOMel = Number(item.omeletQty || 0) === Number(oMel);
+                const sameNote = String(item.note || '').trim() === String(note).trim();
+
+                // ถ้าตรงกันทั้งหมด แปลว่าเป็นกลุ่มเดียวกัน ให้ตัดออกทั้งหมด
+                const isMatchGroup = sameName && samePrice && sameFEgg && sameOMel && sameNote;
+                return !isMatchGroup;
+            });
+
             localStorage.setItem('cart', JSON.stringify(cart));
             renderSelectedCartList();
             
@@ -282,6 +330,7 @@
 
             let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
+            // เช็คว่ามีรายการที่ "เหมือนกันทุกประการ" อยู่แล้วในตะกร้าหรือไม่
             const existingIndex = cart.findIndex(item => {
                 const sameFood = (foodId && String(item.food_id) === String(foodId)) || 
                                  (foodName && String(item.name).trim() === String(foodName).trim());
@@ -298,11 +347,13 @@
             });
 
             if (existingIndex !== -1) {
+                // ถ้ามีรายการที่เหมือนกันอยู่แล้ว ให้บวกจำนวนเพิ่มเข้าไป (Merge)
                 cart[existingIndex].qty = Number(cart[existingIndex].qty || 0) + Number(currentQty);
                 if (cart[existingIndex].price !== null && cart[existingIndex].price !== undefined) {
                     cart[existingIndex].totalPrice = cart[existingIndex].price * cart[existingIndex].qty;
                 }
             } else {
+                // ถ้ามีรายละเอียดต่างกัน (เช่น มีไข่เพิ่ม หรือโน้ตไม่เหมือนกัน) ให้แยกเป็นแถวใหม่
                 cart.push({
                     item_id: Date.now() + '_' + Math.random().toString(36).substring(2, 6),
                     food_id: foodId,
@@ -315,7 +366,8 @@
                     note: note,
                     totalPrice: finalPrice !== null ? finalPrice * currentQty : null,
                     food_group_id: catId,
-                    is_custom: price !== null 
+                    is_custom: price !== null,
+                    isSpecialMenu: (String(catId) === '98')
                 });
             }
 
@@ -347,6 +399,6 @@
                 renderSelectedCartList();
             }
         });
-    </script>
+    </script>       
 </body>
 </html>

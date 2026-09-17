@@ -1,0 +1,410 @@
+<!--
+  ========================================================================
+  [File Note]
+  - File Name: editorder_detail.html
+  - Description: หน้าจอรายละเอียดและการแก้ไขออเดอร์ (ลิงก์กลับไปที่ editorder.html)
+  ========================================================================
+-->
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>แก้ไขรายละเอียดออเดอร์ - ลาบหนองบัวลำภู</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root { --bg-color: #f1f5f9; }
+        /* ล็อกหน้าจอห้ามซูมและห้ามสกอร์ทั้งหน้า เพื่อให้เหมือนแอป Full Screen */
+        html, body { 
+            width: 100%; height: 100vh; overflow: hidden;
+            touch-action: none; -webkit-text-size-adjust: 100%;
+            background-color: var(--bg-color); color: #1e293b;
+            font-family: 'Sarabun', sans-serif; margin: 0; padding: 0; user-select: none; 
+        }
+        .app-container {
+            max-width: 28rem; margin: 0 auto; height: 100vh;
+            display: flex; flex-direction: column; background-color: #ffffff;
+            box-sizing: border-box; overflow: hidden; position: relative;
+        }
+        .group-btn-v2 { background-color: #ffffff; border: 1.5px solid #fde68a; color: #334155; transition: all 0.2s ease; }
+        .group-btn-v2.active { background-color: #f59e0b; border-color: #d97706; color: #ffffff; box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3); }
+        .customer-autocomplete-wrapper { position: relative; width: 100%; }
+        .customer-dropdown {
+            position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+            background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); max-height: 180px; overflow-y: auto; z-index: 50; display: none;
+        }
+        .customer-dropdown.active { display: block; }
+        .custom-modal-overlay { 
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+            background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); 
+            display: none; align-items: center; justify-content: center; z-index: 9999; padding: 1rem; touch-action: none;
+        }
+        .custom-modal-overlay.active { display: flex; }
+        .custom-modal-box {
+            background: white; border-radius: 20px; padding: 20px; width: 92%; max-width: 440px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased p-0 sm:p-3 flex justify-center items-center">
+
+    <div class="app-container shadow-sm sm:rounded-3xl border border-slate-200">
+        <!-- Header -->
+        <div class="p-4 bg-white border-b border-slate-100 flex items-center justify-between shrink-0 shadow-xs">
+            <div class="flex items-center gap-2">
+                <a href="editorder.html" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold cursor-pointer active:scale-95 transition no-underline">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </a>
+                <div>
+                    <h1 class="font-extrabold text-sm text-slate-800">แก้ไขรายละเอียดออเดอร์</h1>
+                    <p class="text-[10px] text-slate-400 font-semibold" id="orderTitle">รหัสออเดอร์: -</p>
+                </div>
+            </div>
+            <a href="editorder.html" class="text-slate-400 hover:text-slate-600 font-bold text-base px-2 cursor-pointer no-underline">✕</a>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 overflow-hidden p-4 space-y-4 bg-white flex flex-col">
+            <div id="locationSelectorWrapper" class="shrink-0"></div>
+
+            <div class="space-y-1.5 flex-1 flex flex-col min-h-0">
+                <span class="text-xs font-bold text-slate-500 shrink-0">🍱 รายการอาหารในออเดอร์</span>
+                <!-- เฉพาะกล่องรายการอาหารตรงนี้เท่านั้น ที่อนุญาตให้ Scroll เลื่อนขึ้นลงได้ -->
+                <div class="border-2 border-slate-200 rounded-2xl p-3 flex-1 overflow-y-auto space-y-2 bg-slate-50/50" id="orderItemsContainer" style="-webkit-overflow-scrolling: touch; touch-action: pan-y;">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-400">
+                        <span>กำลังโหลดรายการ...</span>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" onclick="openCategoryModal()" class="w-full py-3 border-2 border-dashed border-emerald-400 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-2xl flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer text-sm shadow-xs shrink-0">
+                <span>+</span> เพิ่มรายการอาหาร
+            </button>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 bg-white border-t border-slate-100 space-y-3 shrink-0 shadow-lg">
+            <div class="flex justify-between items-end">
+                <span class="text-xs text-slate-500 font-bold" id="editCartCountText">0 รายการ | 0 ชิ้น</span>
+                <div class="text-right">
+                    <span class="text-[10px] text-slate-400 block font-bold">ยอดรวมสุทธิ</span>
+                    <span class="text-lg font-black text-slate-800" id="editTotalPrice">0 บาท</span>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <a href="editorder.html" class="flex-1 py-3 bg-slate-100 text-slate-600 font-bold text-xs rounded-xl hover:bg-slate-200 transition cursor-pointer text-center no-underline flex items-center justify-center">✕ ยกเลิก</a>
+                <button type="button" onclick="saveOrderEdit()" class="flex-1 py-3 bg-amber-500 text-white font-bold text-xs rounded-xl shadow-md hover:bg-amber-600 transition cursor-pointer">✏️ บันทึกการแก้ไข</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL เลือกสถานที่ -->
+    <div id="locationModal" class="custom-modal-overlay" onclick="handleOutsideClick(event, 'locationModal')">
+        <div class="custom-modal-box border-t-4 border-amber-500" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-2 pb-2 border-b">
+                <h3 class="font-bold text-base text-slate-800">📍 เลือกสถานที่ / ที่พัก</h3>
+                <button onclick="closeModal('locationModal')" class="text-gray-400 font-bold text-lg cursor-pointer">✕</button>
+            </div>
+            <div id="locationGrid" class="grid grid-cols-2 gap-2 overflow-y-auto py-1 max-h-[55vh]" style="-webkit-overflow-scrolling: touch; touch-action: pan-y;"></div>
+        </div>
+    </div>
+
+    <!-- MODAL เลือกโซน -->
+    <div id="zoneModal" class="custom-modal-overlay" onclick="handleOutsideClick(event, 'zoneModal')">
+        <div class="custom-modal-box border-t-4 border-blue-500" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-2 pb-2 border-b">
+                <div>
+                    <h3 class="font-bold text-base text-slate-800">🏷️ เลือกโซน / ห้องพัก</h3>
+                    <span id="zoneModalSubTitle" class="text-xs text-amber-600 font-semibold block"></span>
+                </div>
+                <button onclick="closeModal('zoneModal')" class="text-gray-400 font-bold text-lg cursor-pointer">✕</button>
+            </div>
+            <div id="zoneContainer" class="overflow-y-auto py-1 space-y-2 max-h-[55vh]" style="-webkit-overflow-scrolling: touch; touch-action: pan-y;"></div>
+        </div>
+    </div>
+
+    <!-- iframe สำหรับเรียก selectfoodgroup.html -->
+    <div id="externalPageModalOverlay" class="custom-modal-overlay" onclick="closeExternalModal()">
+        <div class="w-[94%] max-w-md bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-2xl flex flex-col h-[85vh]" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center p-3.5 bg-slate-100 border-b border-slate-200 shrink-0">
+                <div class="flex items-center gap-2">
+                    <span id="externalModalIcon" class="text-lg">🍱</span>
+                    <h2 id="externalModalTitle" class="font-extrabold text-xs text-slate-800">เลือกหมวดหมู่อาหาร</h2>
+                </div>
+                <button type="button" onclick="closeExternalModal()" class="text-slate-400 hover:text-slate-600 font-bold text-lg px-2 cursor-pointer">✕</button>
+            </div>
+            <iframe id="externalPageFrame" src="" class="w-full flex-1 border-none bg-white"></iframe>
+        </div>
+    </div>
+
+    <script src="supabaseClient.js"></script>
+    <script>
+        document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+
+        let db;
+        let foods = [];
+        let locationsData = [];
+        let zonesData = [];
+        let customersList = [];
+        let currentEditingOrder = null;
+        let currentEditingOrderItems = [];
+        let tempSelectedLocation = null;
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            if (typeof window.supabaseClient !== 'undefined') db = window.supabaseClient;
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('id');
+
+            renderLocationComponent('locationSelectorWrapper');
+            await fetchMasterData();
+
+            if (orderId) {
+                await loadOrderDetails(orderId);
+            }
+        });
+
+        async function fetchMasterData() {
+            try {
+                if (!db) return;
+                const [locRes, zoneRes, foodRes, custRes] = await Promise.all([
+                    db.from('locations').select('*').order('name', { ascending: true }),
+                    db.from('zones').select('*').order('name', { ascending: true }),
+                    db.from('foods').select('*').order('food_id', { ascending: true }),
+                    db.from('customers').select('*').order('name', { ascending: true })
+                ]);
+                if (locRes.data) locationsData = locRes.data;
+                if (zoneRes.data) zonesData = zoneRes.data;
+                if (foodRes.data) foods = foodRes.data;
+                if (custRes.data) customersList = custRes.data;
+            } catch (err) { console.error('Error fetching master data:', err); }
+        }
+
+        async function loadOrderDetails(orderId) {
+            try {
+                const { data, error } = await db.from('orders').select('*').eq('order_id', orderId).single();
+                if (error) throw error;
+                if (data) {
+                    currentEditingOrder = data;
+                    document.getElementById('orderTitle').textContent = `รหัสออเดอร์: #${data.order_id || data.id}`;
+                    
+                    const typeId = Number(data.customer_type_id || 1);
+                    selectCustomerGroup(typeId, typeId === 2 ? 'นักท่องเที่ยว' : (typeId === 3 ? 'สบายดี' : 'ชาวบ้าน'));
+
+                    if (data.nickname) {
+                        document.getElementById('customerInput').value = data.nickname;
+                    }
+
+                    if (typeId === 2 && data.location_id) {
+                        const foundLoc = locationsData.find(l => String(l.location_id || l.id) === String(data.location_id));
+                        if (foundLoc) {
+                            tempSelectedLocation = foundLoc;
+                            document.getElementById('selectedLocationName').value = foundLoc.name;
+                            document.getElementById('selectedLocationId').value = foundLoc.location_id || foundLoc.id;
+                            document.getElementById('locationBtnText').innerText = foundLoc.name;
+                        }
+                    }
+
+                    let items = [];
+                    if (typeof data.items === 'string') {
+                        try { items = JSON.parse(data.items); } catch(e) { items = []; }
+                    } else if (Array.isArray(data.items)) {
+                        items = [...data.items];
+                    }
+                    currentEditingOrderItems = items;
+                    renderEditOrderItems();
+                }
+            } catch (err) {
+                console.error('Error loading order:', err);
+                alert('ไม่พบข้อมูลออเดอร์นี้');
+            }
+        }
+
+        function renderLocationComponent(targetContainerId) {
+            const container = document.getElementById(targetContainerId);
+            if (!container) return;
+            container.innerHTML = `
+                <div class="space-y-2.5">
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" onclick="selectCustomerGroup(1, 'ชาวบ้าน')" id="btn-group-1" class="group-btn-v2 active h-[42px] px-1 rounded-xl flex items-center justify-center gap-1 cursor-pointer font-bold text-xs">🏡 ชาวบ้าน</button>
+                        <button type="button" onclick="selectCustomerGroup(2, 'นักท่องเที่ยว')" id="btn-group-2" class="group-btn-v2 h-[42px] px-1 rounded-xl flex items-center justify-center gap-1 cursor-pointer font-bold text-xs">🧳 นักท่องเที่ยว</button>
+                        <button type="button" onclick="selectCustomerGroup(3, 'สบายดี')" id="btn-group-3" class="group-btn-v2 h-[42px] px-1 rounded-xl flex items-center justify-center gap-1 cursor-pointer font-bold text-xs">😊 สบายดี</button>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <div class="flex-1 customer-autocomplete-wrapper">
+                            <input type="text" id="customerInput" placeholder="ชื่อ หรือ เบอร์โทรศัพท์ลูกค้า" autocomplete="off" class="w-full h-[42px] pl-3 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 outline-none focus:border-amber-500 font-medium">
+                        </div>
+                        <div id="locationBtnContainer" class="w-5/12 hidden">
+                            <button type="button" onclick="openLocationModal()" class="w-full h-[42px] bg-amber-500 text-white font-bold px-2 rounded-xl text-xs flex items-center justify-center gap-1 shadow-sm">
+                                📍 <span id="locationBtnText" class="truncate">เลือกสถานที่</span>
+                            </button>
+                        </div>
+                    </div>
+                    <input type="hidden" id="customerGroupSelect" value="1">
+                    <input type="hidden" id="selectedLocationName" value="">
+                    <input type="hidden" id="selectedLocationId" value="">
+                    <input type="hidden" id="selectedZoneId" value="">
+                </div>`;
+        }
+
+        function selectCustomerGroup(groupId, groupName) {
+            document.getElementById('customerGroupSelect').value = groupId;
+            document.querySelectorAll('.group-btn-v2').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.getElementById(`btn-group-${groupId}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            const locContainer = document.getElementById('locationBtnContainer');
+            if (groupId === 2) {
+                locContainer.classList.remove('hidden');
+            } else {
+                locContainer.classList.add('hidden');
+            }
+            if (currentEditingOrderItems.length > 0) renderEditOrderItems();
+        }
+
+        function openLocationModal() {
+            const grid = document.getElementById('locationGrid');
+            grid.innerHTML = '';
+            locationsData.forEach(loc => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'p-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl font-bold text-xs text-slate-800 cursor-pointer';
+                btn.textContent = loc.name;
+                btn.onclick = () => {
+                    tempSelectedLocation = loc;
+                    closeModal('locationModal');
+                    openZoneModal(loc);
+                };
+                grid.appendChild(btn);
+            });
+            openModal('locationModal');
+        }
+
+        function openZoneModal(loc) {
+            document.getElementById('zoneModalSubTitle').textContent = `📍 สถานที่: ${loc.name}`;
+            const container = document.getElementById('zoneContainer');
+            container.innerHTML = '';
+            const targetLocId = loc.location_id || loc.id;
+            const filteredZones = zonesData.filter(z => String(z.location_id) === String(targetLocId));
+
+            filteredZones.forEach(zone => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'w-full py-2 px-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl font-bold text-xs text-slate-800 text-left cursor-pointer';
+                btn.textContent = zone.name;
+                btn.onclick = () => {
+                    document.getElementById('selectedLocationId').value = targetLocId;
+                    document.getElementById('selectedZoneId').value = zone.zone_id || zone.id;
+                    document.getElementById('locationBtnText').textContent = `${loc.name} - ${zone.name}`;
+                    closeModal('zoneModal');
+                };
+                container.appendChild(btn);
+            });
+            openModal('zoneModal');
+        }
+
+        function renderEditOrderItems() {
+            const container = document.getElementById('orderItemsContainer');
+            container.innerHTML = '';
+            let totalQty = 0, totalPrice = 0;
+            const customerType = Number(document.getElementById('customerGroupSelect').value || 1);
+
+            currentEditingOrderItems.forEach((item, index) => {
+                let q = Number(item.qty || item.quantity || 1);
+                let p = Number(item.price || 0);
+
+                const matched = foods.find(f => String(f.food_id || f.id) === String(item.food_id || item.id));
+                if (matched) {
+                    p = customerType === 1 ? Number(matched.price_1 || matched.price || 0) :
+                        customerType === 2 ? Number(matched.price_2 || matched.price || 0) :
+                        Number(matched.price_3 || matched.price || 0);
+                }
+
+                item.price = p;
+                let sub = q * p;
+                totalQty += q;
+                totalPrice += sub;
+
+                container.innerHTML += `
+                    <div class="flex justify-between items-center text-xs font-bold border-b border-slate-200 pb-1.5 pt-1">
+                        <div class="flex items-center gap-1.5 truncate">
+                            <button type="button" onclick="removeOrderItem(${index})" class="w-5 h-5 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-[10px] cursor-pointer">✕</button>
+                            <span class="truncate">• ${item.name || 'รายการอาหาร'}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-500">x${q}</span>
+                            <span class="text-emerald-600 font-extrabold">${sub.toLocaleString()}.-</span>
+                        </div>
+                    </div>`;
+            });
+
+            document.getElementById('editCartCountText').textContent = `${currentEditingOrderItems.length} รายการ | ${totalQty} ชิ้น`;
+            document.getElementById('editTotalPrice').textContent = `${totalPrice.toLocaleString()} บาท`;
+        }
+
+        function removeOrderItem(index) {
+            currentEditingOrderItems.splice(index, 1);
+            renderEditOrderItems();
+        }
+
+        function openCategoryModal() {
+            document.getElementById('externalModalIcon').textContent = '🍱';
+            document.getElementById('externalModalTitle').textContent = 'เลือกหมวดหมู่อาหาร';
+            document.getElementById('externalPageFrame').src = 'selectfoodgroup.html';
+            document.getElementById('externalPageModalOverlay').classList.add('active');
+        }
+
+        function closeExternalModal() {
+            document.getElementById('externalPageModalOverlay').classList.remove('active');
+            document.getElementById('externalPageFrame').src = '';
+            
+            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+            if (cart.length > 0) {
+                cart.forEach(item => currentEditingOrderItems.push(item));
+                localStorage.removeItem('cart');
+                renderEditOrderItems();
+            }
+        }
+
+        async function saveOrderEdit() {
+            if (!currentEditingOrder) return;
+            const orderId = currentEditingOrder.order_id || currentEditingOrder.id;
+            try {
+                const customerType = Number(document.getElementById('customerGroupSelect').value || 1);
+                const namePhone = document.getElementById('customerInput').value.trim();
+                const locationId = document.getElementById('selectedLocationId').value || null;
+                const zoneId = document.getElementById('selectedZoneId').value || null;
+                
+                let newTotalPrice = currentEditingOrderItems.reduce((sum, item) => sum + (Number(item.qty || 1) * Number(item.price || 0)), 0);
+
+                const { error } = await db.from('orders').update({
+                    customer_type_id: customerType,
+                    nickname: namePhone,
+                    location_id: locationId ? Number(locationId) : null,
+                    zone_id: zoneId ? Number(zoneId) : null,
+                    items: currentEditingOrderItems,
+                    total_price: newTotalPrice
+                }).eq('order_id', orderId);
+
+                if (error) throw error;
+                alert('บันทึกการแก้ไขเรียบร้อยแล้ว!');
+                window.location.href = 'editorder.html';
+            } catch (err) {
+                alert('เกิดข้อผิดพลาด: ' + err.message);
+            }
+        }
+
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        function handleOutsideClick(e, id) { if (e.target.id === id) closeModal(id); }
+    </script>
+</body>
+</html>

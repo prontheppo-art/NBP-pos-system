@@ -1,4 +1,10 @@
-<!-- ไฟล์: specialmenu.html -->
+<!--
+  ========================================
+  [File Note]
+  - File Name: specialmenu.html
+  - Description: หน้าจัดการเมนูพิเศษ (บันทึกและดึงข้อมูลจากตาราง foods ใน Supabase พร้อมส่งสัญญาณเปิด Pop-up selectitem.html)
+  ========================================
+-->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -7,177 +13,107 @@
     <title>สั่งรายการอาหารพิเศษ</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabaseClient.js"></script>
     
     <style>
         :root { --bg-color: #ffffff; }
         
         html, body { 
-            width: 100%; 
-            min-height: auto;
-            touch-action: pan-y; 
-            -webkit-text-size-adjust: 100%;
-            background-color: var(--bg-color); 
-            color: #1e293b;
-            font-family: 'Sarabun', sans-serif; 
-            font-size: 15px !important;
-            margin: 0; 
-            padding: 0; 
-            user-select: none; 
-            overflow-y: auto; /* ป้องกันหน้าจอขาวและพื้นที่ว่างเกินจริง */
+            width: 100%; height: 100vh; height: 100dvh;
+            touch-action: pan-y; -webkit-text-size-adjust: 100%;
+            background-color: var(--bg-color); color: #1e293b;
+            font-family: 'Sarabun', sans-serif; font-size: 15px !important;
+            margin: 0; padding: 0; user-select: none; display: flex; flex-direction: column; overflow: hidden;
         }
 
-        input[type="number"], input[type="text"] {
-            font-size: 15px !important;
-        }
+        input[type="number"], input[type="text"] { font-size: 15px !important; }
+        .custom-label { font-size: 15px !important; font-weight: 700; }
 
-        .custom-label {
-            font-size: 15px !important;
-            font-weight: 700;
+        .special-preset-btn {
+            background-color: #ffffff; border: 1px solid #cbd5e1; color: #334155;
+            font-weight: 700; padding: 10px 12px; border-radius: 10px; cursor: pointer;
+            transition: all 0.15s ease; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            display: flex; align-items: center; justify-content: center; min-height: 46px;
         }
+        .special-preset-btn:hover { background-color: #f8fafc; border-color: #94a3b8; }
+        .special-preset-btn:active { background-color: #e2e8f0; transform: scale(0.97); }
 
-        .qty-btn {
-            width: 26px; height: 26px; border-radius: 5px;
-            background-color: #ffffff; border: 1px solid #cbd5e1;
-            font-weight: 800; font-size: 15px; color: #334155;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer;
-            user-select: none;
-        }
-        .qty-btn:active { background-color: #e2e8f0; transform: scale(0.95); }
-
-        .autocomplete-dropdown {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            border-top: none;
-            border-radius: 0 0 12px 12px;
-            max-height: 160px;
-            overflow-y: auto;
-            z-index: 50;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
-
-        .autocomplete-item {
-            padding: 8px 12px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            color: #334155;
-            border-bottom: 1px solid #f1f5f9;
-            transition: background 0.15s;
-        }
-        .autocomplete-item:last-child { border-bottom: none; }
-        .autocomplete-item:hover, .autocomplete-item:active {
-            background-color: #f0fdf4;
-            color: #059669;
+        .sticky-footer {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background-color: #ffffff; border-top: 1px solid #e2e8f0;
+            padding: 0.75rem; box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05); z-index: 40;
         }
 
         @keyframes modalBounce {
             0% { transform: scale(0.8); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
         }
-        .animate-bounce-in {
-            animation: modalBounce 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
+        .animate-bounce-in { animation: modalBounce 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
 
         ::-webkit-scrollbar { width: 4px; background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
 </head>
-<body class="bg-white text-slate-800 antialiased flex flex-col">
+<body class="bg-white text-slate-800 antialiased">
 
-    <div class="flex flex-col max-w-md mx-auto w-full p-2 justify-between relative space-y-2">
-
-        <div class="flex justify-between items-center px-1">
-            <div class="flex items-center gap-2">
-                <span class="font-extrabold text-slate-900 text-[15px]">📌 เมนูพิเศษ</span>
-                <span id="selectedCartCountBadge" class="bg-emerald-600 text-white font-extrabold text-[12px] px-2 py-0.5 rounded-full hidden">0 รายการ</span>
+    <!-- 1. เนื้อหาด้านบน: ปุ่มเมนูพิเศษยอดฮิต -->
+    <div class="flex-1 overflow-y-auto p-3 max-w-md w-full mx-auto space-y-3 pb-64">
+        <div class="border border-amber-300 rounded-xl p-3 space-y-2 bg-amber-50/30 shadow-xs">
+            <div class="text-[14px] font-bold text-amber-800 mb-1">🔥 เลือกจากเมนูพิเศษ (ดึงจากตาราง foods):</div>
+            <div id="presetButtonsContainer" class="grid grid-cols-3 gap-2">
+                <div class="text-xs text-slate-400 col-span-3 text-center py-3">กำลังโหลดรายการจากฐานข้อมูล...</div>
             </div>
-            <button type="button" onclick="saveCustomItemDetail()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl text-[15px] shadow-md active:scale-95 transition cursor-pointer flex items-center gap-1 shrink-0">
-                <span>💾 บันทึก</span>
-            </button>
         </div>
-
-        <div id="selectedCartItemsBox" class="bg-slate-50 border border-slate-200 rounded-xl p-2 hidden">
-            <div id="selectedCartList" class="space-y-1 text-[13px] text-slate-700 max-h-24 overflow-y-auto pr-0.5"></div>
-        </div>
-
-        <div class="border border-slate-200 rounded-xl p-2 space-y-2 bg-white shadow-xs">
-            
-            <div class="flex items-center justify-between gap-2 w-full relative">
-                <span class="custom-label text-slate-900 whitespace-nowrap flex-shrink-0">
-                    ชื่อรายการ <span class="text-rose-600 font-extrabold text-[15px]">*</span>
-                </span>
-                
-                <div class="relative flex-1 min-w-0">
-                    <div class="flex items-center bg-rose-50/30 border border-rose-300 focus-within:border-rose-500 rounded-lg overflow-hidden transition">
-                        <input type="text" id="customFoodName" placeholder="พิมพ์ชื่อรายการ..." autocomplete="off"
-                               oninput="onFoodInput(this.value)" onfocus="onFoodInput(this.value)"
-                               class="w-full px-2 py-1 font-bold text-slate-800 focus:outline-none bg-transparent placeholder:text-slate-400 placeholder:font-normal">
-                        <button type="button" onclick="toggleDropdown()" class="px-2 text-slate-400 hover:text-slate-600 text-xs flex items-center justify-center cursor-pointer">
-                            ▼
-                        </button>
-                    </div>
-
-                    <div id="autocompleteList" class="autocomplete-dropdown hidden"></div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-100">
-                <div class="flex items-center justify-between gap-1 w-full">
-                    <span class="custom-label text-amber-700 whitespace-nowrap flex-shrink-0">
-                        ราคา <span class="text-rose-600 font-extrabold text-[15px]">*</span>
-                    </span>
-                    <input type="number" id="customPriceInput" min="0" step="any" placeholder="ระบุราคา" 
-                           class="flex-1 min-w-0 px-1.5 py-0.5 border border-amber-300 focus:border-amber-500 rounded-md text-center font-bold text-slate-800 focus:outline-none bg-amber-50/40 placeholder:text-slate-400 placeholder:font-normal transition">
-                </div>
-                <div class="flex items-center justify-between gap-1 w-full">
-                    <span class="custom-label text-slate-700 whitespace-nowrap flex-shrink-0">จำนวน</span>
-                    <div class="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-md p-0.5">
-                        <button type="button" class="qty-btn" onclick="changeQty('main', -1)">-</button>
-                        <span id="mainQtyText" class="w-5 text-center font-extrabold text-[15px] text-slate-800">1</span>
-                        <button type="button" class="qty-btn" onclick="changeQty('main', 1)">+</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-100">
-                <div class="flex items-center justify-between gap-1 w-full">
-                    <span class="custom-label text-slate-700 whitespace-nowrap flex-shrink-0">ไข่ดาว</span>
-                    <div class="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-md p-0.5">
-                        <button type="button" class="qty-btn" onclick="changeQty('friedEgg', -1)">-</button>
-                        <span id="friedEggQtyText" class="w-5 text-center font-extrabold text-[15px] text-slate-800">0</span>
-                        <button type="button" class="qty-btn" onclick="changeQty('friedEgg', 1)">+</button>
-                    </div>
-                </div>
-                <div class="flex items-center justify-between gap-1 w-full">
-                    <span class="custom-label text-slate-700 whitespace-nowrap flex-shrink-0">ไข่เจียว</span>
-                    <div class="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-md p-0.5">
-                        <button type="button" class="qty-btn" onclick="changeQty('omelet', -1)">-</button>
-                        <span id="omeletQtyText" class="w-5 text-center font-extrabold text-[15px] text-slate-800">0</span>
-                        <button type="button" class="qty-btn" onclick="changeQty('omelet', 1)">+</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-100 w-full">
-                <span class="custom-label text-slate-700 whitespace-nowrap flex-shrink-0">หมายเหตุ</span>
-                <input type="text" id="foodNoteInput" placeholder="(เช่น เผ็ดน้อย, ไม่ใส่ผัก)" 
-                       class="flex-1 min-w-0 px-2 py-1 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder:text-slate-300">
-            </div>
-
-        </div>
-
     </div>
 
+    <!-- 2. ฟอร์มเพิ่มเมนูใหม่ และปุ่มด้านล่าง -->
+    <div class="sticky-footer">
+        <div class="max-w-md mx-auto space-y-2">
+            <div class="border border-emerald-200 rounded-xl p-2.5 space-y-2 bg-emerald-50/20 shadow-xs">
+                <div class="text-[13px] font-bold text-emerald-800 flex items-center gap-1">
+                    <span>➕ เพิ่มเมนูพิเศษใหม่ (บันทึกลง Supabase)</span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <span class="custom-label text-slate-700 text-xs whitespace-nowrap w-20 flex-shrink-0">ชื่อเมนูใหม่</span>
+                    <input type="text" id="customFoodName" placeholder="เช่น ราดหน้าเส้นใหญ่..." autocomplete="off"
+                           class="flex-1 px-2 py-1 border border-slate-300 focus:border-emerald-500 rounded-lg text-xs font-bold text-slate-800 focus:outline-none bg-white placeholder:text-slate-400 placeholder:font-normal">
+                </div>
+
+                <div class="space-y-0.5">
+                    <div class="grid grid-cols-3 gap-1.5 text-center">
+                        <span class="text-[11px] font-bold text-slate-700">ชาวบ้าน</span>
+                        <span class="text-[11px] font-bold text-slate-700">นักท่องเที่ยว</span>
+                        <span class="text-[11px] font-bold text-slate-700">สบายดี</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <input type="number" id="price1Input" min="0" step="any" placeholder="ราคา" 
+                               class="w-full px-1.5 py-1 border border-emerald-300 focus:border-emerald-500 rounded-lg text-center text-xs font-bold text-slate-800 focus:outline-none bg-white">
+                        <input type="number" id="price2Input" min="0" step="any" placeholder="ราคา" 
+                               class="w-full px-1.5 py-1 border border-emerald-300 focus:border-emerald-500 rounded-lg text-center text-xs font-bold text-slate-800 focus:outline-none bg-white">
+                        <input type="number" id="price3Input" min="0" step="any" placeholder="ราคา" 
+                               class="w-full px-1.5 py-1 border border-emerald-300 focus:border-emerald-500 rounded-lg text-center text-xs font-bold text-slate-800 focus:outline-none bg-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- แถบปุ่มคู่ด้านล่าง -->
+            <div class="flex gap-2">
+                <button type="button" onclick="saveNewSpecialMenu()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-3 rounded-xl text-[13px] shadow-md active:scale-95 transition cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <span>💾 บันทึก (ตกลง)</span>
+                </button>
+                <button type="button" onclick="goToOrderEntity()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold py-2.5 px-3 rounded-xl text-[13px] shadow-sm active:scale-95 transition cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <span>🏠 กลับเมนูหลัก</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal แจ้งเตือน -->
     <div id="customAlertOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white rounded-3xl p-5 max-w-xs w-full text-center shadow-2xl border-2 border-slate-100 animate-bounce-in">
-            <div id="alertIconBg" class="w-14 h-14 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl shadow-inner">
-                ⚠️
-            </div>
+            <div id="alertIconBg" class="w-14 h-14 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl shadow-inner">⚠️</div>
             <h3 id="alertTitle" class="text-[15px] font-extrabold text-slate-800 mb-1">แจ้งเตือน</h3>
             <p id="alertMessage" class="text-[15px] font-bold text-slate-600 mb-5 leading-relaxed">กรุณากรอกข้อมูลให้ครบถ้วน</p>
             <button type="button" onclick="closeCustomAlert()" class="w-full bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-bold py-2.5 rounded-xl text-[15px] transition shadow cursor-pointer">
@@ -187,273 +123,164 @@
     </div>
 
     <script>
-        let mainQty = 1;
-        let friedEggQty = 0;
-        let omeletQty = 0;
-        const EGG_PRICE = 10;
-        let cart = JSON.parse(localStorage.getItem('cart')) || [];
+        let db;
+        let specialMenuData = []; 
 
-        document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
-
-        document.addEventListener('click', (e) => {
-            const dropdown = document.getElementById('autocompleteList');
-            const input = document.getElementById('customFoodName');
-            if (e.target !== input && !e.target.closest('#autocompleteList') && !e.target.closest('button[onclick="toggleDropdown()"]')) {
-                dropdown.classList.add('hidden');
+        function getDbClient() {
+            if (db) return db;
+            if (typeof window.supabaseClient !== 'undefined') {
+                db = window.supabaseClient;
+            } else if (typeof supabaseClient !== 'undefined') {
+                db = supabaseClient;
+            } else if (typeof supabase !== 'undefined' && supabase.createClient) {
+                db = supabase;
             }
-        });
-
-        window.addEventListener('DOMContentLoaded', () => {
-            renderSelectedCartList();
-        });
-
-        function getUniqueHistoryNames() {
-            const historyList = JSON.parse(localStorage.getItem('specialFoodHistory')) || [];
-            const currentCartNames = cart
-                .filter(item => item.is_custom === true || item.is_special === true)
-                .map(item => item.name);
-            return Array.from(new Set([...historyList, ...currentCartNames])).filter(n => n && n.trim() !== '');
+            return db;
         }
 
-        function onFoodInput(searchTerm) {
-            const dropdown = document.getElementById('autocompleteList');
-            const term = searchTerm.trim().toLowerCase();
+        document.addEventListener('DOMContentLoaded', async () => {
+            db = getDbClient();
+            await fetchSpecialFoodsFromDB();
+        });
 
-            if (!term) {
-                dropdown.classList.add('hidden');
+        async function fetchSpecialFoodsFromDB() {
+            try {
+                if (!db) db = getDbClient();
+                if (db) {
+                    // ดึงเฉพาะรายการในตาราง foods ที่มี food_group_id เป็น 98 (หรือเงื่อนไขหมวดหมู่เมนูพิเศษของคุณ)
+                    const { data, error } = await db
+                        .from('foods')
+                        .select('*')
+                        .eq('food_group_id', 98)
+                        .order('name', { ascending: true });
+
+                    if (error) throw error;
+                    
+                    if (data) {
+                        specialMenuData = data;
+                        renderPresetButtons();
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.error('โหลดจาก Supabase ไม่สำเร็จ:', err.message);
+                showCustomAlert('ข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อฐานข้อมูล Supabase ได้: ' + err.message, '❌', true);
+            }
+        }
+
+        function renderPresetButtons() {
+            const container = document.getElementById('presetButtonsContainer');
+            container.innerHTML = '';
+
+            if (specialMenuData.length === 0) {
+                container.innerHTML = '<div class="text-xs text-slate-400 col-span-3 text-center py-2">ยังไม่มีเมนูพิเศษในตาราง foods ลองเพิ่มเมนูด้านล่างได้เลยครับ</div>';
                 return;
             }
 
-            const allNames = getUniqueHistoryNames();
-            const filtered = allNames.filter(name => name.toLowerCase().includes(term));
+            specialMenuData.forEach(item => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'special-preset-btn truncate';
+                btn.textContent = item.name;
+                
+                const foodId = item.id !== undefined ? item.id : (item.food_id !== undefined ? item.food_id : '');
 
-            if (filtered.length === 0) {
-                dropdown.classList.add('hidden');
-                return;
-            }
+                btn.onclick = () => {
+                    if (window.parent) {
+                        window.parent.postMessage({
+                            type: 'OPEN_SELECT_ITEM',
+                            action: 'openSelectItem',
+                            food_id: foodId,
+                            name: item.name || '',
+                            cat_id: '98'
+                        }, '*');
+                    }
+                };
 
-            dropdown.innerHTML = '';
-            filtered.forEach(name => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'autocomplete-item';
-                itemDiv.innerHTML = highlightMatch(name, searchTerm);
-                itemDiv.onclick = () => selectFoodName(name);
-                dropdown.appendChild(itemDiv);
+                container.appendChild(btn);
             });
-
-            dropdown.classList.remove('hidden');
         }
 
-        function highlightMatch(text, query) {
-            if (!query.trim()) return text;
-            const reg = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-            return text.replace(reg, '<span class="text-emerald-600 font-extrabold">$1</span>');
-        }
+        async function saveNewSpecialMenu() {
+            const nameInput = document.getElementById('customFoodName').value.trim();
+            const p1 = parseFloat(document.getElementById('price1Input').value) || 0;
+            const p2 = parseFloat(document.getElementById('price2Input').value) || p1;
+            const p3 = parseFloat(document.getElementById('price3Input').value) || p1;
 
-        function selectFoodName(name) {
-            document.getElementById('customFoodName').value = name;
-            document.getElementById('autocompleteList').classList.add('hidden');
-        }
+            if (!nameInput) {
+                showCustomAlert('ยังไม่ได้ใส่ชื่อเมนู', 'กรุณาระบุชื่อเมนูใหม่ก่อนกดบันทึกครับ', '📌', true);
+                document.getElementById('customFoodName').focus();
+                return;
+            }
 
-        function toggleDropdown() {
-            const dropdown = document.getElementById('autocompleteList');
-            if (dropdown.classList.contains('hidden')) {
-                const allNames = getUniqueHistoryNames();
-                if (allNames.length === 0) return;
+            if (p1 <= 0 && p2 <= 0 && p3 <= 0) {
+                showCustomAlert('ยังไม่ได้ระบุราคา', 'กรุณากรอกราคาอย่างน้อย 1 เรทราคาครับ', '💰', false);
+                document.getElementById('price1Input').focus();
+                return;
+            }
 
-                dropdown.innerHTML = '';
-                allNames.forEach(name => {
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'autocomplete-item';
-                    itemDiv.textContent = name;
-                    itemDiv.onclick = () => selectFoodName(name);
-                    dropdown.appendChild(itemDiv);
-                });
-                dropdown.classList.remove('hidden');
-            } else {
-                dropdown.classList.add('hidden');
+            try {
+                if (!db) db = getDbClient();
+                if (!db) throw new Error('ไม่พบตัวเชื่อมต่อฐานข้อมูล');
+
+                // บันทึกลงตาราง foods พร้อมกำหนด food_group_id เป็น 98 (เมนูพิเศษ)
+                const { data, error } = await db.from('foods').insert([{
+                    name: nameInput,
+                    food_group_id: 98,
+                    price_1: p1,
+                    price_2: p2,
+                    price_3: p3
+                }]).select();
+
+                if (error) throw error;
+
+                // ล้างค่าในฟอร์มช่องกรอก
+                document.getElementById('customFoodName').value = '';
+                document.getElementById('price1Input').value = '';
+                document.getElementById('price2Input').value = '';
+                document.getElementById('price3Input').value = '';
+
+                // โหลดข้อมูลใหม่จาก Supabase ทันที
+                await fetchSpecialFoodsFromDB();
+
+                const savedItem = (data && data.length > 0) ? data[0] : null;
+                const foodId = savedItem ? (savedItem.id !== undefined ? savedItem.id : (savedItem.food_id !== undefined ? savedItem.food_id : '')) : '';
+
+                // ส่ง postMessage เปิด Pop-up (selectitem.html) ต่อทันที
+                if (window.parent) {
+                    window.parent.postMessage({
+                        type: 'OPEN_SELECT_ITEM',
+                        action: 'openSelectItem',
+                        food_id: foodId,
+                        name: nameInput,
+                        cat_id: '98'
+                    }, '*');
+                }
+
+            } catch (err) {
+                console.error('บันทึกลง Supabase ไม่สำเร็จ:', err);
+                showCustomAlert('บันทึกไม่สำเร็จ', err.message, '❌', true);
             }
         }
 
-        function saveNameToHistory(name) {
-            if (!name) return;
-            let historyList = JSON.parse(localStorage.getItem('specialFoodHistory')) || [];
-            if (!historyList.includes(name)) {
-                historyList.push(name);
-                localStorage.setItem('specialFoodHistory', JSON.stringify(historyList));
+        function goToOrderEntity() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'CLOSE_MODAL', action: 'closeModal' }, '*');
+            } else {
+                window.location.href = 'orderentity.html';
             }
         }
 
         function showCustomAlert(title, message, icon = '⚠️', isWarning = true) {
             document.getElementById('alertTitle').textContent = title;
             document.getElementById('alertMessage').textContent = message;
-            
-            const iconBg = document.getElementById('alertIconBg');
-            iconBg.textContent = icon;
-            if (isWarning) {
-                iconBg.className = "w-14 h-14 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl shadow-inner";
-            } else {
-                iconBg.className = "w-14 h-14 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl shadow-inner";
-            }
-
+            document.getElementById('alertIconBg').textContent = icon;
             document.getElementById('customAlertOverlay').classList.remove('hidden');
         }
 
         function closeCustomAlert() {
             document.getElementById('customAlertOverlay').classList.add('hidden');
         }
-
-        function changeQty(type, delta) {
-            if (type === 'main') {
-                mainQty = Math.max(1, mainQty + delta);
-                document.getElementById('mainQtyText').textContent = mainQty;
-            } else if (type === 'friedEgg') {
-                friedEggQty = Math.max(0, friedEggQty + delta);
-                document.getElementById('friedEggQtyText').textContent = friedEggQty;
-            } else if (type === 'omelet') {
-                omeletQty = Math.max(0, omeletQty + delta);
-                document.getElementById('omeletQtyText').textContent = omeletQty;
-            }
-        }
-
-        function renderSelectedCartList() {
-            cart = JSON.parse(localStorage.getItem('cart')) || [];
-            const boxContainer = document.getElementById('selectedCartItemsBox');
-            const listContainer = document.getElementById('selectedCartList');
-            const badge = document.getElementById('selectedCartCountBadge');
-            
-            listContainer.innerHTML = '';
-
-            const customCartItems = cart.filter(item => item.is_custom === true || item.is_special === true || item.category === 'เมนูพิเศษ' || item.food_group_id === 'special');
-
-            if (customCartItems.length === 0) {
-                boxContainer.classList.add('hidden');
-                badge.classList.add('hidden');
-                return;
-            }
-
-            boxContainer.classList.remove('hidden');
-            badge.classList.remove('hidden');
-            
-            const totalQty = customCartItems.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
-            badge.textContent = `${customCartItems.length} รายการ (${totalQty} ชิ้น)`;
-
-            customCartItems.forEach(item => {
-                let eggText = '';
-                if (item.friedEggQty > 0) eggText += ` +ไข่ดาว ${item.friedEggQty}`;
-                if (item.omeletQty > 0) eggText += ` +ไข่เจียว ${item.omeletQty}`;
-
-                const div = document.createElement('div');
-                div.className = 'flex justify-between items-center bg-white p-1.5 rounded-lg border border-slate-200 shadow-2xs';
-                div.innerHTML = `
-                    <div class="font-bold text-slate-700 truncate pr-1">
-                        <span class="text-emerald-600">${item.qty}x</span> ${item.name} <span class="text-amber-600">(${item.price}฿)</span>${eggText}
-                        ${item.note ? `<br><span class="text-slate-400 font-normal text-[11px]">(${item.note})</span>` : ''}
-                    </div>
-                    <button type="button" onclick="deleteCartItem('${item.item_id}')" class="text-rose-500 hover:text-rose-700 font-extrabold px-1.5 py-0.5 text-xs cursor-pointer">✕</button>
-                `;
-                listContainer.appendChild(div);
-            });
-        }
-
-        function deleteCartItem(itemId) {
-            cart = cart.filter(item => item.item_id !== itemId);
-            localStorage.setItem('cart', JSON.stringify(cart));
-            renderSelectedCartList();
-            notifyParentUpdate();
-        }
-
-        function saveCustomItemDetail() {
-            const nameInput = document.getElementById('customFoodName').value.trim();
-            const priceInput = parseFloat(document.getElementById('customPriceInput').value);
-            const noteInput = document.getElementById('foodNoteInput').value.trim();
-
-            if (!nameInput) {
-                showCustomAlert('ยังไม่ได้ใส่ชื่อรายการ', 'กรุณาระบุชื่อรายการอาหารพิเศษก่อนกดบันทึกนะ', '📌', true);
-                document.getElementById('customFoodName').focus();
-                return;
-            }
-
-            if (isNaN(priceInput) || priceInput < 0) {
-                showCustomAlert('ยังไม่ได้ระบุราคา', 'กรุณาระบุราคาอาหารที่ถูกต้องด้วยครับ', '💰', false);
-                document.getElementById('customPriceInput').focus();
-                return;
-            }
-
-            saveNameToHistory(nameInput);
-
-            const totalEggPrice = (friedEggQty + omeletQty) * EGG_PRICE;
-            const unitPrice = priceInput + totalEggPrice;
-
-            cart = JSON.parse(localStorage.getItem('cart')) || [];
-
-            const existingIndex = cart.findIndex(item => 
-                item.name === nameInput &&
-                Number(item.price) === Number(priceInput) &&
-                Number(item.friedEggQty || 0) === Number(friedEggQty) &&
-                Number(item.omeletQty || 0) === Number(omeletQty) &&
-                (item.note || '').trim() === noteInput &&
-                (item.is_custom === true || item.is_special === true)
-            );
-
-            if (existingIndex !== -1) {
-                cart[existingIndex].qty += mainQty;
-                cart[existingIndex].totalPrice = unitPrice * cart[existingIndex].qty;
-            } else {
-                cart.push({
-                    item_id: Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-                    food_id: 'special_item',
-                    name: nameInput,
-                    price: priceInput,
-                    friedEggQty: friedEggQty,
-                    omeletQty: omeletQty,
-                    isCustomPrice: true,
-                    is_custom: true,
-                    is_special: true,
-                    category: 'เมนูพิเศษ',
-                    qty: mainQty,
-                    note: noteInput,
-                    totalPrice: unitPrice * mainQty,
-                    food_group_id: 'special',
-                    category_name: 'เมนูพิเศษ'
-                });
-            }
-
-            localStorage.setItem('cart', JSON.stringify(cart));
-
-            document.getElementById('customFoodName').value = '';
-            document.getElementById('customPriceInput').value = '';
-            document.getElementById('foodNoteInput').value = '';
-            mainQty = 1;
-            friedEggQty = 0;
-            omeletQty = 0;
-            document.getElementById('mainQtyText').textContent = '1';
-            document.getElementById('friedEggQtyText').textContent = '0';
-            document.getElementById('omeletQtyText').textContent = '0';
-            document.getElementById('autocompleteList').classList.add('hidden');
-
-            renderSelectedCartList();
-            notifyParentUpdate();
-
-            if (window.parent) {
-                window.parent.postMessage({ type: 'CLOSE_MODAL', action: 'closeModal', cart: cart }, '*');
-            }
-        }
-
-        function notifyParentUpdate() {
-            if (window.parent) {
-                window.parent.postMessage({ type: 'UPDATE_CART', action: 'updateCart' }, '*');
-                window.parent.postMessage({ type: 'UPDATE_CART_COUNT', action: 'updateCartCount', cart: cart }, '*');
-            }
-        }
-
-        window.addEventListener('message', (e) => {
-            if (!e.data) return;
-            const type = e.data.type || e.data.action;
-            if (type === 'UPDATE_CART' || type === 'CART_UPDATED' || type === 'REFRESH_CART') {
-                renderSelectedCartList();
-            }
-        });
     </script>
 </body>
 </html>

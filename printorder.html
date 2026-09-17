@@ -20,13 +20,12 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- ดึงการเชื่อมต่อ Supabase จากไฟล์ supabaseClient.js (ข้อ 1) -->
+    <!-- ดึงการเชื่อมต่อ Supabase จากไฟล์ supabaseClient.js -->
     <script src="supabaseClient.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap');
         
-        /* ข้อ 2: เปิดให้ scroll ได้ (pan-y) และป้องกันการซูม */
         html, body {
             min-height: 100%;
             margin: 0;
@@ -62,7 +61,6 @@
             position: relative;
         }
 
-        /* ข้อ 4: ล็อคส่วนหัว (Sticky Top View) */
         .header-section {
             position: sticky;
             top: 0;
@@ -98,7 +96,6 @@
             padding-right: 2px;
         }
 
-        /* ข้อ 4: ล็อคส่วนท้าย (Sticky Bottom View) */
         .footer-section {
             position: sticky;
             bottom: 0;
@@ -154,7 +151,7 @@
     <div class="app-viewport">
         <div class="print-card">
             
-            <!-- 🟢 ส่วนที่ 1: หัวกระดาษ (Sticky Top View - ข้อ 4) -->
+            <!-- 🟢 ส่วนที่ 1: หัวกระดาษ -->
             <div class="header-section text-center mb-3 pb-1">
                 <h2 class="font-extrabold text-slate-800 text-lg leading-tight">ลาบหนองบัวลำภู @เขื่อนขุนด่าน</h2>
                 <p class="text-xs text-slate-500 font-semibold mt-0.5">064-565-4951</p>
@@ -165,7 +162,6 @@
 
             <!-- 🟡 ส่วนที่ 2: เนื้อหาตรงกลาง (Scrollable Area) -->
             <div class="content-scrollable">
-                <!-- กรอบรายการอาหาร (Cart Box) -->
                 <div class="items-box-container">
                     <div class="scrollable-items">
                         <div id="itemListContainer" class="w-full space-y-1.5">
@@ -174,12 +170,10 @@
                     </div>
                 </div>
 
-                <!-- หมายเหตุออเดอร์ (ถ้ามี) -->
                 <div id="orderNoteContainer" class="hidden shrink-0 mb-2 p-2 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-900">
                     <span>📝 หมายเหตุ: </span><span id="orderNoteText"></span>
                 </div>
 
-                <!-- สรุปจำนวนและราคารวม -->
                 <div class="flex items-center justify-between border-b-2 border-dashed border-slate-200 pb-2.5 mb-2 shrink-0">
                     <div class="border border-slate-800 rounded-lg px-2.5 py-1">
                         <span id="summaryQty" class="font-extrabold text-xs text-slate-800">0 รายการ | 0 ชิ้น</span>
@@ -189,7 +183,6 @@
                     </div>
                 </div>
 
-                <!-- ส่วน QR Code (แสดงเฉพาะกลุ่มนักท่องเที่ยว) -->
                 <div id="touristOnlySection" class="hidden text-center shrink-0 my-1">
                     <p class="text-xs font-bold text-slate-700 mb-0.5">⭐ ขอบพระคุณที่อุดหนุนค่ะ ⭐</p>
                     <p class="text-[10px] text-slate-500 font-semibold mb-1">แนะนำ ติชม ได้นะคะ 🙏</p>
@@ -201,7 +194,7 @@
                 </div>
             </div>
 
-            <!-- 🟢 ส่วนที่ 3: ปุ่มกดด้านล่าง (Sticky Bottom View - ข้อ 4) -->
+            <!-- 🟢 ส่วนที่ 3: ปุ่มกดด้านล่าง -->
             <div class="footer-section no-print pt-2 border-t border-slate-100">
                 <div class="grid grid-cols-2 gap-2">
                     <button type="button" id="saveOnlyBtn" onclick="handleSaveOrder(false)" class="w-full py-2.5 bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer">
@@ -233,7 +226,6 @@
             return null;
         }
 
-        // ข้อ 2: ป้องกัน Gesture Pinch-to-zoom และ Double-tap zoom บนอุปกรณ์พกพา
         document.addEventListener('touchstart', (e) => {
             if (e.touches.length > 1) {
                 e.preventDefault();
@@ -260,10 +252,8 @@
             currentOrderData = JSON.parse(pendingOrderRaw);
             const cart = currentOrderData.cart || [];
             
-            // เปรียบเทียบค่าโดยตรง ไม่แปลงประเภทข้อมูลซ้ำซ้อน
             const groupId = currentOrderData.groupId ?? currentOrderData.customerGroupId ?? currentOrderData.customer_type_id ?? 1;
 
-            // 1. จัดการแสดงผล QR Code (แสดงเฉพาะกลุ่มนักท่องเที่ยว groupId === 2)
             const touristSection = document.getElementById('touristOnlySection');
             if (touristSection) {
                 if (groupId === 2) {
@@ -273,7 +263,6 @@
                 }
             }
 
-            // 2. จัดการแสดงผลกลุ่มลูกค้า / สถานที่
             const groupWrapper = document.getElementById('customerGroupWrapper');
             const groupLabel = document.getElementById('customerGroupLabel');
 
@@ -287,7 +276,6 @@
                 let groupDisplay = locDetails.join(' - ') || 'นักท่องเที่ยว';
                 const rawPhone = String(currentOrderData.customerPhone || currentOrderData.phone || '').trim();
 
-                // ตรวจสอบเบอร์โทรศัพท์: ตัวเลขล้วน 10 หลัก
                 const isValidPhone = /^\d{10}$/.test(rawPhone);
                 if (isValidPhone) {
                     groupDisplay += ` โทร: ${rawPhone}`;
@@ -299,7 +287,6 @@
                 if (groupWrapper) groupWrapper.classList.add('hidden');
             }
 
-            // 3. แสดงหมายเหตุออเดอร์
             const noteVal = currentOrderData.orderNote || currentOrderData.note;
             if (noteVal) {
                 const noteContainer = document.getElementById('orderNoteContainer');
@@ -310,7 +297,6 @@
                 }
             }
 
-            // 4. แสดงรายการอาหาร
             renderItemList(cart, groupId, currentOrderData.deliveryFee || currentOrderData.delivery_fee || 0, currentOrderData.grandTotal || currentOrderData.total_price || 0);
         }
 
@@ -337,7 +323,6 @@
                 const qty = item.qty || 1;
                 let basePrice = 0;
 
-                // ตรวจสอบ Custom Price หรือเปรียบเทียบตาม groupId โดยตรง
                 if ((item.is_custom_price || item.isCustomPrice) && (item.custom_price || item.price) > 0) {
                     basePrice = item.custom_price || item.price;
                 } else {
@@ -433,7 +418,7 @@
 
                     const combinedNamePhone = [custName, custPhone].filter(Boolean).join(' ') || 'ลูกค้าทั่วไป';
 
-                    // 1. จัดการลูกค้าในตาราง public.customers (ที่มีเฉพาะ customer_id และ name ตาม Schema)
+                    // 1. จัดการลูกค้าในตาราง public.customers
                     if (!finalCustomerId && (custName || custPhone)) {
                         let existingCust = null;
 
@@ -459,11 +444,11 @@
 
                     const totalQty = (currentOrderData.cart || []).reduce((sum, item) => sum + (item.qty || 1), 0);
 
-                    // 2. จัดการโครงสร้างข้อมูล Payload ตาม public.orders ใน schema.sql
+                    // 2. จัดการโครงสร้างข้อมูล Payload ส่งเข้าตาราง orders โดยใช้ nickname ตรงตามฐานข้อมูล
                     const insertPayload = {
                         customer_id: finalCustomerId,
                         customer_type_id: currentOrderData.groupId ?? currentOrderData.customerGroupId ?? currentOrderData.customer_type_id ?? 1,
-                        name_phone: combinedNamePhone,
+                        nickname: combinedNamePhone, // ✅ ใช้คีย์ nickname ส่งเข้าตาราง orders
                         location_id: currentOrderData.locationId || currentOrderData.location_id || null,
                         zone_id: currentOrderData.zoneId || currentOrderData.zone_id || null,
                         subtotal: currentOrderData.subtotal || 0,

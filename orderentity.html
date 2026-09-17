@@ -2,7 +2,7 @@
   ========================================
   [File Note]
   - File Name: orderentity.html
-  - Description: หน้าเลือกหมวดหมู่และสั่งอาหาร (ซ่อนหมวดหมู่ importmain / ID 100 แล้ว)
+  - Description: หน้าเลือกหมวดหมู่และสั่งอาหาร (ปุ่มเมนูพิเศษเปิดแบบ Fullscreen พร้อมฟอร์มเพิ่มเมนูด้านล่างและ Scroll)
   ========================================
 -->
 <!DOCTYPE html>
@@ -54,7 +54,6 @@
             word-break: break-word; 
         }
 
-        /* Badge แสดงจำนวนชิ้นที่มุมขวาบนของปุ่มหมวดหมู่ */
         .cat-badge-main {
             position: absolute; top: -0.35rem; right: -0.35rem; background-color: #ef4444;
             color: #ffffff; font-size: 0.75rem; font-weight: 800; width: 1.4rem; height: 1.4rem;
@@ -62,7 +61,7 @@
             border: 2px solid #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.15);
         }
 
-        /* Modal Overlay หลัก */
+        /* Modal Overlay สำหรับหมวดหมู่ปกติ / Select Item */
         .custom-modal-overlay { 
             position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
             background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); 
@@ -71,10 +70,19 @@
         }
         .custom-modal-overlay.active { display: flex; }
 
+        /* Modal แบบ Fullscreen เต็มจอเฉพาะสำหรับเมนูพิเศษ */
+        .fullscreen-modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: #ffffff;
+            display: none; flex-direction: column;
+            z-index: 9999;
+        }
+        .fullscreen-modal-overlay.active { display: flex; }
+
         .sticky-footer {
             position: fixed; bottom: 0; left: 0; right: 0;
             background-color: #ffffff; border-top: 1px solid #e2e8f0;
-            padding: 0.625rem; box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05); z-index: 40;
+            padding: 0.625rem; box-shadow: -4px 6px -1px rgba(0, 0, 0, 0.05); z-index: 40;
         }
     </style>
 </head>
@@ -105,7 +113,7 @@
         </div>
     </div>
 
-    <!-- Modal Pop-up แสดงหน้าเลือกเมนู/เมนูพิเศษ -->
+    <!-- Modal Pop-up สำหรับหมวดหมู่ปกติ และ Select Item -->
     <div id="externalPageModalOverlay" class="custom-modal-overlay" onclick="closeExternalModal()">
         <div class="w-full max-w-lg bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-2xl max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center p-3.5 bg-slate-100 border-b border-slate-200">
@@ -118,6 +126,18 @@
             
             <iframe id="externalPageFrame" src="" class="w-full border-none transition-all duration-200" style="height: 200px;"></iframe>
         </div>
+    </div>
+
+    <!-- Modal แบบ FULLSCREEN เต็มจอเฉพาะสำหรับ "เมนูพิเศษ" (รวมฟอร์มเพิ่มเมนูด้านล่างและ Scroll ด้านบน) -->
+    <div id="fullscreenModalOverlay" class="fullscreen-modal-overlay">
+        <div class="flex justify-between items-center p-3.5 bg-slate-100 border-b border-slate-200 flex-none">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">⭐</span>
+                <h2 class="font-extrabold text-base text-slate-800">จัดการเมนูพิเศษ</h2>
+            </div>
+            <button type="button" onclick="closeFullscreenModal()" class="text-slate-500 hover:text-slate-800 font-bold text-2xl px-3 cursor-pointer">✕</button>
+        </div>
+        <iframe id="fullscreenPageFrame" src="" class="w-full flex-1 border-none"></iframe>
     </div>
 
     <!-- Modal ยืนยันการล้างตะกร้า -->
@@ -133,7 +153,7 @@
         </div>
     </div>
 
-    <!-- Modal แจ้งเตือนข้อความทั่วไป (แทนระบบ Alert ปกติ) -->
+    <!-- Modal แจ้งเตือนข้อความทั่วไป -->
     <div id="noticeModalOverlay" class="custom-modal-overlay" onclick="closeNoticeModal()">
         <div class="bg-white rounded-3xl max-w-xs w-full p-5 text-center border border-slate-200 shadow-2xl transform transition-all" onclick="event.stopPropagation()">
             <div class="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl font-bold border border-amber-100">⚠️</div>
@@ -153,7 +173,6 @@
 
         const categoryIcons = ['🍱', '🍲', '🍳', '🍚', '🥩', '⭐', '🥗', '🛍️', '🍽️'];
 
-        // ป้องกันการ Zoom บนอุปกรณ์พกพา
         document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
 
         window.addEventListener('DOMContentLoaded', async () => {
@@ -176,7 +195,6 @@
 
                 const specialCategories = ['เมนูพิเศษ', 'ลูกค้าฝากซื้อ'];
 
-                // กรองหมวดหมู่: ตัด ID 100 และชื่อ 'importmain' ออก ไม่ให้แสดงผล
                 const rawCategories = catRes.data || [];
                 const filteredCategories = rawCategories.filter(cat => {
                     const catId = Number(cat.food_group_id || cat.id);
@@ -240,7 +258,6 @@
                     .reduce((sum, item) => sum + (Number(item.qty) || Number(item.quantity) || 1), 0);
 
                 const badgeHTML = catTotalQty > 0 ? `<span class="cat-badge-main">${catTotalQty}</span>` : '';
-
                 const isLongText = cat.name.length > 8;
                 const textClass = isLongText ? 'cat-text-long' : '';
 
@@ -248,7 +265,8 @@
                 
                 btn.onclick = () => {
                     if (cat.name === 'เมนูพิเศษ') {
-                        openExternalModal('specialmenu.html', icon, 'เมนูพิเศษ');
+                        // เปิดหน้าเมนูพิเศษแบบ Fullscreen ตามเดิม เพื่อให้มีพื้นที่แสดงรายการแบบ Scroll และฟอร์มเพิ่มเมนูด้านล่าง
+                        openFullscreenModal('specialmenu.html');
                     } else {
                         openExternalModal(`selectfood.html?group_id=${catId}&name=${encodeURIComponent(cat.name)}&icon=${encodeURIComponent(icon)}`, icon, cat.name);
                     }
@@ -272,6 +290,18 @@
             renderQuickNav(); 
         }
 
+        function openFullscreenModal(url) {
+            document.getElementById('fullscreenPageFrame').src = url;
+            document.getElementById('fullscreenModalOverlay').classList.add('active');
+        }
+
+        function closeFullscreenModal() {
+            document.getElementById('fullscreenModalOverlay').classList.remove('active');
+            document.getElementById('fullscreenPageFrame').src = '';
+            updateCartCountOnly();
+            renderQuickNav();
+        }
+
         function updateCartCountOnly() {
             cart = JSON.parse(localStorage.getItem('cart')) || [];
             const totalItems = cart.length;
@@ -290,7 +320,6 @@
         }
         function goToSummary() { window.location.href = 'confirmorder.html'; }
 
-        /* ระบบแจ้งเตือนแทน Alert แบบปกติ */
         function showNoticeModal(msg) {
             document.getElementById('noticeModalMessage').textContent = msg;
             document.getElementById('noticeModalOverlay').classList.add('active');
@@ -299,13 +328,25 @@
             document.getElementById('noticeModalOverlay').classList.remove('active');
         }
 
+        // ดักรับสัญญาณ PostMessage ข้ามหน้าต่าง
         window.addEventListener('message', (e) => {
             if (!e.data) return;
             const action = e.data.action || e.data.type;
             
             if (action === 'CLOSE_MODAL' || action === 'closeModal') {
                 closeExternalModal();
-            } else if (action === 'resizeIframe' || action === 'RESIZE_IFRAME') {
+                closeFullscreenModal();
+            } 
+            else if (action === 'OPEN_SELECT_ITEM' || action === 'openSelectItem') {
+                closeFullscreenModal();
+                const params = new URLSearchParams({
+                    food_id: e.data.food_id || '',
+                    name: e.data.name || '',
+                    cat_id: e.data.cat_id || '98'
+                });
+                openExternalModal(`selectitem.html?${params.toString()}`, '⭐', e.data.name || 'เลือกรายละเอียด');
+            }
+            else if (action === 'resizeIframe' || action === 'RESIZE_IFRAME') {
                 const iframe = document.getElementById('externalPageFrame');
                 if (iframe) {
                     const newHeight = Math.min(e.data.height, window.innerHeight * 0.75);

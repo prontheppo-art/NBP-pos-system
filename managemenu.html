@@ -2,9 +2,8 @@
   ========================================================================
   [File Note]
   - File Name: managemenu.html
-  - Description: หน้าจัดการเมนู (เฉพาะ "เมนูพิเศษ" โหลด specialmenu.html เป็น iframe popup, นอกนั้นใช้ popup ปกติ)
+  - Description: หน้าจัดการเมนู (กดปุ่มกากบาทลบกลุ่ม เช็กข้อมูลทันที ถ้ามีเมนูอยู่แจ้งเตือนทันทีโดยไม่ถามซ้ำ - เอาปุ่มคัดลอกออกแล้ว)
   - Included JavaScript: supabaseClient.js
-  - Links: index.html, specialmenu.html
   ========================================================================
 -->
 <!DOCTYPE html>
@@ -104,11 +103,6 @@
 </head>
 <body class="bg-slate-100 flex items-center justify-center antialiased">
 
-    <!-- ปุ่มก๊อปปี้โค้ดทั้งหมด -->
-    <button onclick="copyAllCode()" id="copyBtn" class="absolute top-3 right-3 z-50 bg-slate-800 hover:bg-slate-900 active:scale-95 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-lg border border-slate-700 flex items-center gap-1.5 transition cursor-pointer">
-        <span>📋</span> <span id="copyText">คัดลอกโค้ดทั้งหมด</span>
-    </button>
-
     <div class="app-container shadow-2xl w-full border border-slate-100">
         
         <!-- Header Section (Fixed Top) -->
@@ -140,9 +134,9 @@
 
     </div>
 
-    <!-- Modal 1: managemenupopup (แสดงรายการอาหารและตารางราคาเป็น Pop-up สำหรับหมวดปกติ) -->
+    <!-- Modal 1: managemenupopup -->
     <div id="popupModalWrapper" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3">
-        <div onclick="event.stopPropagation()" class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border-4 border-blue-600 overflow-hidden flex flex-col h-[60vh] max-h-[60vh] z-10">
+        <div onclick="event.stopPropagation()" class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border-4 border-blue-600 overflow-hidden flex flex-col h-auto max-h-[60vh] z-10">
             
             <div class="bg-slate-700 text-white p-4 flex items-center justify-between shrink-0">
                 <div class="flex items-center gap-2">
@@ -170,30 +164,7 @@
         </div>
     </div>
 
-    <!-- Modal 1.2: External iframe Popup สำหรับโหลดไฟล์ specialmenu.html -->
-    <div id="externalIframeModalWrapper" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3">
-        <div onclick="event.stopPropagation()" class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border-4 border-indigo-600 overflow-hidden flex flex-col h-[420px] max-h-[75vh] z-20 relative">
-            
-            <!-- Header ป๊อปอัพ iframe -->
-            <div class="bg-indigo-700 text-white p-3 px-4 flex items-center justify-between shrink-0">
-                <div class="flex items-center gap-2">
-                    <span class="text-xl">⭐</span>
-                    <h3 id="iframeTitleText" class="font-bold text-base text-amber-300">เมนูพิเศษ</h3>
-                </div>
-                <button onclick="closeExternalIframeModal()" class="bg-indigo-800 hover:bg-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-base active:scale-95 transition cursor-pointer shadow">
-                    ✕
-                </button>
-            </div>
-
-            <!-- เนื้อหา iframe โหลดไฟล์ specialmenu.html -->
-            <div class="flex-1 w-full bg-slate-50 relative overflow-hidden">
-                <iframe id="specialMenuIframe" src="" class="w-full h-full border-0"></iframe>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- Modal 2: managemenueditpopup (แก้ไขชื่อ ย้ายกลุ่ม และลบเมนู) -->
+    <!-- Modal 2: managemenueditpopup -->
     <div id="editModalWrapper" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3">
         <div onclick="event.stopPropagation()" class="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col p-4 space-y-3 relative max-h-[90vh]">
             
@@ -375,47 +346,8 @@
         </div>
     </div>
 
-    <!-- Modal 7: Delete Category Modal -->
-    <div id="deleteCategoryModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 hidden z-50">
-        <div onclick="event.stopPropagation()" class="bg-white w-full max-w-xs rounded-3xl shadow-2xl p-5 text-center space-y-3">
-            <div class="w-12 h-12 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
-                ⚠️
-            </div>
-            <div>
-                <h3 class="font-black text-base text-slate-800">ยืนยันการลบ?</h3>
-                <p class="text-xs text-slate-500 mt-1">คุณต้องการลบกลุ่มรายการ <span id="deleteTargetCategoryName" class="font-bold text-rose-600">""</span> ใช่หรือไม่?</p>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 pt-2">
-                <button onclick="closeModal('deleteCategoryModal')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer">
-                    ยกเลิก
-                </button>
-                <button onclick="confirmExecuteDeleteCategory()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer">
-                    ลบกลุ่มรายการ
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- JavaScript Core Logic -->
     <script>
-        // ฟังก์ชันสำหรับกดปุ่มก๊อปปี้โค้ดทั้งหมด
-        function copyAllCode() {
-            const htmlContent = document.documentElement.outerHTML;
-            navigator.clipboard.writeText(htmlContent).then(() => {
-                const textEl = document.getElementById('copyText');
-                const btnEl = document.getElementById('copyBtn');
-                textEl.textContent = 'คัดลอกสำเร็จ!';
-                btnEl.classList.replace('bg-slate-800', 'bg-emerald-600');
-                setTimeout(() => {
-                    textEl.textContent = 'คัดลอกโค้ดทั้งหมด';
-                    btnEl.classList.replace('bg-emerald-600', 'bg-slate-800');
-                }, 2000);
-            }).catch(err => {
-                alert('ไม่สามารถคัดลอกได้: ' + err);
-            });
-        }
-
         document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
         document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
         document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
@@ -436,7 +368,6 @@
         let editingFoodId = null;
         let selectedGroupIdForEdit = null;
         let activeEditingCategoryId = null;
-        let activeDeletingCategoryId = null;
 
         const categoryIcons = ['🍱', '🍲', '🍳', '🍚', '🥩', '⭐', '🥗', '🛍️', '🍽️', '🥢', '🍹'];
 
@@ -464,13 +395,11 @@
         function setupOutsideClickClose() {
             const modals = [
                 { id: 'popupModalWrapper', closeFn: closeManageMenuModal },
-                { id: 'externalIframeModalWrapper', closeFn: closeExternalIframeModal },
                 { id: 'editModalWrapper', closeFn: closeEditModal },
                 { id: 'addModalWrapper', closeFn: closeAddMenuModal },
                 { id: 'manageGroupModalWrapper', closeFn: closeManageGroupModal },
                 { id: 'customAlertModal', closeFn: () => closeModal('customAlertModal') },
-                { id: 'editCategoryModal', closeFn: () => closeModal('editCategoryModal') },
-                { id: 'deleteCategoryModal', closeFn: () => closeModal('deleteCategoryModal') }
+                { id: 'editCategoryModal', closeFn: () => closeModal('editCategoryModal') }
             ];
 
             modals.forEach(m => {
@@ -490,7 +419,6 @@
         function closeModal(id) {
             document.getElementById(id)?.classList.add('hidden');
             if (id === 'editCategoryModal') activeEditingCategoryId = null;
-            if (id === 'deleteCategoryModal') activeDeletingCategoryId = null;
         }
 
         function showAlertModal(message, type = 'warning') {
@@ -521,7 +449,7 @@
             try {
                 const [ { data: mData }, { data: fgData } ] = await Promise.all([
                     db.from('foods').select('*'),
-                    db.from('food_groups').select('food_group_id, name')
+                    db.from('food_groups').select('food_group_id, name').order('food_group_id', { ascending: true })
                 ]);
 
                 menus = mData || [];
@@ -537,10 +465,9 @@
                     rawGroups = uniqueCats.map((cat) => ({ id: cat, name: `กลุ่ม ${cat}` }));
                 }
 
-                // จัดลำดับพิเศษ: ให้ "เมนูพิเศษ" หรือ ID 100 อยู่ท้ายสุดเสมอ
                 foodGroups = rawGroups.sort((a, b) => {
-                    const isASpecial = a.name === 'เมนูพิเศษ' || Number(a.id) === 100;
-                    const isBSpecial = b.name === 'เมนูพิเศษ' || Number(b.id) === 100;
+                    const isASpecial = a.name === 'เมนูพิเศษ' || Number(a.id) >= 98;
+                    const isBSpecial = b.name === 'เมนูพิเศษ' || Number(b.id) >= 98;
 
                     if (isASpecial && !isBSpecial) return 1;
                     if (!isASpecial && isBSpecial) return -1;
@@ -567,7 +494,6 @@
             }
 
             foodGroups.forEach((cat, index) => {
-                // ซ่อนปุ่ม importmain ไม่ให้แสดงผล
                 if (cat.name === 'importmain') return;
 
                 const icon = categoryIcons[index % categoryIcons.length];
@@ -576,26 +502,10 @@
                 btn.className = 'cat-nav-btn';
                 btn.innerHTML = `<span class="cat-nav-icon">${icon}</span> <span>${cat.name}</span>`;
 
-                // เช็คเงื่อนไขทั้งชื่อ "เมนูพิเศษ" หรือ food_group_id เป็น 100 ให้เปิด iframe popup
-                if (cat.name === 'เมนูพิเศษ' || Number(cat.id) === 100) {
-                    btn.onclick = () => openExternalIframeModal(cat.name);
-                } else {
-                    btn.onclick = () => openCategoryPriceModalHTML(cat);
-                }
+                btn.onclick = () => openCategoryPriceModalHTML(cat);
 
                 navContainer.appendChild(btn);
             });
-        }
-
-        function openExternalIframeModal(titleName) {
-            document.getElementById('iframeTitleText').textContent = titleName;
-            document.getElementById('specialMenuIframe').src = 'specialmenu.html';
-            openModal('externalIframeModalWrapper');
-        }
-
-        function closeExternalIframeModal() {
-            document.getElementById('specialMenuIframe').src = ''; 
-            closeModal('externalIframeModalWrapper');
         }
 
         async function openCategoryPriceModalHTML(cat) {
@@ -808,9 +718,7 @@
                     price_2: priceTourist,
                     price_3: priceSabaidee
                 }]);
-
                 if (error) throw error;
-
                 closeAddMenuModal();
                 loadCategoryFoods();
             } catch (err) {
@@ -844,7 +752,7 @@
                     <span onclick="openEditCategoryModal(${c.id}, '${c.name.replace(/'/g, "\\'")}')" class="font-bold text-xs text-slate-800 truncate cursor-pointer flex-1 py-0.5 hover:text-indigo-600 transition">
                         📁 ${c.name}
                     </span>
-                    <button onclick="openDeleteCategoryModal(${c.id}, '${c.name.replace(/'/g, "\\'")}')" class="w-6 h-6 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-full flex items-center justify-center text-xs font-bold transition shrink-0 ml-2 cursor-pointer" title="ลบหมวดหมู่">
+                    <button onclick="handleDeleteCategory(${c.id}, '${c.name.replace(/'/g, "\\'")}')" class="w-6 h-6 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-full flex items-center justify-center text-xs font-bold transition shrink-0 ml-2 cursor-pointer" title="ลบหมวดหมู่">
                         ✕
                     </button>
                 </div>
@@ -897,21 +805,30 @@
             }
         }
 
-        function openDeleteCategoryModal(id, name) {
-            activeDeletingCategoryId = id;
-            document.getElementById('deleteTargetCategoryName').textContent = `"${name}"`;
-            openModal('deleteCategoryModal');
-        }
-
-        async function confirmExecuteDeleteCategory() {
-            if (!activeDeletingCategoryId) return;
-
+        async function handleDeleteCategory(categoryId, categoryName) {
             try {
-                const { error } = await db.from('food_groups').delete().eq('food_group_id', activeDeletingCategoryId);
-                if (error) throw error;
+                const { data: foodsInGroup, error: checkError } = await db
+                    .from('foods')
+                    .select('food_id, name')
+                    .eq('food_group_id', categoryId);
 
-                closeModal('deleteCategoryModal');
+                if (checkError) throw checkError;
+
+                if (foodsInGroup && foodsInGroup.length > 0) {
+                    showAlertModal(`ไม่สามารถลบกลุ่ม "${categoryName}" ได้ เนื่องจากยังมีเมนูอาหารอยู่ด้านใน ${foodsInGroup.length} รายการ (เช่น "${foodsInGroup[0].name}") กรุณาย้ายหรือลบเมนูก่อน`, 'warning');
+                    return;
+                }
+
+                const { error: deleteError } = await db
+                    .from('food_groups')
+                    .delete()
+                    .eq('food_group_id', categoryId);
+
+                if (deleteError) throw deleteError;
+
+                showAlertModal(`ลบกลุ่ม "${categoryName}" สำเร็จ`, 'success');
                 await loadAllData();
+
             } catch (err) {
                 showAlertModal('ไม่สามารถลบได้: ' + err.message, 'error');
             }

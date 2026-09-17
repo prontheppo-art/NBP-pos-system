@@ -432,7 +432,7 @@
                 <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
                     <div class="flex justify-between border-b border-slate-100 pb-2">
                         <span class="font-bold text-xs text-amber-900 bg-amber-100 px-2 py-0.5 rounded">📄 บิล ${badgeLabel}</span>
-                        <span class="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded truncate max-w-[200px]">👤 ${order.name_phone || groupTypeName}</span>
+                        <span class="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded truncate max-w-[200px]">👤 ${order.nickname || groupTypeName}</span>
                     </div>
                     <table class="w-full text-left"><tbody>${itemsHtml}</tbody></table>
                     <div class="flex justify-between pt-1 text-xs font-bold border-t border-slate-100">
@@ -571,7 +571,7 @@
                 itemsHtml = `<div class="text-[11px] text-slate-400 italic">ไม่มีรายละเอียดรายการอาหารในบิลนี้</div>`;
             }
 
-            let customerSubLabel = o.name_phone ? ` - ${o.name_phone}` : '';
+            let customerSubLabel = o.nickname ? ` - ${o.nickname}` : '';
 
             listHtml += `
                 <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-xs space-y-2">
@@ -677,7 +677,7 @@
 
         container.innerHTML = sortedOrders.map(order => {
             const dateFormatted = formatDateThai(getOrderDateStr(order));
-            const customerGroup = order.name_phone || `บิล #${order.order_id || ''}`;
+            const customerGroup = order.nickname || `บิล #${order.order_id || ''}`;
             const totalAmount = getSummaryOrderTotalAmount(order).toLocaleString();
             
             return `

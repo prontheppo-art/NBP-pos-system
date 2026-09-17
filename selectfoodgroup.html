@@ -134,7 +134,6 @@
                         return isCustomItem ? sum + itemQty : sum;
                     }, 0);
                 } else {
-                    // แก้ไข: ใช้ food_group_id และ food_id ให้ตรงกับฐานข้อมูลจริง
                     const catFoodIds = (foods || []).filter(f => Number(f.food_group_id) === Number(cat.food_group_id)).map(f => Number(f.food_id));
                     catTotalQty = cart.reduce((sum, item) => {
                         const matchById = item.food_id && catFoodIds.includes(Number(item.food_id));
@@ -190,7 +189,6 @@
             if (!db) return;
 
             try {
-                // แก้ไข: เปลี่ยนไปใช้ food_group_id และ food_id ในคำสั่ง order()
                 const [catRes, foodRes] = await Promise.all([
                     db.from('food_groups').select('*').order('food_group_id', { ascending: true }),
                     db.from('foods').select('*').order('food_id', { ascending: true })
@@ -198,13 +196,17 @@
 
                 if (catRes.data && foodRes.data) {
                     const specialCategories = ['เมนูพิเศษ', 'ลูกค้าฝากซื้อ'];
-                    const categories = catRes.data.sort((a, b) => {
-                        const isASpecial = specialCategories.includes(a.name);
-                        const isBSpecial = specialCategories.includes(b.name);
-                        if (isASpecial && !isBSpecial) return 1;
-                        if (!isASpecial && isBSpecial) return -1;
-                        return a.name.localeCompare(b.name, 'th');
-                    });
+                    
+                    // เพิ่มการกรอง .filter(cat => cat.name !== 'importmain') ตรงนี้เพื่อซ่อนออก
+                    const categories = catRes.data
+                        .filter(cat => cat.name !== 'importmain')
+                        .sort((a, b) => {
+                            const isASpecial = specialCategories.includes(a.name);
+                            const isBSpecial = specialCategories.includes(b.name);
+                            if (isASpecial && !isBSpecial) return 1;
+                            if (!isASpecial && isBSpecial) return -1;
+                            return a.name.localeCompare(b.name, 'th');
+                        });
 
                     localStorage.setItem('cache_food_groups', JSON.stringify(categories));
                     localStorage.setItem('cache_foods', JSON.stringify(foodRes.data));

@@ -2,7 +2,7 @@
   ========================================================================
   [File Note]
   - File Name: quickorder.html
-  - Description: บันทึกออเดอร์ด่วนลงตาราง orders พร้อมปรับรูปแบบข้อมูลและเวลาให้รองรับระบบ Report
+  - Description: บันทึกออเดอร์ด่วนลงตาราง orders (รักษา UI เดิม 100% + ปรับระบบหลังบ้านเป็น ID Code & รองรับ Report)
   ========================================================================
 -->
 <!DOCTYPE html>
@@ -518,7 +518,7 @@
         if (loc.name.includes('หน้าร้าน')) {
             const defaultZone = zonesData.find(z => String(z.location_id) === String(targetLocId) && z.name.includes('หน้าร้าน')) 
                              || zonesData.find(z => String(z.location_id) === String(targetLocId))
-                             || { zone_id: null, name: 'หน้าร้าน' };
+                             || { zone_id: 8, name: 'Front' }; // ปรับให้ตรงตาม schema
             selectZone(defaultZone);
         } else {
             openZoneModal(loc, zonesData);
@@ -562,8 +562,8 @@
 
         locationData.locationName = locName;
         locationData.zoneName = zoneName;
-        locationData.locationId = locId;
-        locationData.zoneId = zoneId;
+        locationData.locationId = locId ? Number(locId) : null;
+        locationData.zoneId = zoneId ? Number(zoneId) : null;
 
         localStorage.setItem('selectedLocationName', locName);
         localStorage.setItem('selectedZoneName', zoneName);
@@ -613,6 +613,7 @@
 
         if (!totalAmount || totalAmount <= 0) {
             alert('กรุณากรอกยอดเงินรวมให้ถูกต้อง');
+            amountInput.focus();
             return;
         }
 
@@ -626,9 +627,18 @@
             const customerDisplayName = customerObj ? removeDuplicateWords(customerObj.name || '') : removeDuplicateWords(rawCustomerInput);
             const userNote = document.getElementById('quickNoteInput').value || '';
 
-            // ปรับโครงสร้าง items ให้เป็นรูปแบบมาตรฐานรองรับหน้ารายงาน (Report)
+            // 🟢 จัดรูปแบบชื่อ nickname (ถ้าไม่ได้กรอกชื่อ ให้ใช้สถานที่/โซนแทนเพื่อให้ออก Report ได้สมบูรณ์)
+            let finalNickname = customerDisplayName;
+            if (!finalNickname) {
+                finalNickname = locationData.locationName || 'Quick Order';
+                if (locationData.zoneName && locationData.zoneName !== locationData.locationName) {
+                    finalNickname += ` (${locationData.zoneName})`;
+                }
+            }
+
+            // 🟢 โครงสร้าง items มาตรฐานสำหรับหน้ารายงาน (Report)
             const quickItems = [{
-                food_id: 9999, // รหัสกลางสำหรับรายการด่วน
+                food_id: 9999,
                 name: 'ค่าอาหารรวม (Quick Order)',
                 food_name: 'ค่าอาหารรวม (Quick Order)',
                 qty: 1,
@@ -640,7 +650,7 @@
                 note: userNote
             }];
 
-            // สร้างเวลาปัจจุบันตามเขตเวลาประเทศไทย (UTC+7)
+            // 🟢 สร้างเวลาปัจจุบันตามเขตเวลาประเทศไทย (UTC+7)
             const now = new Date();
             const thaiTime = new Date(now.getTime() + (7 * 60 * 60 * 1000)).toISOString().replace('Z', '+07:00');
 
@@ -652,14 +662,14 @@
                         total_price: totalAmount,
                         total_qty: 1,
                         items: quickItems,
-                        name_phone: customerDisplayName,
+                        nickname: finalNickname, // ✅ บันทึกเป็น nickname ตาม schema
                         customer_type_id: Number(locationData.groupId),
                         note: userNote ? `[บันทึกด่วน] ${userNote}` : '[บันทึกด่วน]',
-                        location_id: locationData.locationId ? String(locationData.locationId) : null,
-                        zone_id: locationData.zoneId ? String(locationData.zoneId) : null,
+                        location_id: locationData.locationId ? Number(locationData.locationId) : null, // ✅ บันทึกเป็น ID Code (BIGINT)
+                        zone_id: locationData.zoneId ? Number(locationData.zoneId) : null,             // ✅ บันทึกเป็น ID Code (BIGINT)
                         delivery_fee: 0,
                         subtotal: totalAmount,
-                        customer_id: customerObj ? (customerObj.customer_id || customerObj.id) : null
+                        customer_id: customerObj ? String(customerObj.customer_id || customerObj.id || '') : null
                     }]);
 
                 if (error) throw error;
