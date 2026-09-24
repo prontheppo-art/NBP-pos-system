@@ -1,12 +1,3 @@
-<!-- 
-  File Name: ordersystem.html
-  Description: ระบบรับออเดอร์ร้านลาบหนองบัวลำภู (Single Page Application) 
-  - แก้ไขและปรับปรุง:
-    1. ซิงค์การบันทึก customer_id และชื่อลูกค้าลงตาราง customers/orders ครบถ้วนทั้งแท็บ 3 และแท็บ 4
-    2. แก้ไข Bug การค้นหา dbFoodsMap (แปลง Key เป็น String) ป้องกันราคาเพี้ยน
-    3. รีเซ็ตตัวแปรยกเว้นค่าจัดส่ง (isDeliveryFeeWaived) เมื่อเปลี่ยนกลุ่มลูกค้า/สถานที่
-    4. ซิงค์ค่า Input ชื่อลูกค้าระหว่างแท็บ 2 และแท็บ 4
--->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -34,26 +25,20 @@
             position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
             background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); 
             display: none; align-items: flex-start; justify-content: center; 
-            z-index: 9999; padding: 1rem; 
-            padding-top: 8vh; 
+            z-index: 9999; padding: 1rem; padding-top: 8vh; 
         }
         .custom-modal-overlay.active { display: flex !important; }
         
         .popup-container {
-            background: #ffffff; width: 100%; max-width: 480px; 
-            height: auto; 
-            max-height: 85vh; 
+            background: #ffffff; width: 100%; max-width: 480px; height: auto; max-height: 85vh; 
             border-radius: 1.5rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             display: flex; flex-direction: column; overflow: hidden; position: relative;
             animation: popupScaleUp 0.2s ease-out forwards;
         }
 
         .popup-container.special-menu-popup {
-            max-width: 100% !important;
-            height: 80vh !important;
-            max-height: 80vh !important;
-            border-bottom-left-radius: 0;
-            border-bottom-right-radius: 0;
+            max-width: 100% !important; height: 80vh !important; max-height: 80vh !important;
+            border-bottom-left-radius: 0; border-bottom-right-radius: 0;
         }
 
         @keyframes popupScaleUp {
@@ -61,19 +46,10 @@
             to { transform: scale(1); opacity: 1; }
         }
 
-        .popup-content-wrapper {
-            width: 100%;
-            background: #ffffff;
-            overflow-y: auto;
-            max-height: calc(85vh - 53px);
-        }
+        .popup-content-wrapper { width: 100%; background: #ffffff; overflow-y: auto; max-height: calc(85vh - 53px); }
 
-        .group-btn-v2 {
-            background-color: #ffffff; border: 1.5px solid #fde68a; color: #334155; transition: all 0.2s ease;
-        }
-        .group-btn-v2.active {
-            background-color: #f59e0b; border-color: #d97706; color: #ffffff; box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
-        }
+        .group-btn-v2 { background-color: #ffffff; border: 1.5px solid #fde68a; color: #334155; transition: all 0.2s ease; }
+        .group-btn-v2.active { background-color: #f59e0b; border-color: #d97706; color: #ffffff; box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3); }
         .customer-autocomplete-wrapper { position: relative; width: 100%; }
         .customer-dropdown {
             position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #ffffff;
@@ -99,7 +75,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased flex flex-col h-screen overflow-hidden">
 
-    <!-- 🟢 แถบเมนูด้านบน (4 แท็บหลักรวม Quick Order) -->
+    <!-- แถบเมนูด้านบน (4 แท็บหลัก) -->
     <div class="p-3 pb-2 z-35 flex-shrink-0 bg-white border-b border-slate-200 no-print">
         <div class="max-w-xl mx-auto grid grid-cols-4 gap-1.5">
             <button type="button" onclick="switchTab(1)" id="tabBtn1" class="py-2 px-1 rounded-xl font-bold text-[11px] flex items-center justify-center gap-0.5 shadow bg-amber-500 text-white cursor-pointer transition">
@@ -117,10 +93,10 @@
         </div>
     </div>
 
-    <!-- 🟢 พื้นที่แสดงเนื้อหาของแต่ละแท็บ -->
+    <!-- พื้นที่แสดงเนื้อหาของแต่ละแท็บ -->
     <div class="flex-1 w-full max-w-xl mx-auto p-3 flex flex-col overflow-hidden relative">
         
-        <!-- ================= TAB 1: เลือกรายการอาหาร ================= -->
+        <!-- TAB 1: เลือกรายการอาหาร (เรียกใช้ foodselect.html) -->
         <div id="tabContent1" class="flex flex-col w-full h-full">
             <div class="pb-2 flex-shrink-0">
                 <div class="bg-white p-3 px-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
@@ -129,7 +105,7 @@
                 </div>
             </div>
             <div class="flex-1 w-full overflow-hidden">
-                <iframe id="contentFrame" src="selectfoodgroup.html" class="w-full h-full border-0 rounded-2xl bg-white shadow-sm"></iframe>
+                <iframe id="contentFrame" src="foodselect.html" class="w-full h-full border-0 rounded-2xl bg-white shadow-sm"></iframe>
             </div>
             <div class="pt-2 flex gap-2 flex-shrink-0">
                 <button type="button" onclick="window.location.href='index.html'" class="bg-white text-slate-700 border border-slate-300 font-bold py-2.5 px-2 rounded-2xl text-xs flex-1 shadow active:scale-95 transition cursor-pointer">🏠 หน้าหลัก</button>
@@ -138,16 +114,14 @@
             </div>
         </div>
 
-        <!-- ================= TAB 2: ตรวจสอบและระบุลูกค้า ================= -->
+        <!-- TAB 2: ตรวจสอบและระบุลูกค้า -->
         <div id="tabContent2" class="flex flex-col w-full h-full hidden">
             <div id="locationSelectorWrapper" class="flex-shrink-0 mb-2"></div>
-
             <div class="flex-1 flex flex-col min-h-0 gap-2">
                 <div class="flex justify-between items-center px-1 text-xs font-bold text-slate-700 shrink-0">
                     <span class="flex items-center gap-1.5">🛒 ตะกร้าสินค้า:</span>
                     <span id="cartCountTextTab2" class="text-green-600 font-extrabold text-sm">0 รายการ | 0 ชิ้น</span>
                 </div>
-
                 <div class="cart-preview-box bg-white border-2 dashed border-green-300 rounded-2xl p-3 shadow-sm flex-1 flex flex-col min-h-0">
                     <div class="flex justify-between items-center mb-2 pb-2 border-b border-dashed border-green-200 flex-shrink-0">
                         <span class="font-bold text-green-700 text-sm">📋 รายการที่เลือกไว้แล้ว</span>
@@ -160,23 +134,19 @@
                     </div>
                 </div>
             </div>
-
             <div class="pt-2 flex gap-2 flex-shrink-0">
                 <button type="button" onclick="switchTab(1)" class="bg-white text-slate-700 border border-slate-300 font-bold py-3 px-3 rounded-xl text-xs flex-1 shadow-sm transition flex items-center justify-center gap-1 cursor-pointer">⬅️ กลับไปเลือกเพิ่ม</button>
                 <button type="button" onclick="goToTab3()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-3 rounded-xl text-xs flex-1 shadow transition flex items-center justify-center gap-1 cursor-pointer">✅ ไปหน้าสรุป/พิมพ์</button>
             </div>
         </div>
 
-        <!-- ================= TAB 3: สรุปและพิมพ์ ================= -->
+        <!-- TAB 3: สรุปและพิมพ์ -->
         <div id="tabContent3" class="flex flex-col w-full h-full bg-white rounded-2xl shadow-sm border border-slate-200 p-4 hidden">
             <div class="text-center mb-2 pb-1 flex-shrink-0">
                 <h2 class="font-extrabold text-slate-800 text-base leading-tight">ลาบหนองบัวลำภู @เขื่อนขุนด่าน</h2>
                 <p class="text-[11px] text-slate-500 font-semibold">064-565-4951</p>
-                <p class="text-xs text-slate-700 font-bold mt-0.5">
-                    รายการอาหาร<span id="customerGroupWrapper"> ( <span id="customerGroupLabel">-</span> )</span>
-                </p>
+                <p class="text-xs text-slate-700 font-bold mt-0.5">รายการอาหาร<span id="customerGroupWrapper"> ( <span id="customerGroupLabel">-</span> )</span></p>
             </div>
-
             <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
                 <div class="border-2 border-slate-800 rounded-xl p-3 flex-1 flex flex-col min-h-0 mb-2">
                     <div class="flex-1 overflow-y-auto pr-1">
@@ -185,7 +155,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="flex items-center justify-between border-b-2 border-dashed border-slate-200 pb-2 mb-2 flex-shrink-0">
                     <div class="border border-slate-800 rounded-lg px-2 py-0.5">
                         <span id="summaryQty" class="font-extrabold text-xs text-slate-800">0 รายการ - 0 ชิ้น</span>
@@ -194,7 +163,6 @@
                         <span class="font-extrabold text-sm text-slate-900">รวม <span id="summaryTotal">0</span> บาท</span>
                     </div>
                 </div>
-
                 <div id="touristOnlySection" class="hidden text-center flex-shrink-0 my-0.5">
                     <p class="text-[11px] font-bold text-slate-700">⭐ ขอบพระคุณที่อุดหนุนค่ะ ⭐</p>
                     <div class="flex justify-center my-1">
@@ -202,7 +170,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="pt-2 border-t border-slate-100 flex gap-2 flex-shrink-0 no-print">
                 <button type="button" onclick="switchTab(2)" class="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold text-xs rounded-xl transition cursor-pointer">⬅️ แก้ไขออเดอร์</button>
                 <button type="button" onclick="handleSaveOrder(false)" id="saveOnlyBtn" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition cursor-pointer">💾 บันทึก</button>
@@ -210,45 +177,25 @@
             </div>
         </div>
 
-        <!-- ================= TAB 4: Quick Order (บันทึกยอดด่วน) ================= -->
+        <!-- TAB 4: Quick Order -->
         <div id="tabContent4" class="flex flex-col w-full h-full hidden">
             <div id="quickLocationSelectorWrapper" class="flex-shrink-0 mb-2"></div>
-
             <div class="flex-1 flex flex-col min-h-0 gap-3 overflow-y-auto">
                 <div class="bg-white border-2 border-emerald-500/30 rounded-2xl p-4 shadow-sm space-y-3">
-                    <label for="quickAmountInput" class="font-extrabold text-sm text-slate-700 flex items-center gap-1.5">
-                        ⚡ กรอกยอดเงินรวมทั้งหมด (บาท)
-                    </label>
+                    <label for="quickAmountInput" class="font-extrabold text-sm text-slate-700 flex items-center gap-1.5">⚡ กรอกยอดเงินรวมทั้งหมด (บาท)</label>
                     <div class="relative flex items-center">
-                        <input 
-                            type="number" 
-                            id="quickAmountInput" 
-                            placeholder="0" 
-                            inputmode="numeric" 
-                            class="w-full h-16 pl-4 pr-12 text-3xl font-black text-emerald-600 border-2 border-emerald-400 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 bg-emerald-50/30"
-                        >
+                        <input type="number" id="quickAmountInput" placeholder="0" inputmode="numeric" class="w-full h-16 pl-4 pr-12 text-3xl font-black text-emerald-600 border-2 border-emerald-400 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 bg-emerald-50/30">
                         <span class="absolute right-4 font-bold text-slate-400 text-base">บาท</span>
                     </div>
-                    
                     <div>
                         <label for="quickNoteInput" class="font-bold text-xs text-slate-600 block mb-1">📝 หมายเหตุเพิ่มเติม (ถ้ามี)</label>
-                        <input 
-                            type="text" 
-                            id="quickNoteInput" 
-                            placeholder="เช่น โอนจ่าย, ไม่ใส่ผัก" 
-                            class="w-full h-10 px-3 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500 bg-slate-50"
-                        >
+                        <input type="text" id="quickNoteInput" placeholder="เช่น โอนจ่าย, ไม่ใส่ผัก" class="w-full h-10 px-3 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500 bg-slate-50">
                     </div>
                 </div>
             </div>
-
             <div class="pt-2 flex gap-2 flex-shrink-0">
-                <button type="button" onclick="switchTab(1)" class="bg-white text-slate-700 border border-slate-300 font-bold py-3.5 px-3 rounded-xl text-xs flex-1 text-center shadow-sm transition flex items-center justify-center gap-1 cursor-pointer">
-                    ⬅️ ย้อนกลับ
-                </button>
-                <button type="button" onclick="submitQuickOrder()" id="btnSubmitQuickOrder" class="bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-3.5 px-3 rounded-xl text-xs flex-1 text-center shadow transition flex items-center justify-center gap-1 cursor-pointer">
-                    ✅ บันทึกออเดอร์
-                </button>
+                <button type="button" onclick="switchTab(1)" class="bg-white text-slate-700 border border-slate-300 font-bold py-3.5 px-3 rounded-xl text-xs flex-1 text-center shadow-sm transition flex items-center justify-center gap-1 cursor-pointer">⬅️ ย้อนกลับ</button>
+                <button type="button" onclick="submitQuickOrder()" id="btnSubmitQuickOrder" class="bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-3.5 px-3 rounded-xl text-xs flex-1 text-center shadow transition flex items-center justify-center gap-1 cursor-pointer">✅ บันทึกออเดอร์</button>
             </div>
         </div>
 
@@ -339,7 +286,6 @@
 
             initLocationComponent('locationSelectorWrapper');
             initLocationComponent('quickLocationSelectorWrapper');
-            
             updateCartUI();
 
             const urlParams = new URLSearchParams(window.location.search);
@@ -499,12 +445,10 @@
         }
 
         function handleCustomerInput(val) {
-            // ซิงค์ค่าระหว่างทุกๆ ช่องกรอกชื่อลูกค้า
             document.querySelectorAll('.customer-input-field').forEach(inp => {
                 if (inp.value !== val) inp.value = val;
             });
-
-            selectedCustomerObj = null; // รีเซ็ตการเลือกถ้าผู้ใช้พิมพ์เปลี่ยนชื่อ
+            selectedCustomerObj = null;
 
             ['customerDropdown-locationSelectorWrapper', 'customerDropdown-quickLocationSelectorWrapper'].forEach(dropdownId => {
                 const dropdown = document.getElementById(dropdownId);
@@ -532,7 +476,7 @@
         function selectCustomerGroup(groupId, groupName) {
             locationData.groupId = groupId;
             locationData.groupName = groupName;
-            isDeliveryFeeWaived = false; // 🟢 รีเซ็ตการเว้นค่าส่งเมื่อเปลี่ยนกลุ่มลูกค้า
+            isDeliveryFeeWaived = false;
             
             ['locationSelectorWrapper', 'quickLocationSelectorWrapper'].forEach(wrapperId => {
                 const btn1 = document.getElementById(`btn-group-1-${wrapperId}`);
@@ -593,7 +537,7 @@
                     locationData.zoneName = z.name;
                     locationData.locationId = loc.location_id || loc.id;
                     locationData.zoneId = z.zone_id || z.id;
-                    isDeliveryFeeWaived = false; // 🟢 รีเซ็ตการเว้นค่าจัดส่งเมื่อเลือกสถานที่ใหม่
+                    isDeliveryFeeWaived = false;
                     
                     ['locationSelectorWrapper', 'quickLocationSelectorWrapper'].forEach(wrapperId => {
                         const txtEl = document.getElementById(`locationBtnText-${wrapperId}`);
@@ -648,7 +592,6 @@
             }
 
             const gId = Number(groupId) || 1;
-            // 🟢 ดึงข้อมูลราคาจาก dbFoodsMap ด้วย String Key
             const foodObj = dbFoodsMap[foodId];
 
             if (foodObj) {
@@ -817,7 +760,6 @@
             document.getElementById('summaryTotal').textContent = currentOrderSummary.grandTotal.toLocaleString();
         }
 
-        // 🟢 ฟังก์ชันค้นหาและบันทึกลูกค้าลงตาราง customers
         async function ensureCustomerSaved(inputValue) {
             const val = removeDuplicateWords(inputValue);
             if (!val) return null;
@@ -828,12 +770,7 @@
 
             try {
                 if (typeof supabaseClient !== 'undefined') {
-                    const { data, error } = await supabaseClient
-                        .from('customers')
-                        .insert([{ name: val }])
-                        .select()
-                        .single();
-
+                    const { data, error } = await supabaseClient.from('customers').insert([{ name: val }]).select().single();
                     if (!error && data) {
                         customersList.push(data);
                         return data;
@@ -843,7 +780,6 @@
             return { name: val };
         }
 
-        // 🟢 แก้ไขการบันทึกออเดอร์ในแท็บ 3 ให้ซิงค์ customer_id และชื่อลูกค้ารวมถึงเวลาไทย
         async function handleSaveOrder(shouldPrint = false) {
             try {
                 const saveBtn1 = document.getElementById('saveOnlyBtn');
@@ -882,10 +818,7 @@
                 }]).select();
 
                 if (error) throw error;
-
-                if (shouldPrint) {
-                    window.print();
-                }
+                if (shouldPrint) window.print();
 
                 localStorage.removeItem('cart');
                 cart = [];
@@ -937,36 +870,20 @@
                     food_id: 9999,
                     name: 'ค่าอาหารรวม (Quick Order)',
                     food_name: 'ค่าอาหารรวม (Quick Order)',
-                    qty: 1,
-                    quantity: 1,
-                    price: totalAmount,
-                    unit_price: totalAmount,
-                    total_price: totalAmount,
-                    sum: totalAmount,
-                    note: userNote
+                    qty: 1, quantity: 1, price: totalAmount, unit_price: totalAmount, total_price: totalAmount, sum: totalAmount, note: userNote
                 }];
 
                 const now = new Date();
                 const thaiTime = new Date(now.getTime() + (7 * 60 * 60 * 1000)).toISOString().replace('Z', '+07:00');
 
                 if (typeof supabaseClient !== 'undefined') {
-                    const { error } = await supabaseClient
-                        .from('orders')
-                        .insert([{
-                            created_at: thaiTime,
-                            total_price: totalAmount,
-                            total_qty: 1,
-                            items: quickItems,
-                            nickname: finalNickname,
-                            customer_type_id: Number(locationData.groupId),
-                            note: userNote ? `[บันทึกด่วน] ${userNote}` : '[บันทึกด่วน]',
-                            location_id: locationData.locationId ? Number(locationData.locationId) : null,
-                            zone_id: locationData.zoneId ? Number(locationData.zoneId) : null,
-                            delivery_fee: 0,
-                            subtotal: totalAmount,
-                            customer_id: customerObj ? String(customerObj.customer_id || customerObj.id || '') : null
-                        }]);
-
+                    const { error } = await supabaseClient.from('orders').insert([{
+                        created_at: thaiTime, total_price: totalAmount, total_qty: 1, items: quickItems, nickname: finalNickname,
+                        customer_type_id: Number(locationData.groupId), note: userNote ? `[บันทึกด่วน] ${userNote}` : '[บันทึกด่วน]',
+                        location_id: locationData.locationId ? Number(locationData.locationId) : null,
+                        zone_id: locationData.zoneId ? Number(locationData.zoneId) : null, delivery_fee: 0, subtotal: totalAmount,
+                        customer_id: customerObj ? String(customerObj.customer_id || customerObj.id || '') : null
+                    }]);
                     if (error) throw error;
                 }
 
@@ -974,13 +891,11 @@
                 document.getElementById('quickNoteInput').value = '';
                 selectedCustomerObj = null;
                 document.querySelectorAll('.customer-input-field').forEach(inp => inp.value = '');
-                
                 btn.disabled = false;
                 btn.innerText = '✅ บันทึกออเดอร์';
                 switchTab(1);
 
             } catch (err) {
-                console.error('Submit Quick Order Error:', err);
                 Swal.fire('เกิดข้อผิดพลาด', err.message || '', 'error');
                 btn.disabled = false;
                 btn.innerText = '✅ บันทึกออเดอร์';
@@ -993,24 +908,21 @@
 
             if (data.type === 'RESIZE_IFRAME' && data.height) {
                 const iframeEl = document.getElementById('popupIframe');
-                if (iframeEl) {
-                    iframeEl.style.height = `${data.height}px`;
-                }
+                if (iframeEl) iframeEl.style.height = `${data.height}px`;
             }
-
             if (data.cart) {
                 localStorage.setItem('cart', JSON.stringify(data.cart));
                 updateCartUI();
             }
-            if (data.type === 'OPEN_SELECT_FOOD' || data.openSelectFood) {
-                const catId = data.catId || data.category_id;
-                openDynamicPopup(`selectfood.html?group_id=${catId}`, `📌 หมวดอาหาร`, false);
+            // รับคำสั่งเปิด modal ย่อยจากไฟล์ foodselect.html ภายใน iframe
+            if (data.type === 'OPEN_SELECT_FOOD') {
+                openDynamicPopup(`foodselect.html?mode=food_list&cat_id=${data.catId}`, `📌 หมวดอาหาร`, false);
             }
             else if (data.type === 'OPEN_SPECIAL_MENU') {
-                openDynamicPopup('specialmenu.html', '⭐ เมนูพิเศษ', true);
+                openDynamicPopup(`foodselect.html?mode=special_menu`, `⭐ เมนูพิเศษ`, true);
             }
             else if (data.type === 'OPEN_SELECT_ITEM') {
-                openDynamicPopup(`selectitem.html?food_id=${data.food_id}&name=${encodeURIComponent(data.name)}`, `📝 ระบุรายละเอียด`, false);
+                openDynamicPopup(`foodselect.html?mode=select_item&food_id=${data.food_id}&name=${encodeURIComponent(data.name)}`, `📝 ระบุรายละเอียด`, false);
             }
             else if (data.type === 'CLOSE_MODAL') {
                 closeDynamicPopup();
