@@ -1,4 +1,3 @@
-<!-- ไฟล์: selectitem.html -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -209,7 +208,6 @@
             sendAutoHeight();
         }
 
-        // ฟังก์ชันช่วยจัดกลุ่มรายการที่เหมือนกันทุกประการ ให้ยุบรวมเป็นตัวคูณ (เช่น 2x, 3x)
         function groupCartItems(items) {
             const map = new Map();
             items.forEach(item => {
@@ -219,7 +217,6 @@
                 const noteKey = String(item.note || '').trim();
                 const nameKey = String(item.name || '').trim();
 
-                // สร้างกุญแจ (Signature) สำหรับเช็คความเหมือนกันทุกประการ
                 const signature = `${nameKey}_${priceKey}_${fEggKey}_${oMelKey}_${noteKey}`;
 
                 if (map.has(signature)) {
@@ -229,7 +226,6 @@
                         existing.totalPrice = existing.price * existing.qty;
                     }
                 } else {
-                    // clone object เพื่อไม่ให้กระทบต้นฉบับโดยตรง
                     map.set(signature, { ...item });
                 }
             });
@@ -265,7 +261,6 @@
                 return;
             }
 
-            // จัดกลุ่มรายการที่เหมือนกันให้รวมร่างกันก่อนนำมาแสดงผล
             const currentFoodCartItems = groupCartItems(rawFilteredItems);
 
             boxContainer.classList.remove('hidden');
@@ -293,7 +288,6 @@
             setTimeout(sendAutoHeight, 50);
         }
 
-        // ฟังก์ชันลบรายการที่ถูกยุบรวม (ลบตามเงื่อนไขคุณลักษณะที่เหมือนกันทั้งหมด)
         function deleteCartItemMatch(name, price, fEgg, oMel, note) {
             let cart = JSON.parse(localStorage.getItem('cart')) || [];
             
@@ -306,7 +300,6 @@
                 const sameOMel = Number(item.omeletQty || 0) === Number(oMel);
                 const sameNote = String(item.note || '').trim() === String(note).trim();
 
-                // ถ้าตรงกันทั้งหมด แปลว่าเป็นกลุ่มเดียวกัน ให้ตัดออกทั้งหมด
                 const isMatchGroup = sameName && samePrice && sameFEgg && sameOMel && sameNote;
                 return !isMatchGroup;
             });
@@ -330,7 +323,6 @@
 
             let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
-            // เช็คว่ามีรายการที่ "เหมือนกันทุกประการ" อยู่แล้วในตะกร้าหรือไม่
             const existingIndex = cart.findIndex(item => {
                 const sameFood = (foodId && String(item.food_id) === String(foodId)) || 
                                  (foodName && String(item.name).trim() === String(foodName).trim());
@@ -347,13 +339,11 @@
             });
 
             if (existingIndex !== -1) {
-                // ถ้ามีรายการที่เหมือนกันอยู่แล้ว ให้บวกจำนวนเพิ่มเข้าไป (Merge)
                 cart[existingIndex].qty = Number(cart[existingIndex].qty || 0) + Number(currentQty);
                 if (cart[existingIndex].price !== null && cart[existingIndex].price !== undefined) {
                     cart[existingIndex].totalPrice = cart[existingIndex].price * cart[existingIndex].qty;
                 }
             } else {
-                // ถ้ามีรายละเอียดต่างกัน (เช่น มีไข่เพิ่ม หรือโน้ตไม่เหมือนกัน) ให้แยกเป็นแถวใหม่
                 cart.push({
                     item_id: Date.now() + '_' + Math.random().toString(36).substring(2, 6),
                     food_id: foodId,
@@ -373,20 +363,12 @@
 
             localStorage.setItem('cart', JSON.stringify(cart));
 
-            document.getElementById('foodPrice').value = '';
-            document.getElementById('foodNote').value = '';
-            currentQty = 1;
-            friedEgg = 0;
-            omelet = 0;
-            document.getElementById('foodQty').textContent = '1';
-            document.getElementById('friedEggQty').textContent = '0';
-            document.getElementById('omeletQty').textContent = '0';
-
-            renderSelectedCartList();
-
+            // เปลี่ยนจากการสั่งปิดป๊อปอัปทันที (CLOSE_MODAL) เป็นการสั่งโหลดหน้าเลือกรายการอาหารเดิม (กลับไปภาพที่ 2)
             if (window.parent) {
                 window.parent.postMessage({ type: 'UPDATE_CART', action: 'updateCart', cart: cart }, '*');
-                window.parent.postMessage({ type: 'CLOSE_MODAL', action: 'closeModal', cart: cart }, '*');
+                
+                // สั่งเปลี่ยน URL ของ Iframe ในป๊อปอัปให้ถอยกลับมาที่หน้ารายการอาหาร (ภาพที่ 2) แทนการปิดป๊อปอัป
+                window.location.href = `selectfood.html?group_id=${catId}`;
             }
         }
 

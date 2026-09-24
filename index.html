@@ -1,33 +1,43 @@
+<!-- 
+  ==========================================================================
+  ชื่อไฟล์: index.html
+  ประเภท/หน้าที่: หน้าแรก (Home View) และหน้าผู้ดูแลระบบ (Admin Dashboard View)
+  รายละเอียด: หน้าหลักของระบบร้านอาหาร "ลาบหนองบัวลำภู @เขื่อนขุนด่านปราการชล" 
+              ทำหน้าที่เป็นเมนูหลักในการเข้าสู่หน้าสั่งอาหาร จัดการเมนู รายงานการขาย 
+              และระบบจัดการหลังบ้านสำหรับผู้ดูแลระบบ (Admin)
+  ==========================================================================
+-->
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <!-- ข้อกำหนดที่ 2: ป้องกันการ Zoom แต่ยัง Scroll ได้ (Lock Zoom, Allow Scroll) -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <!-- ป้องกันการ Zoom แต่ยัง Scroll ได้ -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
     <title>ลาบหนองบัวลำภู @เขื่อนขุนด่านปราการชล</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- ข้อกำหนดที่ 1: เปลี่ยนชื่อไฟล์สคริปต์เชื่อมต่อ Supabase Initialization -->
     <script src="supabaseClient.js"></script>
     <style>
         html, body { 
             height: 100%; 
             margin: 0; 
             padding: 0; 
-            overflow: auto; /* อนุญาตให้ Scroll ได้ */
-            font-family: sans-serif; 
+            overflow: auto; 
+            font-family: 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
             background: #f3f4f6; 
-            touch-action: pan-y; /* ล็อกการซูม แต่ยอมให้เลื่อนขึ้นลงแนวตั้งได้ */
+            touch-action: pan-y; 
             -webkit-text-size-adjust: 100%;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
 
         .app-layout { 
             display: flex; 
-            align-items: center; 
+            align-items: flex-start; 
             justify-content: center; 
             min-height: 100dvh; 
             width: 100vw; 
             box-sizing: border-box; 
-            padding: 10px 12px; 
+            padding: 15px 12px 10px 12px; 
         }
 
         .main-card {
@@ -44,7 +54,6 @@
             text-align: center;
         }
 
-        /* ข้อกำหนดที่ 4: ล็อคหัว (Sticky Top) */
         .header-section {
             position: sticky;
             top: 0;
@@ -94,9 +103,14 @@
         }
 
         .btn-blue { background-color: #2563eb; }
-        .btn-emerald { background-color: #059669; } /* สีเขียวสำหรับปุ่มสั่งด่วน */
+        .btn-emerald { background-color: #059669; }
         .btn-amber-600 { background-color: #d97706; }
         .btn-slate { background-color: #334155; }
+        .btn-rose { background-color: #e11d48; }
+        .btn-teal { background-color: #0d9488; }
+        .btn-cyan { background-color: #0891b2; }
+        .btn-indigo { background-color: #4f46e5; }
+        .btn-purple { background-color: #7c3aed; }
 
         @keyframes scaleUp {
             from { transform: scale(0.9); opacity: 0; }
@@ -105,52 +119,76 @@
         .modal-box {
             animation: scaleUp 0.15s ease-out;
         }
+
+        .hidden-view {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
 
 <div class="app-layout">
-    <div class="main-card">
-        <!-- ส่วนหัว (Sticky Top) -->
+    
+    <!-- 1. ส่วนหน้าหลัก (Home View) -->
+    <div id="homeView" class="main-card">
         <div class="header-section">
             <h1 class="font-extrabold text-lg text-slate-800 leading-snug">ลาบหนองบัวลำภู</h1>
             <h2 class="font-bold text-sm text-slate-600 mt-0.5">@เขื่อนขุนด่านปราการชล</h2>
             <p class="text-[11px] text-gray-400 mt-0.5">ระบบจัดการร้านอาหารและสั่งอาหาร</p>
         </div>
 
-        <!-- ปุ่มเมนูต่าง ๆ -->
         <div class="menu-list">
-            <!-- 1. หน้าสั่งอาหาร -->
-            <button type="button" onclick="goToPage('orderentity.html')" class="menu-btn btn-blue">
+            <button type="button" onclick="goToPage('ordersystem.html')" class="menu-btn btn-blue">
                 <span>📝 หน้าสั่งอาหาร</span>
             </button>
-
-            <!-- 2. สั่งด่วน (เพิ่มเข้ามาใหม่ตามคำขอ) -->
-            <button type="button" onclick="goToPage('quickorder.html')" class="menu-btn btn-emerald">
+            <button type="button" onclick="goToPage('ordersystem.html?tab=4')" class="menu-btn btn-emerald">
                 <span>⚡ สั่งด่วน</span>
             </button>
-
-            <!-- 3. จัดการและแก้ไขบิล -->
-            <button type="button" onclick="goToPage('editorder.html')" class="menu-btn btn-blue">
-                <span>📝 จัดการและแก้ไขบิล</span>
-            </button>
-
-            <!-- 4. จัดการรายการอาหาร & ราคา -->
             <button type="button" onclick="goToPage('managemenu.html')" class="menu-btn btn-amber-600">
                 <span>📋 จัดการรายการอาหาร & ราคา</span>
             </button>
-
-            <!-- 5. รายงานการขาย -->
             <button type="button" onclick="goToPage('salesreport.html')" class="menu-btn btn-amber-600">
                 <span>📊 รายงานการขาย</span>
             </button>
-
-            <!-- 6. ผู้ดูแลระบบ -->
             <button type="button" onclick="openAdminModal()" class="menu-btn btn-slate">
                 <span>🔒 ผู้ดูแลระบบ</span>
             </button>
         </div>
     </div>
+
+    <!-- 2. ส่วนหน้าผู้ดูแลระบบ (Admin Dashboard View) -->
+    <div id="adminView" class="main-card hidden-view">
+        <div class="header-section">
+            <div class="text-2xl mb-0.5">🔓</div>
+            <h1 class="font-extrabold text-lg text-slate-800 leading-snug">ผู้ดูแลระบบ</h1>
+            <p class="text-[11px] text-slate-400 mt-0.5">จัดการระบบร้านอาหารและตรวจสอบข้อมูล</p>
+        </div>
+
+        <div class="menu-list">
+            <button type="button" onclick="goToPage('adjust_schema.html')" class="menu-btn btn-amber-600">
+                <span>🛠️ จัดการฐานข้อมูล & Schema</span>
+            </button>
+            <button type="button" onclick="goToPage('set_location_pricing.html')" class="menu-btn btn-teal">
+                <span>📍 ตั้งค่าราคาตามพื้นที่</span>
+            </button>
+            <button type="button" onclick="goToPage('settings_delivery.html')" class="menu-btn btn-cyan">
+                <span>🚚 ตั้งค่าการจัดส่ง</span>
+            </button>
+            <button type="button" onclick="goToPage('cost.html')" class="menu-btn btn-indigo">
+                <span>💰 จัดการต้นทุน</span>
+            </button>
+            <button type="button" onclick="goToPage('stock_dashboard.html')" class="menu-btn btn-purple">
+                <span>📦 จัดการสต็อกวัตถุดิบ</span>
+            </button>
+            <button type="button" onclick="goToPage('changepwd.html')" class="menu-btn btn-slate">
+                <span>🔑 เปลี่ยนรหัสผ่านแอดมิน</span>
+            </button>
+            <button type="button" onclick="backToHome()" class="menu-btn btn-rose">
+                <span>🏠 กลับหน้าหลัก</span>
+            </button>
+        </div>
+    </div>
+
 </div>
 
 <!-- Modal สำหรับกรอกรหัสผ่านเข้าแอดมิน -->
@@ -177,13 +215,13 @@
     <div class="bg-white w-full max-w-[280px] rounded-2xl p-5 text-center shadow-2xl modal-box">
         <div class="text-3xl mb-2">⚠️</div>
         <div class="text-sm font-bold text-slate-800 mb-1.5">รหัสผ่านไม่ถูกต้อง</div>
-        <div id="indexDialogMessage" class="text-xs text-slate-500 mb-4 leading-relaxed">คุณกรอกรหัสผ่านไม่ถูกต้อง</div>
+        <div id="indexDialogMessage" style="font-size: 22px; color: #ef4444;" class="font-bold mb-4 leading-relaxed">คุณกรอกรหัสผ่านไม่ถูกต้อง</div>
         <button type="button" onclick="closeIndexCustomDialog()" class="w-full py-2.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl text-xs transition">ตกลง</button>
     </div>
 </div>
 
 <script>
-    // ข้อกำหนดที่ 2: ป้องกัน Gesture Zoom แต่ยังให้ Scroll แนวตั้งได้ตามปกติ
+    // ป้องกัน Gesture Zoom
     document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener('gesturechange', function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener('gestureend', function (e) { e.preventDefault(); }, { passive: false });
@@ -207,12 +245,31 @@
         window.location.href = url;
     }
 
+    // ตรวจสอบสถานะว่าล็อกอินอยู่หรือไม่ หรือมาจากลิงก์ ?view=admin
+    window.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const view = urlParams.get('view');
+        
+        // เช็คสถานะการล็อกอินแอดมินจาก localStorage
+        const isAdminLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
+
+        // ตราบใดที่ยังไม่ได้กดปุ่มกลับหน้าหลัก หรือส่ง ?view=admin มา ให้แสดงหน้าแอดมินทันที
+        if (isAdminLoggedIn || view === 'admin') {
+            if (isAdminLoggedIn) {
+                showAdminView();
+            } else {
+                openAdminModal();
+            }
+        }
+    });
+
     let indexFailedAttempts = 0;
     const indexMaxAttempts = 3;
 
     function openAdminModal() {
-        if (sessionStorage.getItem('isAdminLoggedIn') === 'true') {
-            window.location.href = 'admin_index.html';
+        // หากล็อกอินไว้อยู่แล้ว ข้ามการกรอกรหัสผ่าน เข้าหน้าแอดมินทันที
+        if (localStorage.getItem('adminLoggedIn') === 'true') {
+            showAdminView();
             return;
         }
         
@@ -244,28 +301,52 @@
     function verifyAdminPassword() {
         const inputPass = document.getElementById('indexAdminPasswordInput').value;
         const savedPassword = localStorage.getItem('adminPassword') ?? '';
+        const msgElement = document.getElementById('indexDialogMessage');
 
         if (inputPass === savedPassword) {
-            sessionStorage.setItem('isAdminLoggedIn', 'true');
-            window.location.href = 'admin_index.html';
+            // บันทึกสถานะว่าล็อกอินแล้วข้ามไปจนกว่าจะกดปุ่มกลับหน้าหลัก
+            localStorage.setItem('adminLoggedIn', 'true');
+            closeAdminModal();
+            showAdminView();
         } else {
             indexFailedAttempts++;
             document.getElementById('indexAdminPasswordInput').value = '';
 
+            msgElement.style.fontSize = '22px';
+            msgElement.style.color = '#ef4444';
+
             if (indexFailedAttempts >= indexMaxAttempts) {
                 closeAdminModal();
-                document.getElementById('indexDialogMessage').textContent = 'คุณกรอกรหัสผ่านผิดเกิน 3 ครั้ง';
+                msgElement.textContent = 'คุณกรอกรหัสผ่านผิดเกิน 3 ครั้ง';
                 const dialog = document.getElementById('indexCustomDialog');
                 dialog.classList.remove('hidden');
                 dialog.classList.add('flex');
             } else {
                 const remaining = indexMaxAttempts - indexFailedAttempts;
-                document.getElementById('indexDialogMessage').textContent = `รหัสผ่านไม่ถูกต้อง กรอกผิดครั้งที่ ${indexFailedAttempts} (เหลืออีก ${remaining} ครั้ง)`;
+                msgElement.textContent = `รหัสผ่านไม่ถูกต้อง กรอกผิดครั้งที่ ${indexFailedAttempts} (เหลืออีก ${remaining} ครั้ง)`;
                 const dialog = document.getElementById('indexCustomDialog');
                 dialog.classList.remove('hidden');
                 dialog.classList.add('flex');
             }
         }
+    }
+
+    function showAdminView() {
+        document.getElementById('homeView').classList.add('hidden-view');
+        document.getElementById('adminView').classList.remove('hidden-view');
+    }
+
+    // กดปุ่ม "🏠 กลับหน้าหลัก" เพื่อล้างสถานะล็อกอินออก
+    function backToHome() {
+        // ลบสถานะล็อกอิน เพื่อให้ครั้งหน้าต้องใส่รหัสใหม่
+        localStorage.removeItem('adminLoggedIn');
+
+        // เคลียร์ URL Parameter
+        if (window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.pathname);
+        }
+        document.getElementById('adminView').classList.add('hidden-view');
+        document.getElementById('homeView').classList.remove('hidden-view');
     }
 
     function closeIndexCustomDialog() {

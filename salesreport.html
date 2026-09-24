@@ -1,80 +1,60 @@
+<!--
+================================================================================
+ชื่อไฟล์: reports.html
+คำอธิบาย: ระบบรายงานการขายและการจัดการออร์เดอร์ (ยึดวันที่ตาม Supabase ตรงๆ)
+--------------------------------------------------------------------------------
+รายละเอียดการทำงานภายในไฟล์:
+1. Fix Timezone Shift:
+   - อ่านค่าวันที่ YYYY-MM-DD จาก created_at ใน Supabase ตรงๆ ไม่ผ่านการแปลง +7 ชั่วโมง
+   - ออร์เดอร์วันที่ 23 เวลา 18:37 น. จะแสดงในวันที่ 23/09/2026 ตรงตามฐานข้อมูล
+================================================================================
+-->
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no">
-    <title>รายงานการขาย - ลาบหนองบัวลำภู</title>
+    <title>รายงานการขายและการจัดการ - ลาบหนองบัวลำภู</title>
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Supabase JS Client (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- ไฟล์ Initialization ของ Supabase -->
     <script src="supabaseClient.js"></script>
+    <!-- FontAwesome สำหรับไอคอน -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <style>
-      :root {
-        --bg-color: #f8fafc;
-      }
-
+      :root { --bg-color: #f8fafc; }
       html, body {
-        height: 100dvh;
-        margin: 0;
-        padding: 0;
-        font-family: 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        height: 100dvh; margin: 0; padding: 0;
+        font-family: 'Sarabun', system-ui, -apple-system, sans-serif;
         background-color: var(--bg-color);
-        touch-action: pan-y;
-        -webkit-text-size-adjust: 100%;
-        -webkit-user-select: none;
-        user-select: none;
+        touch-action: pan-y; -webkit-text-size-adjust: 100%;
+        -webkit-user-select: none; user-select: none;
       }
-
       .app-container {
-        max-width: 500px;
-        margin: 0 auto;
-        height: 100dvh;
-        background: #ffffff;
-        display: flex;
-        flex-direction: column;
-        box-sizing: border-box;
-        overflow: hidden;
+        max-width: 500px; margin: 0 auto; height: 100dvh;
+        background: #ffffff; display: flex; flex-direction: column;
+        box-sizing: border-box; overflow: hidden;
       }
-
-      ::-webkit-scrollbar {
-        display: none;
-      }
-
-      .tab-content {
-        display: none;
-        height: 100%;
-        width: 100%;
-      }
-      
-      .tab-content.active {
-        display: flex;
-        flex-direction: column;
-      }
-
-      .tab-btn {
-        transition: all 0.2s ease;
-        border: 1px solid transparent;
-      }
+      ::-webkit-scrollbar { display: none; }
+      .tab-content { display: none; height: 100%; width: 100%; flex-direction: column; overflow: hidden; }
+      .tab-content.active { display: flex; }
+      .tab-btn { transition: all 0.2s ease; border: 1px solid transparent; }
+      .tab-btn.tab-overview { background-color: #faf5ff; color: #7e22ce; }
       .tab-btn.tab-daily { background-color: #eff6ff; color: #1d4ed8; }
       .tab-btn.tab-group { background-color: #fdf4ff; color: #a21caf; }
-      .tab-btn.tab-summary { background-color: #f0fdf4; color: #15803d; }
-
       .tab-btn.active-tab {
         background-color: #ffffff !important;
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-        font-weight: 800;
-        border-color: #cbd5e1;
-        transform: scale(1.02);
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        font-weight: 800; border-color: #cbd5e1; transform: scale(1.02);
       }
     </style>
 </head>
 <body class="bg-slate-100 flex items-center justify-center antialiased">
 
 <div class="app-container shadow-2xl w-full border border-slate-100">
-
     <!-- TOP HEADER & TAB BAR -->
     <header class="bg-white border-b border-slate-200 shrink-0">
         <div class="px-4 pt-3 pb-2 flex justify-between items-center">
@@ -87,30 +67,41 @@
             </a>
         </div>
 
-        <div class="p-1.5 mx-3 mb-2 bg-slate-200/80 rounded-xl grid grid-cols-3 gap-1.5">
-            <button type="button" onclick="switchTab('daily', this)" class="tab-btn tab-daily active-tab py-2 rounded-lg transition flex flex-col items-center justify-center gap-0.5 cursor-pointer">
+        <div class="p-1.5 mx-3 mb-2 bg-slate-200/80 rounded-xl grid grid-cols-3 gap-1">
+            <button type="button" onclick="switchTab('overview', this)" class="tab-btn tab-overview active-tab py-2 rounded-lg transition flex flex-col items-center justify-center gap-0.5 cursor-pointer">
+                <span class="text-base">📋</span>
+                <span class="text-[10px]">สรุป</span>
+            </button>
+            <button type="button" onclick="switchTab('daily', this)" class="tab-btn tab-daily py-2 rounded-lg transition flex flex-col items-center justify-center gap-0.5 cursor-pointer">
                 <span class="text-base">📅</span>
-                <span class="text-[11px]">รายวัน</span>
+                <span class="text-[10px]">รายวัน</span>
             </button>
             <button type="button" onclick="switchTab('groupsales', this)" class="tab-btn tab-group py-2 rounded-lg transition flex flex-col items-center justify-center gap-0.5 cursor-pointer">
                 <span class="text-base">📁</span>
-                <span class="text-[11px]">แยกตามกลุ่ม</span>
-            </button>
-            <button type="button" onclick="switchTab('summary', this)" class="tab-btn tab-summary py-2 rounded-lg transition flex flex-col items-center justify-center gap-0.5 cursor-pointer">
-                <span class="text-base">📈</span>
-                <span class="text-[11px]">สรุปรวมทั้งหมด</span>
+                <span class="text-[10px]">กลุ่ม</span>
             </button>
         </div>
     </header>
 
-    <!-- [TAB 1 CONTENT] รายงานออร์เดอร์รายวัน -->
-    <div id="tabDaily" class="tab-content active flex-1 overflow-hidden">
+    <!-- TAB 0: สรุปยอดขายแยกตามวัน -->
+    <div id="tabOverview" class="tab-content">
+        <div class="p-3 bg-slate-50 border-b border-slate-100 shrink-0">
+            <div class="bg-purple-50 p-2.5 rounded-xl border border-purple-100 flex justify-between items-center">
+                <span class="text-xs font-bold text-purple-900">📅 สรุปยอดขายย้อนหลัง 15 วัน</span>
+                <span id="overviewTotalBillCount" class="text-xs font-extrabold text-purple-700 bg-white px-2 py-0.5 rounded-md border border-purple-200">0 วัน</span>
+            </div>
+        </div>
+        <div id="overviewDateListContainer" class="p-3 overflow-y-auto space-y-2.5 bg-slate-100 flex-1" style="-webkit-overflow-scrolling: touch;">
+            <div class="text-center text-slate-400 py-10 text-xs font-medium">⏳ กำลังโหลดสรุปยอดขาย...</div>
+        </div>
+    </div>
+
+    <!-- TAB 1: รายงานออร์เดอร์รายวัน -->
+    <div id="tabDaily" class="tab-content">
         <div class="p-3 bg-slate-50 border-b border-slate-100 space-y-2 shrink-0">
             <div class="bg-blue-50 p-2 rounded-xl border border-blue-100 flex items-center justify-between">
-                <span class="text-xs font-bold text-blue-900 flex items-center gap-1.5">
-                    📅 เลือกวันที่:
-                </span>
-                <button type="button" onclick="openCalendar()" id="btnDailyDate" class="px-3 py-1 border border-slate-200 rounded-lg text-xs font-bold bg-white text-blue-700 shadow-xs flex items-center gap-1 cursor-pointer">
+                <span class="text-xs font-bold text-blue-900">📅 เลือกวันที่:</span>
+                <button type="button" onclick="openCalendar()" class="px-3 py-1 border border-slate-200 rounded-lg text-xs font-bold bg-white text-blue-700 shadow-xs flex items-center gap-1 cursor-pointer">
                     <span id="txtDailyDate" class="font-bold text-blue-600">--/--/----</span>
                 </button>
             </div>
@@ -128,64 +119,32 @@
         <div class="p-3 overflow-y-auto space-y-3 bg-slate-100 flex-1" id="dailyOrdersContainer" style="-webkit-overflow-scrolling: touch;"></div>
     </div>
 
-    <!-- [TAB 2 CONTENT] ยอดขายแยกตามกลุ่มลูกค้าหลัก 3 กลุ่ม -->
-    <div id="tabGroupSales" class="tab-content flex-1 overflow-hidden">
-        <div class="p-3 bg-slate-50 border-b border-slate-100 shrink-0">
+    <!-- TAB 2: ยอดขายแยกตามกลุ่มลูกค้า -->
+    <div id="tabGroupSales" class="tab-content">
+        <div class="p-3 bg-slate-50 border-b border-slate-100 shrink-0 space-y-2.5">
             <div class="bg-emerald-50 p-2 rounded-xl border border-emerald-100 flex items-center justify-between">
-                <span class="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                    📅 วันที่ดูยอดขาย:
-                </span>
-                <button type="button" onclick="openCalendar()" id="btnGroupDate" class="px-3 py-1 border border-slate-200 rounded-lg text-xs font-bold bg-white text-emerald-700 shadow-xs flex items-center gap-1 cursor-pointer">
+                <span class="text-xs font-bold text-emerald-900">📅 วันที่ดูยอดขาย:</span>
+                <button type="button" onclick="openCalendar()" class="px-3 py-1 border border-slate-200 rounded-lg text-xs font-bold bg-white text-emerald-700 shadow-xs flex items-center gap-1 cursor-pointer">
                     <span id="txtGroupDate" class="font-bold text-emerald-600">--/--/----</span>
                 </button>
             </div>
+            <div id="groupHeaderSummaryBox"></div>
         </div>
         <div id="groupSummaryContainer" class="p-3 overflow-y-auto space-y-3 bg-slate-100 flex-1" style="-webkit-overflow-scrolling: touch;">
             <div class="text-center text-slate-400 py-10 text-xs font-medium">กำลังโหลดข้อมูลยอดขาย...</div>
         </div>
     </div>
-
-    <!-- [TAB 3 CONTENT] สรุปยอดขายรวม -->
-    <div id="tabSummary" class="tab-content flex-1 overflow-hidden">
-        <div class="p-3 bg-slate-50 border-b border-slate-100 shrink-0">
-            <div class="bg-slate-200/60 p-1 rounded-xl grid grid-cols-4 gap-1">
-                <button type="button" onclick="filterSummaryOrders('today', this)" class="py-1 text-xs font-bold rounded-lg text-slate-600 hover:text-slate-900 transition summary-filter-btn cursor-pointer">วันนี้</button>
-                <button type="button" onclick="filterSummaryOrders('week', this)" class="py-1 text-xs font-bold rounded-lg text-slate-600 hover:text-slate-900 transition summary-filter-btn cursor-pointer">สัปดาห์นี้</button>
-                <button type="button" onclick="filterSummaryOrders('month', this)" class="py-1 text-xs font-bold rounded-lg text-slate-600 hover:text-slate-900 transition summary-filter-btn cursor-pointer">เดือนนี้</button>
-                <button type="button" onclick="openCalendar()" id="btnSummaryDate" class="py-1 text-[11px] font-bold rounded-lg text-slate-600 hover:text-slate-900 transition summary-filter-btn bg-transparent flex items-center justify-center truncate px-1 cursor-pointer">
-                    <span id="txtSummaryDate">📅 เลือกวัน</span>
-                </button>
-            </div>
-        </div>
-
-        <div id="orderHistoryList" class="p-3 overflow-y-auto space-y-2 bg-slate-100 flex-1" style="-webkit-overflow-scrolling: touch;">
-            <div class="text-center text-slate-400 text-xs py-10 font-medium">⏳ กำลังโหลดข้อมูลประวัติ...</div>
-        </div>
-
-        <div class="p-3 bg-white border-t border-slate-200 shrink-0">
-            <div class="bg-slate-800 text-white rounded-xl px-4 py-2.5 flex justify-between items-center shadow-xs">
-                <div>
-                    <div id="summaryLabel" class="text-[10px] text-slate-300 font-bold">ยอดรวมทั้งหมด</div>
-                    <div class="text-[9px] text-slate-400">คำนวณจากรายการที่แสดง</div>
-                </div>
-                <div class="text-right">
-                    <span id="summaryTotalAmount" class="text-base font-black text-emerald-400">0 ฿</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
 </div>
 
-<!-- MODAL 1 -->
-<div id="groupDetailModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
+<!-- MODAL: รายละเอียดกลุ่มในแท็บกลุ่มลูกค้า -->
+<div id="groupDetailModal" onclick="handleOutsideModalClick(event)" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-200">
+    <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl flex flex-col max-h-[80vh] overflow-hidden transform scale-95 transition-transform duration-200" id="groupDetailBox">
         <div class="bg-slate-800 text-white p-4 flex justify-between items-center">
             <div>
                 <h3 id="modalGroupName" class="font-extrabold text-sm text-amber-400">กลุ่มลูกค้า</h3>
                 <p id="modalGroupMeta" class="text-[11px] text-slate-300 mt-0.5">จำนวน 0 บิล</p>
             </div>
-            <button type="button" onclick="closeGroupModal()" class="bg-slate-700 hover:bg-slate-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition cursor-pointer">✕</button>
+            <button type="button" onclick="closeGroupModal()" class="bg-slate-700 hover:bg-slate-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold cursor-pointer">✕</button>
         </div>
         <div id="modalOrderList" class="p-4 overflow-y-auto space-y-3 flex-1 bg-slate-100"></div>
         <div class="p-3 bg-white border-t border-slate-100 flex justify-between items-center px-4">
@@ -195,26 +154,12 @@
     </div>
 </div>
 
-<!-- MODAL 2 -->
-<div id="summaryDetailModal" onclick="handleOutsideSummaryClick(event)" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-200">
-    <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl flex flex-col max-h-[80vh] overflow-hidden transform scale-95 transition-transform duration-200" id="summaryDetailBox">
-        <div class="bg-slate-800 text-white p-3.5 flex justify-between items-center">
-            <h3 class="text-xs font-extrabold text-amber-400">📋 รายละเอียดออร์เดอร์</h3>
-            <button type="button" onclick="closeSummaryDetailModal()" class="w-7 h-7 rounded-full bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center font-bold text-xs transition cursor-pointer">✕</button>
-        </div>
-        <div id="summaryDetailContent" class="p-4 overflow-y-auto space-y-2 text-xs text-slate-700 flex-1 bg-slate-100"></div>
-        <div class="p-3 bg-white border-t border-slate-100">
-            <button type="button" onclick="closeSummaryDetailModal()" class="w-full bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer">ปิดหน้าต่าง</button>
-        </div>
-    </div>
-</div>
-
-<!-- MODAL สำหรับแสดงหน้าปฏิทิน calendar.html (Iframe) -->
-<div id="calendarModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden relative flex flex-col">
+<!-- MODAL: ปฏิทินเลือกวันที่ -->
+<div id="calendarModal" onclick="handleCalendarOutsideClick(event)" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-200">
+    <div class="bg-white w-full max-w-xs rounded-2xl shadow-2xl overflow-hidden relative flex flex-col transform scale-95 transition-transform duration-200" id="calendarBox">
         <div class="bg-slate-800 text-white p-3 flex justify-between items-center">
             <h3 class="text-xs font-bold text-amber-400">📅 เลือกวันที่</h3>
-            <button type="button" onclick="closeCalendarModal()" class="w-7 h-7 rounded-full bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center font-bold text-xs cursor-pointer">✕</button>
+            <button type="button" onclick="closeCalendarModal()" class="w-7 h-7 rounded-full bg-slate-700 text-white flex items-center justify-center font-bold text-xs cursor-pointer">✕</button>
         </div>
         <iframe id="calendarIframe" src="" class="w-full h-[380px] border-none"></iframe>
     </div>
@@ -224,107 +169,31 @@
     let db;
     let allOrdersCache = [];
     let locationsCache = [];
-    let currentActiveTab = 'daily';
+    let fetchedDatesSet = new Set();
+    let currentActiveTab = 'overview';
     let currentSelectedDate = '';
     let globalGroupData = {};
 
-    document.addEventListener('touchstart', function(event) {
-        if (event.touches.length > 1) event.preventDefault();
-    }, { passive: false });
-
     function getTodayString() {
-        const now = new Date();
-        const tzOffset = 7 * 60;
-        const localTime = new Date(now.getTime() + (tzOffset + now.getTimezoneOffset()) * 60000);
-        const y = localTime.getFullYear();
-        const m = String(localTime.getMonth() + 1).padStart(2, '0');
-        const d = String(localTime.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 
-    function formatDateThai(dateString) {
-        if (!dateString) return '';
-        const parts = dateString.split('T')[0].split(' ')[0].split('-');
-        if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-        return dateString;
-    }
-
+    // ดึงวันที่ YYYY-MM-DD จากข้อความในฐานข้อมูล Supabase ตรงๆ โดยไม่แปลง Timezone
     function getOrderDateStr(order) {
-        const rawDate = order.created_at || order.order_date;
+        const rawDate = order.created_at || order.order_date || order.date || '';
         if (!rawDate) return '';
         return String(rawDate).split('T')[0].split(' ')[0];
     }
 
-    function openCalendar() {
-        const modal = document.getElementById('calendarModal');
-        const iframe = document.getElementById('calendarIframe');
-        iframe.src = 'calendar.html';
-        modal.classList.remove('hidden');
-    }
-
-    function closeCalendarModal() {
-        document.getElementById('calendarModal').classList.add('hidden');
-        document.getElementById('calendarIframe').src = '';
-    }
-
-    window.addEventListener('message', function(event) {
-        if (!event.data) return;
-
-        if (event.data.action === 'SELECT_DATE') {
-            const selectedDateStr = event.data.selectedDate;
-            if (selectedDateStr) {
-                currentSelectedDate = selectedDateStr;
-                updateDateDisplays();
-                
-                if (currentActiveTab === 'daily') {
-                    filterDailyOrders();
-                } else if (currentActiveTab === 'groupsales') {
-                    renderGroupSalesData();
-                } else if (currentActiveTab === 'summary') {
-                    document.querySelectorAll('.summary-filter-btn').forEach(b => {
-                        b.classList.remove('bg-white', 'shadow-xs', 'text-slate-800');
-                        b.classList.add('text-slate-600');
-                    });
-                    const btn = document.getElementById('btnSummaryDate');
-                    if (btn) {
-                        btn.classList.add('bg-white', 'shadow-xs', 'text-slate-800');
-                        btn.classList.remove('text-slate-600');
-                    }
-                    document.getElementById('txtSummaryDate').textContent = formatDateThai(selectedDateStr);
-
-                    const filtered = allOrdersCache.filter(o => getOrderDateStr(o) === selectedDateStr);
-                    document.getElementById('summaryLabel').textContent = `ยอดรวมวันที่ ${formatDateThai(selectedDateStr)}`;
-                    renderSummaryHistoryList(filtered);
-                }
-            }
-            closeCalendarModal();
-        }
-
-        if (event.data.action === 'CLOSE_MODAL') {
-            closeCalendarModal();
-        }
-    });
-
-    function switchTab(tabName, btnEl) {
-        currentActiveTab = tabName;
-
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('active-tab');
-        });
-        if (btnEl) btnEl.classList.add('active-tab');
-
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-        if (tabName === 'daily') {
-            document.getElementById('tabDaily').classList.add('active');
-            filterDailyOrders();
-        } else if (tabName === 'groupsales') {
-            document.getElementById('tabGroupSales').classList.add('active');
-            renderGroupSalesData();
-        } else if (tabName === 'summary') {
-            document.getElementById('tabSummary').classList.add('active');
-            filterSummaryOrders('all');
-        }
+    function formatDateThai(dateString) {
+        if (!dateString) return '';
+        const parts = dateString.split('-');
+        if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        return dateString;
     }
 
     window.onload = async function() {
@@ -334,14 +203,115 @@
         if (typeof window.supabaseClient !== 'undefined') db = window.supabaseClient;
         else if (typeof supabaseClient !== 'undefined') db = supabaseClient;
 
-        await fetchLocationsMaster();
-        await fetchOrdersFromSupabase();
+        await fetchMasterData();
+        await fetchInitialOrders();
     };
 
-    async function fetchLocationsMaster() {
+    function normalizeOrder(order) {
+        let items = [];
+        if (typeof order.items === 'string') {
+            try { items = JSON.parse(order.items); } catch(e) { items = []; }
+        } else if (Array.isArray(order.items)) {
+            items = order.items;
+        }
+
+        let computedItems = items.map(item => {
+            let q = Number(item.qty || item.quantity || 1);
+            let unitPrice = Number(item.price || item.unit_price || 0);
+            let itemTotal = Number(item.total_price || item.sum || (unitPrice * q));
+            let name = item.name || item.food_name || 'รายการ';
+            let note = item.note || item.comment || item.remark || '';
+            return { name, qty: q, unitPrice, totalPrice: itemTotal, note };
+        });
+
+        let billTotal = Number(order.total_price || order.subtotal || 0);
+        if (billTotal === 0 && computedItems.length > 0) {
+            billTotal = computedItems.reduce((sum, item) => sum + item.totalPrice, 0);
+        }
+
+        let groupTypeName = "ชาวบ้าน";
+        let typeId = Number(order.customer_type_id);
+        if (typeId === 2) {
+            let locName = "";
+            if (order.location_id) {
+                const foundLoc = locationsCache.find(l => String(l.location_id || l.id) === String(order.location_id));
+                if (foundLoc) locName = foundLoc.name;
+            }
+            groupTypeName = locName ? locName : "นักท่องเที่ยว";
+        } else if (typeId === 3) {
+            groupTypeName = "สบายดี";
+        }
+
+        return {
+            ...order,
+            parsedItems: computedItems,
+            computedTotal: billTotal,
+            groupTypeName,
+            dateStr: getOrderDateStr(order)
+        };
+    }
+
+    async function fetchMasterData() {
         if (!db) return;
-        const { data } = await db.from('locations').select('*');
-        if (data) locationsCache = data;
+        try {
+            const locRes = await db.from('locations').select('*').order('name', { ascending: true });
+            if (locRes.data) locationsCache = locRes.data;
+        } catch (err) { console.error("Error fetching locations:", err); }
+    }
+
+    async function fetchInitialOrders() {
+        if (!db) return;
+        
+        // คำนวณช่วงเวลาเริ่มย้อนหลัง 15 วัน (อ้างอิง String ตรงๆ)
+        const pastDate = new Date();
+        pastDate.setDate(pastDate.getDate() - 15);
+        const pastDateStr = pastDate.toISOString().split('T')[0] + 'T00:00:00';
+        
+        const { data, error } = await db.from('orders')
+            .select('*')
+            .gte('created_at', pastDateStr)
+            .order('order_id', { ascending: true });
+
+        if (error) { console.error("Error fetching initial orders:", error); return; }
+        
+        const normalized = (data || []).map(o => normalizeOrder(o));
+        
+        normalized.forEach(o => { if (o.dateStr) fetchedDatesSet.add(o.dateStr); });
+        allOrdersCache = normalized;
+        
+        switchTab(currentActiveTab, document.querySelector('.tab-btn.active-tab'));
+    }
+
+    async function ensureOrdersForDate(targetDateStr) {
+        if (!db || fetchedDatesSet.has(targetDateStr)) return;
+
+        if (currentActiveTab === 'daily') {
+            document.getElementById('dailyOrdersContainer').innerHTML = `<div class="text-center text-slate-400 py-10 text-xs font-medium">⏳ กำลังค้นหาออร์เดอร์ของวันที่ ${formatDateThai(targetDateStr)}...</div>`;
+        } else if (currentActiveTab === 'groupsales') {
+            document.getElementById('groupSummaryContainer').innerHTML = `<div class="text-center text-slate-400 py-10 text-xs font-medium">⏳ กำลังค้นหาออร์เดอร์ของวันที่ ${formatDateThai(targetDateStr)}...</div>`;
+        }
+
+        // ดึงข้อมูลตามช่วงเวลาสตริงของวันนั้นๆ โดยตรง
+        const startStr = `${targetDateStr}T00:00:00`;
+        const endStr = `${targetDateStr}T23:59:59.999`;
+
+        const { data, error } = await db.from('orders')
+            .select('*')
+            .gte('created_at', startStr)
+            .lte('created_at', endStr)
+            .order('order_id', { ascending: true });
+
+        if (!error && data) {
+            const newOrders = data.map(o => normalizeOrder(o));
+            newOrders.forEach(no => {
+                const idKey = no.order_id || no.id;
+                if (!allOrdersCache.some(o => (o.order_id || o.id) === idKey)) {
+                    allOrdersCache.push(no);
+                }
+            });
+        }
+        
+        fetchedDatesSet.add(targetDateStr);
     }
 
     function updateDateDisplays() {
@@ -350,32 +320,123 @@
         if (document.getElementById('txtGroupDate')) document.getElementById('txtGroupDate').textContent = text;
     }
 
-    async function fetchOrdersFromSupabase() {
-        if (!db) return;
-        const { data, error } = await db.from('orders').select('*').order('order_id', { ascending: true });
-        if (error) {
-            console.error("Error fetching orders:", error);
-            return;
+    async function switchTab(tabName, btnEl) {
+        currentActiveTab = tabName;
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active-tab'));
+        if (btnEl) btnEl.classList.add('active-tab');
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+        if (tabName === 'overview') {
+            document.getElementById('tabOverview').classList.add('active');
+            renderOverviewData();
+        } else if (tabName === 'daily') {
+            document.getElementById('tabDaily').classList.add('active');
+            await ensureOrdersForDate(currentSelectedDate);
+            filterDailyOrders();
+        } else if (tabName === 'groupsales') {
+            document.getElementById('tabGroupSales').classList.add('active');
+            await ensureOrdersForDate(currentSelectedDate);
+            renderGroupSalesData();
         }
-        allOrdersCache = data || [];
-        
-        const initialBtn = document.querySelector('.tab-btn.active-tab');
-        switchTab(currentActiveTab, initialBtn);
     }
 
-    /* ================= TAB 1 ================= */
+    function openCalendar() {
+        const iframe = document.getElementById('calendarIframe');
+        const countsMap = {};
+        allOrdersCache.forEach(item => {
+            const d = item.dateStr;
+            if (d) countsMap[d] = (countsMap[d] || 0) + 1;
+        });
+        sessionStorage.setItem('calendarEventsData', JSON.stringify(countsMap));
+        iframe.src = 'calendar.html';
+        
+        const modal = document.getElementById('calendarModal');
+        modal.classList.remove('opacity-0', 'pointer-events-none');
+        document.getElementById('calendarBox').classList.remove('scale-95');
+    }
+
+    function closeCalendarModal() {
+        const modal = document.getElementById('calendarModal');
+        modal.classList.add('opacity-0', 'pointer-events-none');
+        document.getElementById('calendarBox').classList.add('scale-95');
+        setTimeout(() => { document.getElementById('calendarIframe').src = ''; }, 200);
+    }
+
+    function handleCalendarOutsideClick(e) {
+        if (e.target.id === 'calendarModal') closeCalendarModal();
+    }
+
+    window.addEventListener('message', async function(event) {
+        if (!event.data || typeof event.data !== 'object') return;
+        if (event.data.action === 'SELECT_DATE' || event.data.selectedDate) {
+            const selectedDateStr = event.data.selectedDate || event.data.date;
+            if (selectedDateStr) {
+                currentSelectedDate = selectedDateStr;
+                updateDateDisplays();
+                
+                await ensureOrdersForDate(currentSelectedDate);
+                
+                if (currentActiveTab === 'daily') filterDailyOrders();
+                else if (currentActiveTab === 'groupsales') renderGroupSalesData();
+            }
+            closeCalendarModal();
+        }
+        if (event.data.action === 'CLOSE_MODAL') closeCalendarModal();
+    });
+
+    function renderOverviewData() {
+        const container = document.getElementById('overviewDateListContainer');
+        if (!container) return;
+        if (allOrdersCache.length === 0) {
+            container.innerHTML = `<div class="text-center text-slate-400 py-10 text-xs font-medium">📭 ไม่พบข้อมูลออร์เดอร์ในช่วง 15 วันที่ผ่านมา</div>`;
+            document.getElementById('overviewTotalBillCount').textContent = '0 วัน';
+            return;
+        }
+
+        let dateGroups = {};
+        allOrdersCache.forEach(order => {
+            let dateStr = order.dateStr;
+            if (!dateStr) return;
+            if (!dateGroups[dateStr]) dateGroups[dateStr] = { totalAmount: 0, count: 0 };
+
+            dateGroups[dateStr].totalAmount += order.computedTotal;
+            dateGroups[dateStr].count += 1;
+        });
+
+        let sortedDates = Object.keys(dateGroups).sort((a, b) => b.localeCompare(a));
+        document.getElementById('overviewTotalBillCount').textContent = `${sortedDates.length} วัน`;
+
+        container.innerHTML = sortedDates.map(dateStr => {
+            const data = dateGroups[dateStr];
+            return `
+                <div onclick="goToDailyTab('${dateStr}')" class="bg-white p-3.5 rounded-xl border border-slate-200 hover:border-purple-400 active:scale-95 transition cursor-pointer shadow-xs flex justify-between items-center">
+                    <div>
+                        <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                            <span>📅 วันที่:</span> <span class="text-purple-700 font-extrabold">${formatDateThai(dateStr)}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 mt-1">จำนวนบิล: <span class="font-bold text-slate-700">${data.count} บิล</span></div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs font-black text-emerald-600">฿${data.totalAmount.toLocaleString()}.-</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">แตะเพื่อดูบิลประจำวัน 🔍</div>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    function goToDailyTab(dateStr) {
+        currentSelectedDate = dateStr;
+        updateDateDisplays();
+        switchTab('daily', document.querySelector('.tab-btn.tab-daily'));
+    }
+
     function filterDailyOrders() {
         const container = document.getElementById('dailyOrdersContainer');
         if (!container) return;
         container.innerHTML = '';
 
-        let filtered = allOrdersCache.filter(o => getOrderDateStr(o) === currentSelectedDate);
-
-        filtered.sort((a, b) => {
-            const timeA = new Date(a.created_at || a.order_date || 0).getTime();
-            const timeB = new Date(b.created_at || b.order_date || 0).getTime();
-            return timeA - timeB;
-        });
+        let filtered = allOrdersCache.filter(o => o.dateStr === currentSelectedDate);
+        filtered.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
 
         if (filtered.length === 0) {
             container.innerHTML = `<div class="text-center text-xs text-slate-400 py-8 font-medium">📭 ไม่พบออร์เดอร์ในวันที่ ${formatDateThai(currentSelectedDate)}</div>`;
@@ -385,59 +446,30 @@
         }
 
         let total = 0;
-        filtered.forEach((order, index) => {
-            let items = [];
-            if (typeof order.items === 'string') {
-                try { items = JSON.parse(order.items); } catch(e) { items = []; }
-            } else if (Array.isArray(order.items)) items = order.items;
+        filtered.forEach(order => {
+            total += order.computedTotal;
 
-            let billTotal = Number(order.total_price || order.subtotal || 0);
-            if (billTotal === 0 && items.length > 0) {
-                billTotal = items.reduce((sum, item) => sum + (Number(item.qty || item.quantity || 1) * Number(item.price || item.unit_price || 0)), 0);
-            }
-            total += billTotal;
-
-            let itemsHtml = items.map(item => {
-                let itemQty = Number(item.qty || item.quantity || 1);
-                let unitPrice = Number(item.price || item.unit_price || 0);
-                let itemTotalPrice = (item.total_price || item.sum) ? Number(item.total_price || item.sum) : (unitPrice * itemQty);
-                let itemName = item.name || item.food_name || 'ไม่ระบุชื่อรายการ';
+            let itemsHtml = order.parsedItems.map(item => {
+                let comment = item.note ? ` <span class="text-amber-800">(${item.note})</span>` : '';
                 return `<tr class="border-b border-slate-100">
-                    <td class="p-1.5 text-xs text-slate-800 font-medium">${itemName}</td>
-                    <td class="p-1.5 text-xs text-center font-bold">x${itemQty}</td>
-                    <td class="p-1.5 text-xs text-right font-bold text-blue-600">${itemTotalPrice.toLocaleString()}.-</td>
+                    <td class="p-1.5 text-xs text-slate-800 font-medium">${item.name}${comment}</td>
+                    <td class="p-1.5 text-xs text-center font-bold">x${item.qty}</td>
+                    <td class="p-1.5 text-xs text-right font-bold text-blue-600">${item.totalPrice.toLocaleString()}.-</td>
                 </tr>`;
             }).join('');
 
-            let groupTypeName = "ชาวบ้าน";
-            let typeId = Number(order.customer_type_id);
-            
-            if (typeId === 2) {
-                let locName = "";
-                if (order.location_id) {
-                    const foundLoc = locationsCache.find(l => String(l.location_id || l.id) === String(order.location_id));
-                    if (foundLoc) locName = foundLoc.name;
-                }
-                if (!locName && order.location_name) locName = order.location_name;
-                groupTypeName = locName ? locName : "นักท่องเที่ยว";
-            } else if (typeId === 3) {
-                groupTypeName = "สบายดี";
-            } else {
-                groupTypeName = "ชาวบ้าน";
-            }
-
-            let badgeLabel = `#${index + 1} (${groupTypeName})`;
+            let orderId = order.order_id || order.id;
 
             container.innerHTML += `
-                <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
+                <div onclick="goToEditOrder(${orderId})" class="bg-white border border-slate-200 hover:border-amber-400 rounded-xl p-3 shadow-xs space-y-2 cursor-pointer transition active:scale-95">
                     <div class="flex justify-between border-b border-slate-100 pb-2">
-                        <span class="font-bold text-xs text-amber-900 bg-amber-100 px-2 py-0.5 rounded">📄 บิล ${badgeLabel}</span>
-                        <span class="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded truncate max-w-[200px]">👤 ${order.nickname || groupTypeName}</span>
+                        <span class="font-bold text-xs text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded">${order.groupTypeName} ✏️</span>
+                        <span class="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded truncate max-w-[200px]">👤 ${order.nickname || order.groupTypeName}</span>
                     </div>
                     <table class="w-full text-left"><tbody>${itemsHtml}</tbody></table>
                     <div class="flex justify-between pt-1 text-xs font-bold border-t border-slate-100">
                         <span>ยอดรวม:</span>
-                        <span class="text-emerald-600 text-sm font-black">${billTotal.toLocaleString()} บาท</span>
+                        <span class="text-emerald-600 text-sm font-black">${order.computedTotal.toLocaleString()} บาท</span>
                     </div>
                 </div>`;
         });
@@ -446,81 +478,45 @@
         document.getElementById('dailySummaryTotal').textContent = `${total.toLocaleString()} บาท`;
     }
 
-    /* ================= TAB 2 (แก้ไขให้รวมกลุ่มตามประเภทหลัก 3 กลุ่ม) ================= */
     function renderGroupSalesData() {
+        const headerBox = document.getElementById('groupHeaderSummaryBox');
         const container = document.getElementById('groupSummaryContainer');
-        if (!container) return;
-        container.innerHTML = `<div class="text-center text-slate-400 py-10 text-xs font-medium">⏳ กำลังประมวลผลข้อมูล...</div>`;
+        if (!container || !headerBox) return;
 
-        let filteredOrders = allOrdersCache.filter(o => getOrderDateStr(o) === currentSelectedDate);
-
+        let filteredOrders = allOrdersCache.filter(o => o.dateStr === currentSelectedDate);
         if (filteredOrders.length === 0) {
-            container.innerHTML = `<div class="text-center text-slate-400 py-12 text-xs font-medium">📭 ไม่พบข้อมูลการขายในวันที่ ${formatDateThai(currentSelectedDate)}</div>`;
+            headerBox.innerHTML = `<div class="bg-slate-800 text-white p-3.5 rounded-xl shadow-xs"><div class="text-[11px] text-slate-300">ยอดขายรวม (${formatDateThai(currentSelectedDate)})</div><div class="text-xl font-black text-emerald-400">฿0.-</div><div class="text-[11px] text-slate-300 mt-1">จำนวนบิล: 0 บิล</div></div>`;
+            container.innerHTML = `<div class="text-center text-slate-400 py-12 text-xs font-medium">📭 ไม่พบข้อมูลการขาย</div>`;
             return;
         }
 
-        // กำหนดโครงสร้างกลุ่มหลัก 3 กลุ่มตายตัว
-        globalGroupData = {
-            "ชาวบ้าน": { orderCount: 0, totalPrice: 0, orders: [] },
-            "นักท่องเที่ยว": { orderCount: 0, totalPrice: 0, orders: [] },
-            "สบายดี": { orderCount: 0, totalPrice: 0, orders: [] }
-        };
-
-        let grandTotalOrders = 0;
-        let grandTotalPrice = 0;
+        globalGroupData = {};
+        let grandTotalOrders = 0, grandTotalPrice = 0;
 
         filteredOrders.forEach(order => {
-            let typeId = Number(order.customer_type_id);
-            let groupName = "ชาวบ้าน"; // ค่าเริ่มต้น
-            
-            if (typeId === 2) {
-                groupName = "นักท่องเที่ยว";
-            } else if (typeId === 3) {
-                groupName = "สบายดี";
-            } else {
-                groupName = "ชาวบ้าน";
-            }
+            let groupKey = order.groupTypeName;
 
-            let items = [];
-            if (typeof order.items === 'string') {
-                try { items = JSON.parse(order.items); } catch(e) { items = []; }
-            } else if (Array.isArray(order.items)) items = order.items;
+            if (!globalGroupData[groupKey]) globalGroupData[groupKey] = { orderCount: 0, totalPrice: 0, orders: [] };
 
-            let billTotal = Number(order.total_price || order.subtotal || 0);
-            if (billTotal === 0 && items.length > 0) {
-                billTotal = items.reduce((sum, item) => sum + (Number(item.qty || item.quantity || 1) * Number(item.price || item.unit_price || 0)), 0);
-            }
-
-            globalGroupData[groupName].orderCount += 1;
-            globalGroupData[groupName].totalPrice += billTotal;
-            globalGroupData[groupName].orders.push({ ...order, computedTotal: billTotal, parsedItems: items });
+            globalGroupData[groupKey].orderCount += 1;
+            globalGroupData[groupKey].totalPrice += order.computedTotal;
+            globalGroupData[groupKey].orders.push(order);
 
             grandTotalOrders += 1;
-            grandTotalPrice += billTotal;
+            grandTotalPrice += order.computedTotal;
         });
 
-        let html = `
-            <div class="bg-slate-800 text-white p-3.5 rounded-xl shadow-xs mb-2">
-                <div class="text-[11px] text-slate-300">ยอดขายรวมทั้งสิ้น (${formatDateThai(currentSelectedDate)})</div>
-                <div class="text-xl font-black text-emerald-400">฿${grandTotalPrice.toLocaleString()}.-</div>
-                <div class="text-[11px] text-slate-300 mt-1">จำนวนบิลทั้งหมด: <span class="text-white font-bold">${grandTotalOrders} บิล</span></div>
-            </div>`;
+        headerBox.innerHTML = `<div class="bg-slate-800 text-white p-3.5 rounded-xl shadow-xs"><div class="text-[11px] text-slate-300">ยอดขายรวม (${formatDateThai(currentSelectedDate)})</div><div class="text-xl font-black text-emerald-400">฿${grandTotalPrice.toLocaleString()}.-</div><div class="text-[11px] text-slate-300 mt-1">จำนวนบิล: <span class="text-white font-bold">${grandTotalOrders} บิล</span></div></div>`;
 
-        // วนลูปแสดงผลเฉพาะ 3 กลุ่มหลัก
+        let html = '';
         for (let [groupName, data] of Object.entries(globalGroupData)) {
-            // ซ่อนกลุ่มที่ไม่มีออร์เดอร์ในวันนั้น หรือจะแสดงยอด 0 ก็ได้ (ที่นี้แสดงเฉพาะกลุ่มที่มีบิลเพื่อความสะอาดตา)
-            if (data.orderCount === 0) continue;
-
             html += `
                 <div onclick="openGroupModal('${groupName}')" class="bg-white border border-slate-200 hover:border-blue-400 active:scale-95 cursor-pointer transition rounded-xl p-3.5 flex justify-between items-center shadow-xs">
                     <div>
                         <div class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
                             <span>👥 กลุ่ม:</span> <span class="text-blue-600 font-extrabold truncate max-w-[180px]">${groupName}</span>
                         </div>
-                        <div class="text-[11px] text-slate-500 mt-1">
-                            จำนวนออร์เดอร์: <span class="font-bold text-slate-700">${data.orderCount} บิล</span> 
-                            <span class="text-blue-500 ml-1 font-semibold">(แตะดูรายละเอียด 🔍)</span>
-                        </div>
+                        <div class="text-[11px] text-slate-500 mt-1">จำนวนบิล: <span class="font-bold text-slate-700">${data.orderCount} บิล</span> <span class="text-blue-500 ml-1 font-semibold">(ดูรายละเอียด 🔍)</span></div>
                     </div>
                     <div class="text-right">
                         <div class="text-xs font-black text-emerald-600">฿${data.totalPrice.toLocaleString()}.-</div>
@@ -540,205 +536,49 @@
         document.getElementById('modalGroupTotal').textContent = `฿${group.totalPrice.toLocaleString()}.-`;
 
         let listHtml = '';
-        group.orders.forEach((o, index) => {
-            let timeStr = "";
-            const rawTime = o.created_at;
-            if (rawTime && String(rawTime).includes('T')) {
-                let parts = String(rawTime).split('T')[1].split(':');
-                timeStr = ` (${parts[0]}:${parts[1]} น.)`;
-            }
-
+        group.orders.forEach(o => {
             let itemsHtml = '';
-            let itemsList = o.parsedItems || [];
+            o.parsedItems.forEach(item => {
+                let comment = item.note ? ` <span class="text-amber-800">(${item.note})</span>` : '';
+                itemsHtml += `<div class="text-[11px] flex justify-between items-start text-slate-600 py-1 border-b border-slate-100 last:border-none">
+                    <div><span class="font-medium text-slate-800">• ${item.name}${comment}</span> <span class="text-blue-600 font-bold">x${item.qty}</span></div>
+                    <span class="font-bold text-slate-700">฿${item.totalPrice.toLocaleString()}</span>
+                </div>`;
+            });
 
-            if (itemsList.length > 0) {
-                itemsList.forEach(item => {
-                    let itemName = item.name || item.food_name || 'ไม่ระบุชื่อเมนู';
-                    let itemQty = Number(item.qty || item.quantity || 1);
-                    let unitPrice = Number(item.price || item.unit_price || 0);
-                    let itemPrice = (item.total_price || item.sum) ? Number(item.total_price || item.sum) : (unitPrice * itemQty);
-
-                    itemsHtml += `
-                        <div class="text-[11px] flex justify-between items-start text-slate-600 py-1 border-b border-slate-100 last:border-none">
-                            <div>
-                                <span class="font-medium text-slate-800">• ${itemName}</span> 
-                                <span class="text-blue-600 font-bold">x${itemQty}</span>
-                            </div>
-                            <span class="font-bold text-slate-700">฿${itemPrice.toLocaleString()}</span>
-                        </div>`;
-                });
-            } else {
-                itemsHtml = `<div class="text-[11px] text-slate-400 italic">ไม่มีรายละเอียดรายการอาหารในบิลนี้</div>`;
-            }
-
-            let customerSubLabel = o.nickname ? ` - ${o.nickname}` : '';
-
+            let orderId = o.order_id || o.id;
             listHtml += `
-                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-xs space-y-2">
-                    <div class="flex justify-between items-center border-b border-slate-100 pb-1.5">
-                        <div>
-                            <span class="font-black text-xs text-amber-900 bg-amber-100 px-2 py-0.5 rounded">บิลที่ #${index + 1}${customerSubLabel}</span>
-                            <span class="text-slate-500 text-[11px]">${timeStr}</span>
-                        </div>
-                        <span class="font-black text-emerald-600 text-xs">฿${Number(o.computedTotal).toLocaleString()}.-</span>
+                <div onclick="goToEditOrder(${orderId})" class="bg-white p-3 rounded-xl border border-slate-200 hover:border-amber-400 shadow-xs space-y-2 cursor-pointer transition active:scale-95">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                        <span class="font-bold text-xs text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded">${groupName} ✏️</span>
+                        <span class="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded truncate max-w-[200px]">👤 ${o.nickname || groupName}</span>
                     </div>
-                    <div class="bg-slate-50 p-2 rounded-lg space-y-1">${itemsHtml}</div>
+                    <div class="space-y-1">${itemsHtml}</div>
+                    <div class="flex justify-between pt-1 text-xs font-bold border-t border-slate-100">
+                        <span>ยอดรวม:</span>
+                        <span class="text-emerald-600 text-sm font-black">฿${o.computedTotal.toLocaleString()}.-</span>
+                    </div>
                 </div>`;
         });
 
         document.getElementById('modalOrderList').innerHTML = listHtml;
-        document.getElementById('groupDetailModal').classList.remove('hidden');
+        const modal = document.getElementById('groupDetailModal');
+        modal.classList.remove('opacity-0', 'pointer-events-none');
+        document.getElementById('groupDetailBox').classList.remove('scale-95');
     }
 
     function closeGroupModal() {
-        document.getElementById('groupDetailModal').classList.add('hidden');
-    }
-
-    /* ================= TAB 3 ================= */
-    function getSummaryOrderTotalAmount(order) {
-        if (order.total_price && Number(order.total_price) > 0) return Number(order.total_price);
-        let items = order.items;
-        if (typeof items === 'string') {
-            try { items = JSON.parse(items); } catch(e) { items = []; }
-        }
-        if (!Array.isArray(items)) return 0;
-        return items.reduce((sum, i) => sum + (parseFloat(i.price || i.unit_price || 0) * parseFloat(i.qty || i.quantity || 1)), 0);
-    }
-
-    function filterSummaryOrders(type, btn) {
-        document.querySelectorAll('.summary-filter-btn').forEach(b => {
-            b.classList.remove('bg-white', 'shadow-xs', 'text-slate-800');
-            b.classList.add('text-slate-600');
-        });
-        if (btn) {
-            btn.classList.add('bg-white', 'shadow-xs', 'text-slate-800');
-            btn.classList.remove('text-slate-600');
-        }
-
-        document.getElementById('txtSummaryDate').textContent = "📅 เลือกวัน";
-
-        const now = new Date();
-        const tzOffset = 7 * 60;
-        const thaiNow = new Date(now.getTime() + (tzOffset + now.getTimezoneOffset()) * 60000);
-        const y = thaiNow.getFullYear();
-        const m = String(thaiNow.getMonth() + 1).padStart(2, '0');
-        const d = String(thaiNow.getDate()).padStart(2, '0');
-        const todayStr = `${y}-${m}-${d}`;
-
-        let filtered = [...allOrdersCache];
-        let labelText = "ยอดรวมทั้งหมด";
-
-        if (type === 'today') {
-            filtered = filtered.filter(o => getOrderDateStr(o) === todayStr);
-            labelText = "ยอดรวมวันนี้";
-        } else if (type === 'week') {
-            const todayLocal = new Date(thaiNow.getFullYear(), thaiNow.getMonth(), thaiNow.getDate());
-            const dayOfWeek = todayLocal.getDay();
-            const distanceToMonday = (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
-            const startOfWeek = new Date(todayLocal);
-            startOfWeek.setDate(todayLocal.getDate() - distanceToMonday);
-            const endOfWeek = new Date(startOfWeek);
-            endOfWeek.setDate(startOfWeek.getDate() + 6);
-
-            filtered = filtered.filter(o => {
-                const dateStr = getOrderDateStr(o);
-                if (!dateStr) return false;
-                const [oy, om, od] = dateStr.split('-').map(Number);
-                const orderDate = new Date(oy, om - 1, od);
-                return orderDate >= startOfWeek && orderDate <= endOfWeek;
-            });
-            labelText = "ยอดรวมสัปดาห์นี้";
-        } else if (type === 'month') {
-            const currentMonthPrefix = `${y}-${m}`;
-            filtered = filtered.filter(o => getOrderDateStr(o).startsWith(currentMonthPrefix));
-            labelText = "ยอดรวมเดือนนี้";
-        }
-
-        document.getElementById('summaryLabel').textContent = labelText;
-        renderSummaryHistoryList(filtered);
-    }
-
-    function renderSummaryHistoryList(orders) {
-        const container = document.getElementById('orderHistoryList');
-        const sumTotal = orders.reduce((sum, order) => sum + getSummaryOrderTotalAmount(order), 0);
-        document.getElementById('summaryTotalAmount').textContent = sumTotal.toLocaleString() + ' ฿';
-
-        if (orders.length === 0) {
-            container.innerHTML = `<div class="text-center text-slate-400 text-xs py-10 font-medium">ไม่พบประวัติออร์เดอร์ในช่วงเวลานี้</div>`;
-            return;
-        }
-
-        const sortedOrders = [...orders].sort((a, b) => {
-            const dateA = getOrderDateStr(a);
-            const dateB = getOrderDateStr(b);
-            if (dateA !== dateB) return dateA.localeCompare(dateB);
-            return (a.order_id || 0) - (b.order_id || 0);
-        });
-
-        container.innerHTML = sortedOrders.map(order => {
-            const dateFormatted = formatDateThai(getOrderDateStr(order));
-            const customerGroup = order.nickname || `บิล #${order.order_id || ''}`;
-            const totalAmount = getSummaryOrderTotalAmount(order).toLocaleString();
-            
-            return `
-                <div class="bg-white p-3 rounded-xl border border-slate-200 flex justify-between items-center shadow-xs hover:border-blue-400 transition gap-2">
-                    <div class="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
-                        <span class="font-bold text-xs text-slate-700 shrink-0">${dateFormatted}</span>
-                        <span class="font-black text-rose-600 text-sm shrink-0">${totalAmount} ฿</span>
-                        <span class="font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded-lg text-xs truncate max-w-[130px]" title="${customerGroup}">${customerGroup}</span>
-                    </div>
-                    <button type="button" onclick="openSummaryDetailModal(${order.order_id})" class="text-blue-600 hover:text-blue-800 p-1.5 transition shrink-0 ml-auto cursor-pointer rounded-lg hover:bg-blue-50" title="ดูรายละเอียด">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    </button>
-                </div>`;
-        }).join('');
-    }
-
-    function openSummaryDetailModal(orderId) {
-        const contentContainer = document.getElementById('summaryDetailContent');
-        contentContainer.innerHTML = `<div class="text-center text-slate-400 py-4 font-medium">กำลังโหลดรายการ...</div>`;
-        
-        const modal = document.getElementById('summaryDetailModal');
-        const box = document.getElementById('summaryDetailBox');
-        modal.classList.remove('opacity-0', 'pointer-events-none');
-        box.classList.remove('scale-95');
-
-        const targetOrder = allOrdersCache.find(o => o.order_id == orderId);
-        let items = targetOrder ? targetOrder.items : null;
-        if (typeof items === 'string') {
-            try { items = JSON.parse(items); } catch(e) { items = []; }
-        }
-        
-        if (Array.isArray(items) && items.length > 0) {
-            contentContainer.innerHTML = items.map(i => {
-                const qty = parseFloat(i.qty || i.quantity || 1);
-                const price = parseFloat(i.price || i.unit_price || 0);
-                const name = i.food_name || i.name || 'สินค้า';
-                return `
-                    <div class="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-200">
-                        <span class="font-medium text-slate-800">• ${name} (x${qty})</span>
-                        <span class="font-bold text-slate-800">${(price * qty).toLocaleString()} ฿</span>
-                    </div>`;
-            }).join('');
-        } else {
-            contentContainer.innerHTML = `<div class="text-center text-slate-400 py-4 font-medium">ไม่มีรายการสินค้า</div>`;
-        }
-    }
-
-    function closeSummaryDetailModal() {
-        const modal = document.getElementById('summaryDetailModal');
-        const box = document.getElementById('summaryDetailBox');
+        const modal = document.getElementById('groupDetailModal');
         modal.classList.add('opacity-0', 'pointer-events-none');
-        box.classList.add('scale-95');
+        document.getElementById('groupDetailBox').classList.add('scale-95');
     }
 
-    function handleOutsideSummaryClick(event) {
-        if (event.target.id === 'summaryDetailModal') closeSummaryDetailModal();
+    function handleOutsideModalClick(e) {
+        if (e.target.id === 'groupDetailModal') closeGroupModal();
     }
 
-    window.onclick = function(event) {
-        const groupModal = document.getElementById('groupDetailModal');
-        if (event.target === groupModal) closeGroupModal();
+    function goToEditOrder(orderId) {
+        window.location.href = `editorder.html?order_id=${orderId}`;
     }
 </script>
 </body>

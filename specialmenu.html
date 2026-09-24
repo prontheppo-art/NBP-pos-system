@@ -1,16 +1,9 @@
-<!--
-  ========================================
-  [File Note]
-  - File Name: specialmenu.html
-  - Description: หน้าจัดการเมนูพิเศษ (บันทึกและดึงข้อมูลจากตาราง foods ใน Supabase พร้อมส่งสัญญาณเปิด Pop-up selectitem.html)
-  ========================================
--->
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no">
-    <title>สั่งรายการอาหารพิเศษ</title>
+    <title>สั่งรายการอาหารพิเศษ - ลาบหนองบัวลำภู</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -43,6 +36,31 @@
             position: fixed; bottom: 0; left: 0; right: 0;
             background-color: #ffffff; border-top: 1px solid #e2e8f0;
             padding: 0.75rem; box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05); z-index: 40;
+        }
+
+        /* Modal Overlay พร้อมเอฟเฟกต์เฟดและปิดเมื่อคลิกข้างนอก */
+        .custom-modal-overlay { 
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+            background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); 
+            display: flex; align-items: center; justify-content: center; 
+            z-index: 9999; padding: 1rem;
+            opacity: 0; visibility: hidden;
+            transition: opacity 0.25s ease, visibility 0.25s ease;
+        }
+        .custom-modal-overlay.active { 
+            opacity: 1; visibility: visible; 
+        }
+
+        .popup-container {
+            background: #ffffff; width: 100%; max-width: 450px;
+            max-height: 80vh; height: auto; border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            display: flex; flex-direction: column; overflow: hidden; position: relative;
+            transform: translateY(-20px) scale(0.95);
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .custom-modal-overlay.active .popup-container {
+            transform: translateY(0) scale(1);
         }
 
         @keyframes modalBounce {
@@ -110,6 +128,19 @@
         </div>
     </div>
 
+    <!-- Modal Pop-up สำหรับเปิด selectitem.html (คลิกข้างนอกเพื่อปิดแบบค่อยๆ เฟดลง) -->
+    <div id="dynamicPopupOverlay" class="custom-modal-overlay" onclick="closeDynamicPopup(event)">
+        <div class="popup-container" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center px-4 py-3 border-b border-slate-100 bg-slate-50 flex-shrink-0">
+                <span id="popupTitle" class="font-extrabold text-sm text-slate-700">📌 เลือกรายการ</span>
+                <button type="button" onclick="closeDynamicPopupDirect()" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-rose-100 hover:text-rose-600 text-slate-600 flex items-center justify-center font-bold text-xs transition cursor-pointer">✕</button>
+            </div>
+            <div id="popupBodyWrap" class="w-full overflow-y-auto bg-white flex-1" style="max-height: calc(80vh - 55px);">
+                <iframe id="popupIframe" src="" class="w-full border-0 block h-full min-h-[300px]"></iframe>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal แจ้งเตือน -->
     <div id="customAlertOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white rounded-3xl p-5 max-w-xs w-full text-center shadow-2xl border-2 border-slate-100 animate-bounce-in">
@@ -147,7 +178,6 @@
             try {
                 if (!db) db = getDbClient();
                 if (db) {
-                    // ดึงเฉพาะรายการในตาราง foods ที่มี food_group_id เป็น 98 (หรือเงื่อนไขหมวดหมู่เมนูพิเศษของคุณ)
                     const { data, error } = await db
                         .from('foods')
                         .select('*')
@@ -186,19 +216,36 @@
                 const foodId = item.id !== undefined ? item.id : (item.food_id !== undefined ? item.food_id : '');
 
                 btn.onclick = () => {
-                    if (window.parent) {
-                        window.parent.postMessage({
-                            type: 'OPEN_SELECT_ITEM',
-                            action: 'openSelectItem',
-                            food_id: foodId,
-                            name: item.name || '',
-                            cat_id: '98'
-                        }, '*');
-                    }
+                    openSelectItemPopup(foodId, item.name || '');
                 };
 
                 container.appendChild(btn);
             });
+        }
+
+        function openSelectItemPopup(foodId, foodName) {
+            const url = `selectitem.html?food_id=${foodId}&name=${encodeURIComponent(foodName)}&cat_id=98`;
+            document.getElementById('popupTitle').textContent = `📝 ระบุรายละเอียด: ${foodName}`;
+            document.getElementById('popupIframe').src = url;
+            document.getElementById('dynamicPopupOverlay').classList.add('active');
+        }
+
+        // ปิดเมื่อคลิกพื้นที่ว่างรอบนอก (Overlay)
+        function closeDynamicPopup(event) {
+            if (event.target.id === 'dynamicPopupOverlay') {
+                document.getElementById('dynamicPopupOverlay').classList.remove('active');
+                setTimeout(() => {
+                    document.getElementById('popupIframe').src = '';
+                }, 250); // รอให้แอนิเมชันเฟดออกจบก่อนล้าง src
+            }
+        }
+
+        // ปิดด้วยปุ่มกากบาท
+        function closeDynamicPopupDirect() {
+            document.getElementById('dynamicPopupOverlay').classList.remove('active');
+            setTimeout(() => {
+                document.getElementById('popupIframe').src = '';
+            }, 250);
         }
 
         async function saveNewSpecialMenu() {
@@ -223,7 +270,6 @@
                 if (!db) db = getDbClient();
                 if (!db) throw new Error('ไม่พบตัวเชื่อมต่อฐานข้อมูล');
 
-                // บันทึกลงตาราง foods พร้อมกำหนด food_group_id เป็น 98 (เมนูพิเศษ)
                 const { data, error } = await db.from('foods').insert([{
                     name: nameInput,
                     food_group_id: 98,
@@ -234,28 +280,17 @@
 
                 if (error) throw error;
 
-                // ล้างค่าในฟอร์มช่องกรอก
                 document.getElementById('customFoodName').value = '';
                 document.getElementById('price1Input').value = '';
                 document.getElementById('price2Input').value = '';
                 document.getElementById('price3Input').value = '';
 
-                // โหลดข้อมูลใหม่จาก Supabase ทันที
                 await fetchSpecialFoodsFromDB();
 
                 const savedItem = (data && data.length > 0) ? data[0] : null;
                 const foodId = savedItem ? (savedItem.id !== undefined ? savedItem.id : (savedItem.food_id !== undefined ? savedItem.food_id : '')) : '';
 
-                // ส่ง postMessage เปิด Pop-up (selectitem.html) ต่อทันที
-                if (window.parent) {
-                    window.parent.postMessage({
-                        type: 'OPEN_SELECT_ITEM',
-                        action: 'openSelectItem',
-                        food_id: foodId,
-                        name: nameInput,
-                        cat_id: '98'
-                    }, '*');
-                }
+                openSelectItemPopup(foodId, nameInput);
 
             } catch (err) {
                 console.error('บันทึกลง Supabase ไม่สำเร็จ:', err);
@@ -264,11 +299,7 @@
         }
 
         function goToOrderEntity() {
-            if (window.parent && window.parent !== window) {
-                window.parent.postMessage({ type: 'CLOSE_MODAL', action: 'closeModal' }, '*');
-            } else {
-                window.location.href = 'orderentity.html';
-            }
+            window.location.href = 'orderentity.html';
         }
 
         function showCustomAlert(title, message, icon = '⚠️', isWarning = true) {
@@ -281,6 +312,18 @@
         function closeCustomAlert() {
             document.getElementById('customAlertOverlay').classList.add('hidden');
         }
+
+        // รองรับการรับคำสั่งปิด Pop-up จากไฟล์ภายใน selectitem.html
+        window.addEventListener('message', (event) => {
+            if (!event.data) return;
+            const type = event.data.type || event.data.action;
+            if (type === 'CLOSE_MODAL' || type === 'closeModal') {
+                document.getElementById('dynamicPopupOverlay').classList.remove('active');
+                setTimeout(() => {
+                    document.getElementById('popupIframe').src = '';
+                }, 250);
+            }
+        });
     </script>
 </body>
 </html>

@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ระบบจัดการและเปรียบเทียบราคาร้านค้า - ลาบหนองบัวลำภู</title>
+    <!-- โหลด Supabase JS Client (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- โหลดไฟล์เชื่อมต่อ Supabase ของคุณ -->
+    <script src="supabaseClient.js"></script>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding: 10px; 
+            background-color: #ffffff; 
+            color: #333; 
+            margin: 0; 
+            box-sizing: border-box;
+        }
+
+        /* แถบหัวข้อด้านบนพร้อมปุ่มกลับหน้าผู้ดูแลระบบ */
+        .header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            gap: 10px;
+        }
+
+        .btn-back {
+            background-color: #e11d48; /* โทนสี Rose เข้ากับธีมปุ่มย้อนกลับ */
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            transition: background-color 0.2s, transform 0.1s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .btn-back:hover {
+            background-color: #be123c;
+        }
+
+        .btn-back:active {
+            transform: scale(0.98);
+        }
+
+        .page-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1e293b;
+            margin: 0;
+        }
+        
+        /* สไตล์ตารางแบบ Excel แท้ๆ ไร้กรอบกล่องครอบด้านนอก และทำ Scroll เฉพาะข้อมูลราคา */
+        .table-container { 
+            width: 100%;
+            overflow-x: auto; 
+            max-height: 450px; 
+            margin-bottom: 15px; 
+            background: white; 
+            border-top: 1px solid #b0bec5;
+            border-bottom: 1px solid #b0bec5;
+        }
+        
+        table { 
+            width: max-content; 
+            border-collapse: collapse; 
+            font-size: 13px; 
+            white-space: nowrap;
+        }
+        
+        th, td { 
+            border: 1px solid #b0bec5; 
+            padding: 8px 10px; 
+            text-align: center; 
+        }
+        
+        /* ล็อกหัวตารางให้อยู่ด้านบนสุดเวลาเลื่อนแนวตั้ง */
+        th { 
+            background-color: #343a40; 
+            color: white; 
+            font-weight: 600; 
+            position: sticky; 
+            top: 0; 
+            z-index: 20; 
+        }
+        
+        /* ล็อกคอลัมน์แรก (ชื่อรายการ) ให้อยู่กับที่เวลาเลื่อนแนวนอน และปรับขนาด Auto พอดีเนื้อหา */
+        td.product-name, th.product-header { 
+            position: sticky; 
+            left: 0; 
+            z-index: 10; 
+            background-color: #f1f3f5; 
+            text-align: left; 
+            font-weight: bold; 
+            width: auto;
+            max-width: 250px;
+        }
+        
+        th.product-header {
+            z-index: 30; /* สูงสุดเพื่อให้ทับทั้งแถวและคอลัมน์ตอนมุมซ้ายบน */
+            background-color: #343a40;
+            color: white;
+        }
+
+        input[type="number"] { 
+            width: 75px; 
+            padding: 4px; 
+            text-align: right; 
+            border: none; 
+            background: transparent; 
+            font-size: 13px; 
+            font-family: inherit;
+        }
+        input[type="number"]:focus { 
+            outline: 2px solid #007bff; 
+            background-color: #e3f2fd; 
+        }
+        
+        .best-price-cell { background-color: #d4edda; color: #155724; font-weight: bold; }
+
+        /* ฟอร์มเพิ่มข้อมูลด้านล่าง 2 คอลัมน์ (ช่องกรอกบน ปุ่มล่าง) */
+        .action-container { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 10px; 
+            margin-top: 10px; 
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .action-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .action-container input { 
+            width: 100%; 
+            padding: 8px 10px; 
+            border: 1px solid #ced4da; 
+            border-radius: 4px; 
+            font-size: 13px; 
+            outline: none; 
+            background: white;
+            box-sizing: border-box;
+        }
+        .action-container input:focus { 
+            border-color: #80bdff; 
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); 
+        }
+        
+        .btn { 
+            padding: 8px 12px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            color: white; 
+            text-align: center;
+            width: 100%;
+            font-size: 13px;
+        }
+        .btn-green { background-color: #28a745; }
+        .btn-green:hover { background-color: #218838; }
+        .btn-blue { background-color: #007bff; }
+        .btn-blue:hover { background-color: #0056b3; }
+
+        .loading { text-align: center; font-size: 16px; color: #555; margin-top: 30px; }
+        .status-msg { text-align: center; font-size: 13px; margin-top: 8px; height: 18px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <!-- แถบด้านบนสำหรับปุ่มย้อนกลับและชื่อหน้า -->
+    <div class="header-bar">
+        <!-- ส่ง parameter ?view=admin กลับไปที่ index.html เพื่อเปิดหน้าผู้ดูแลระบบโดยตรง -->
+        <button class="btn-back" onclick="window.location.href='index.html?view=admin'">
+            ⬅️ กลับหน้าผู้ดูแลระบบ
+        </button>
+        <span class="page-title">💰 จัดการต้นทุน</span>
+    </div>
+
+    <div id="loading" class="loading">กำลังโหลดข้อมูลตาราง...</div>
+    <div id="statusMsg" class="status-msg"></div>
+    
+    <!-- ตารางแสดงผลแบบ Excel ไร้กรอบครอบ เลื่อนอิสระเฉพาะข้อมูล -->
+    <div class="table-container">
+        <table id="priceTable" style="display: none;">
+            <thead>
+                <tr id="tableHeader">
+                    <th class="product-header">รายการ</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- ข้อมูลสินค้าจะถูกเติมที่นี่ -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ฟอร์มเพิ่มข้อมูล 2 คอลัมน์ -->
+    <div class="action-container">
+        <div class="action-group">
+            <input type="text" id="newProductName" placeholder="ชื่อสินค้าใหม่...">
+            <button class="btn btn-green" id="btnAddProduct">+ เพิ่มสินค้า</button>
+        </div>
+        <div class="action-group">
+            <input type="text" id="newSupplierName" placeholder="ชื่อร้านค้าใหม่...">
+            <button class="btn btn-blue" id="btnAddSupplier">+ เพิ่มร้านค้า</button>
+        </div>
+    </div>
+
+    <script>
+        async function initApp() {
+            const loadingEl = document.getElementById('loading');
+            const statusMsg = document.getElementById('statusMsg');
+            const tableEl = document.getElementById('priceTable');
+            const headerRow = document.getElementById('tableHeader');
+            const tableBody = document.getElementById('tableBody');
+
+            try {
+                const db = window.supabaseClient || window.supabase || window._supabase;
+                
+                if (!db || typeof db.from !== 'function') {
+                    throw new Error('ไม่พบตัวแปร window.supabaseClient กรุณาตรวจสอบการโหลดไฟล์ supabaseClient.js');
+                }
+
+                async function loadData() {
+                    loadingEl.style.display = 'block';
+                    tableEl.style.display = 'none';
+
+                    const { data: suppliers, error: supError } = await db
+                        .from('cost_suppliers')
+                        .select('*')
+                        .order('id', { ascending: true });
+                    if (supError) throw supError;
+
+                    const { data: products, error: prodError } = await db
+                        .from('cost_products')
+                        .select('*')
+                        .order('id', { ascending: true });
+                    if (prodError) throw prodError;
+
+                    const { data: prices, error: priceError } = await db
+                        .from('cost_product_prices')
+                        .select('*');
+                    if (priceError) console.warn('ดึงราคาเก่าไม่ได้:', priceError.message);
+
+                    const priceMap = {};
+                    if (prices) {
+                        prices.forEach(p => {
+                            priceMap[`${p.product_id}-${p.supplier_id}`] = p.price;
+                        });
+                    }
+
+                    // สร้างหัวตาราง: เริ่มต้นด้วยคอลัมน์ "รายการ", ตามด้วยรายชื่อร้านค้า, และปิดท้ายด้วย "🏆 ร้านที่ถูกที่สุด"
+                    headerRow.innerHTML = '<th class="product-header">รายการ</th>';
+                    suppliers.forEach(supplier => {
+                        const th = document.createElement('th');
+                        th.textContent = supplier.name;
+                        headerRow.appendChild(th);
+                    });
+                    const thSummary = document.createElement('th');
+                    thSummary.textContent = '🏆 ร้านที่ถูกที่สุด';
+                    headerRow.appendChild(thSummary);
+
+                    function updateBestPriceRow(productId) {
+                        let minPrice = Infinity;
+                        let cheapestSupplier = '-';
+
+                        suppliers.forEach(supplier => {
+                            const inputEl = document.getElementById(`input-${productId}-${supplier.id}`);
+                            if (!inputEl) return;
+                            const val = parseFloat(inputEl.value);
+                            
+                            const tdParent = inputEl.parentElement;
+                            tdParent.style.backgroundColor = '#fff';
+                            
+                            if (!isNaN(val) && val > 0) {
+                                if (val < minPrice) {
+                                    minPrice = val;
+                                    cheapestSupplier = supplier.name;
+                                }
+                            }
+                        });
+
+                        const summaryCell = document.getElementById(`summary-${productId}`);
+                        if (summaryCell && minPrice !== Infinity) {
+                            summaryCell.innerHTML = `⭐ <b>${cheapestSupplier}</b> (${minPrice.toLocaleString()} บาท)`;
+                            summaryCell.className = "best-price-cell";
+                            
+                            suppliers.forEach(supplier => {
+                                const inputEl = document.getElementById(`input-${productId}-${supplier.id}`);
+                                if (!inputEl) return;
+                                const val = parseFloat(inputEl.value);
+                                if (val === minPrice) {
+                                    inputEl.parentElement.style.backgroundColor = '#d4edda';
+                                }
+                            });
+                        } else if (summaryCell) {
+                            summaryCell.textContent = '-';
+                            summaryCell.className = "";
+                        }
+                    }
+
+                    if (products.length === 0 || suppliers.length === 0) {
+                        const tr = document.createElement('tr');
+                        const td = document.createElement('td');
+                        td.colSpan = suppliers.length + 2;
+                        td.style.textAlign = 'center';
+                        td.style.color = '#777';
+                        td.textContent = '⚠️ ยังไม่มีข้อมูลสินค้าหรือร้านค้า กรุณาเพิ่มข้อมูลด้านล่างก่อนครับ';
+                        tr.appendChild(td);
+                        tableBody.appendChild(tr);
+                    } else {
+                        products.forEach(product => {
+                            const tr = document.createElement('tr');
+
+                            const tdProd = document.createElement('td');
+                            tdProd.textContent = product.name;
+                            tdProd.className = "product-name";
+                            tr.appendChild(tdProd);
+
+                            suppliers.forEach(supplier => {
+                                const td = document.createElement('td');
+                                const input = document.createElement('input');
+                                input.type = 'number';
+                                input.step = 'any';
+                                input.placeholder = '0.00';
+                                input.id = `input-${product.id}-${supplier.id}`;
+                                
+                                const mapKey = `${product.id}-${supplier.id}`;
+                                if (priceMap[mapKey] !== undefined && priceMap[mapKey] !== null) {
+                                    input.value = priceMap[mapKey];
+                                }
+
+                                input.addEventListener('change', async (e) => {
+                                    const val = e.target.value;
+                                    statusMsg.style.color = '#e67e22';
+                                    statusMsg.textContent = 'กำลังบันทึกราคา...';
+
+                                    try {
+                                        const { error: saveError } = await db
+                                            .from('cost_product_prices')
+                                            .upsert({
+                                                product_id: product.id,
+                                                supplier_id: supplier.id,
+                                                price: val === '' ? null : parseFloat(val)
+                                            }, { onConflict: 'product_id,supplier_id' });
+
+                                        if (saveError) throw saveError;
+
+                                        statusMsg.style.color = '#27ae60';
+                                        statusMsg.textContent = 'บันทึกสำเร็จ!';
+                                        setTimeout(() => { statusMsg.textContent = ''; }, 1500);
+
+                                        updateBestPriceRow(product.id);
+                                    } catch (err) {
+                                        console.error('บันทึกไม่สำเร็จ:', err);
+                                        statusMsg.style.color = '#c0392b';
+                                        statusMsg.textContent = 'เกิดข้อผิดพลาด: ' + err.message;
+                                    }
+                                });
+
+                                td.appendChild(input);
+                                tr.appendChild(td);
+                            });
+
+                            const tdSummary = document.createElement('td');
+                            tdSummary.id = `summary-${product.id}`;
+                            tdSummary.textContent = '-';
+                            tr.appendChild(tdSummary);
+
+                            tableBody.appendChild(tr);
+                            updateBestPriceRow(product.id);
+                        });
+                    }
+
+                    loadingEl.style.display = 'none';
+                    tableEl.style.display = 'table';
+                }
+
+                document.getElementById('btnAddProduct').addEventListener('click', async () => {
+                    const nameInput = document.getElementById('newProductName');
+                    const name = nameInput.value.trim();
+                    if (!name) return alert('กรุณากรอกชื่อสินค้า');
+
+                    statusMsg.style.color = '#007bff';
+                    statusMsg.textContent = 'กำลังเพิ่มสินค้า...';
+
+                    const { error } = await db.from('cost_products').insert([{ name }]);
+                    if (error) {
+                        alert('เพิ่มไม่สำเร็จ: ' + error.message);
+                    } else {
+                        nameInput.value = '';
+                        statusMsg.textContent = 'เพิ่มสินค้าสำเร็จ!';
+                        setTimeout(() => { statusMsg.textContent = ''; }, 1500);
+                        loadData();
+                    }
+                });
+
+                document.getElementById('btnAddSupplier').addEventListener('click', async () => {
+                    const nameInput = document.getElementById('newSupplierName');
+                    const name = nameInput.value.trim();
+                    if (!name) return alert('กรุณากรอกชื่อร้านค้า');
+
+                    statusMsg.style.color = '#007bff';
+                    statusMsg.textContent = 'กำลังเพิ่มร้านค้า...';
+
+                    const { error } = await db.from('cost_suppliers').insert([{ name }]);
+                    if (error) {
+                        alert('เพิ่มไม่สำเร็จ: ' + error.message);
+                    } else {
+                        nameInput.value = '';
+                        statusMsg.textContent = 'เพิ่มร้านค้าสำเร็จ!';
+                        setTimeout(() => { statusMsg.textContent = ''; }, 1500);
+                        loadData();
+                    }
+                });
+
+                loadData();
+
+            } catch (err) {
+                console.error(err);
+                loadingEl.style.color = '#c0392b';
+                loadingEl.textContent = 'เกิดข้อผิดพลาด: ' + err.message;
+            }
+        }
+
+        initApp();
+    </script>
+
+</body>
+</html>

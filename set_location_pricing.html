@@ -1,0 +1,541 @@
+<!-- ไฟล์: set_location_pricing.html (ฉบับสมบูรณ์ ปรับตารางสไตล์ Excel และซ่อน ID อาหาร) -->
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>จัดการราคาพิเศษตามสถานที่ - ลาบหนองบัวลำภู</title>
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS Client (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- เรียกไฟล์ Initialization ของ Supabase -->
+    <script src="supabaseClient.js"></script>
+    
+    <style>
+      :root { --bg-color: #f8fafc; }
+      html, body { 
+          height: 100%; margin: 0; padding: 0; overflow: hidden; 
+          font-family: 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+          background-color: var(--bg-color); touch-action: manipulation; 
+          -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; user-select: none;
+      }
+      .app-container { 
+          max-width: 500px; margin: 0 auto; height: 100dvh; background: #ffffff; 
+          display: grid; grid-template-rows: auto auto 1fr auto; box-sizing: border-box; overflow: hidden;
+      }
+      .category-nav-wrap {
+          display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.5rem; padding: 0.5rem 0.1rem; width: 100%;
+      }
+      .cat-nav-btn {
+          position: relative; background-color: #ffffff; border: 1.5px solid #cbd5e1;
+          color: #1e293b; font-size: 0.9rem; font-weight: 700; padding: 0.75rem 0.5rem;
+          border-radius: 0.85rem; text-align: center; white-space: nowrap;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.15s ease;
+          display: flex; align-items: center; justify-content: center; gap: 0.35rem;
+          min-height: 52px; cursor: pointer; width: 100%; text-decoration: none;
+      }
+      .cat-nav-btn:active {
+          background-color: #0f172a; color: #ffffff; border-color: #0f172a; transform: scale(0.96);
+      }
+      .cat-nav-icon { font-size: 1.25rem; display: inline-block; flex-shrink: 0; }
+      ::-webkit-scrollbar { display: none; }
+      .popup-scrollbar::-webkit-scrollbar { width: 4px; display: block; }
+      .popup-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+      .popup-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+
+      .custom-modal-overlay {
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(15, 23, 42, 0.6);
+          backdrop-filter: blur(3px);
+          display: none;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+      }
+      .custom-modal-overlay.active {
+          display: flex !important;
+      }
+      .custom-modal-box {
+          background: white;
+          border-radius: 20px;
+          padding: 20px;
+          width: 92%;
+          max-width: 440px;
+          max-height: 85vh;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+          touch-action: pan-y;
+      }
+
+      /* สไตล์ตารางแบบ Excel: เส้นตารางติดกัน */
+      .excel-table {
+          border-collapse: collapse;
+          width: 100%;
+          background-color: #ffffff;
+          table-layout: fixed;
+      }
+      .excel-table th, .excel-table td {
+          border: 1px solid #cbd5e1;
+          padding: 4px 6px;
+          height: 36px;
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+      }
+      .excel-table th {
+          background-color: #f8fafc;
+          font-weight: 700;
+          position: sticky;
+          top: 0;
+          z-index: 10;
+          font-size: 11px;
+      }
+      /* ช่องกรอกข้อมูลราคาพิเศษแบบ Excel ไร้กรอบตอนปกติ กลมกลืนกับตาราง */
+      .excel-input {
+          border: none;
+          background: transparent;
+          width: 100%;
+          text-align: center;
+          font-size: 13px;
+          font-weight: 700;
+          outline: none;
+          padding: 2px 0;
+          color: #2563eb;
+      }
+      .excel-input:focus {
+          background-color: #ffffff;
+          border: 1px solid #3b82f6;
+          border-radius: 2px;
+      }
+    </style>
+</head>
+<body class="bg-slate-100 flex items-center justify-center antialiased">
+
+    <div class="app-container shadow-2xl w-full border border-slate-100">
+        
+        <!-- Header Section -->
+        <div class="py-3 px-4 bg-white border-b border-slate-100 text-center shrink-0 shadow-2xs">
+            <h1 class="font-black text-lg text-slate-800 tracking-tight flex items-center justify-center gap-1.5">
+                🏷️ จัดการราคาพิเศษตามสถานที่
+            </h1>
+            <p class="text-[11px] text-slate-400 font-medium mt-0.5">เลือกสถานที่ด้านบน แล้วเลือกกลุ่มอาหารเพื่อกำหนดราคาเฉพาะจุดที่ต่างจากปกติ</p>
+        </div>
+
+        <!-- Location Selector Section -->
+        <div class="p-3 bg-slate-50 border-b border-slate-200 shrink-0">
+            <div class="bg-amber-50/50 border border-amber-200/80 rounded-2xl p-3 shadow-sm">
+                <button type="button" onclick="openLocationModal()" class="w-full h-[46px] bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
+                    <span class="text-sm">📍</span>
+                    <span id="locationBtnText" class="truncate">-- กรุณาเลือกสถานที่ / รีสอร์ต --</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Content Section (Category Quick Nav Grid) -->
+        <div class="p-3 overflow-y-auto bg-slate-100" style="-webkit-overflow-scrolling: touch;">
+            <div id="quickNavContainer" class="category-nav-wrap border border-slate-200/80 rounded-2xl bg-white shadow-xs p-2">
+                <div class="col-span-2 text-center w-full text-slate-400 text-xs py-10 font-medium">⏳ กรุณาเลือกสถานที่หรือรีสอร์ตด้านบนก่อน...</div>
+            </div>
+        </div>
+
+        <!-- Footer Navigation Section -->
+        <div class="p-3 bg-white border-t border-slate-100 shrink-0 grid grid-cols-2 gap-2">
+            <button type="button" onclick="resetToHome()" 
+               class="bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-bold py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer">
+                🏠 หน้าแรกเพจนี้
+            </button>
+            <a href="index.html" 
+               class="bg-rose-500 hover:bg-rose-600 active:scale-95 text-white font-bold py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md no-underline text-center transition">
+                🚪 หน้าหลัก (Index)
+            </a>
+        </div>
+
+    </div>
+
+    <!-- Modal: Location Selection Popup -->
+    <div id="locationModal" class="custom-modal-overlay" onclick="handleOutsideClick(event, 'locationModal')">
+        <div class="custom-modal-box border-t-4 border-amber-500" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-3 pb-2 border-b">
+                <h3 class="font-bold text-base text-slate-800 flex items-center gap-1.5">📍 เลือกสถานที่ / รีสอร์ต</h3>
+                <button onclick="closeModal('locationModal')" class="text-gray-400 hover:text-gray-600 font-bold text-lg px-1">✕</button>
+            </div>
+
+            <div id="locationGrid" class="grid grid-cols-2 gap-2 overflow-y-auto py-1 pr-1 max-h-[60vh]"></div>
+        </div>
+    </div>
+
+    <!-- Modal: Category Price Editor Popup -->
+    <div id="popupModalWrapper" class="custom-modal-overlay" onclick="handleOutsideClick(event, 'popupModalWrapper')">
+        <div class="custom-modal-box border-t-4 border-blue-600 max-w-lg p-0 overflow-hidden" onclick="event.stopPropagation()">
+            
+            <!-- Header ป๊อปอัพกระชับและอยู่บรรทัดเดียวกัน -->
+            <div class="bg-slate-800 text-white px-3 py-2.5 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2 overflow-hidden">
+                    <span class="text-base shrink-0">📍</span>
+                    <div class="flex items-center gap-2 truncate">
+                        <h3 id="groupNameTitle" class="font-bold text-xs text-amber-300 truncate">กำลังโหลด...</h3>
+                        <span id="locationBadge" class="text-[10px] font-medium text-slate-300 shrink-0 bg-slate-700/80 px-2 py-0.5 rounded-md border border-slate-600">สถานที่: -</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                    <button onclick="closeModal('popupModalWrapper')" class="text-slate-300 hover:text-white font-bold text-xs px-2 py-1 cursor-pointer">✕ ปิด</button>
+                </div>
+            </div>
+
+            <!-- ตารางสไตล์ Excel ล็อกหัวตารางและเลื่อนได้ภายในหน้าจอ -->
+            <div class="flex-1 overflow-y-auto relative bg-slate-50 popup-scrollbar max-h-[60vh]">
+                <table class="excel-table text-xs">
+                    <thead>
+                        <tr class="text-slate-700 text-center">
+                            <th class="text-left px-2">รายการอาหาร</th>
+                            <th class="w-12 text-[10px]">ชาวบ้าน</th>
+                            <th class="w-12 text-[10px]">ท่องเที่ยว</th>
+                            <th class="w-12 text-[10px]">สบายดี</th>
+                            <th class="w-16 text-amber-900 bg-amber-50">ราคาพิเศษ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="foodListContainer">
+                        <tr>
+                            <td colspan="5" class="text-center py-8 text-slate-400 text-xs">⏳ กำลังโหลดรายการอาหาร...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Custom Alert Modal -->
+    <div id="customAlertModal" class="custom-modal-overlay" onclick="handleOutsideClick(event, 'customAlertModal')">
+        <div class="custom-modal-box max-w-xs text-center space-y-3" onclick="event.stopPropagation()">
+            <div id="alertIconContainer" class="w-12 h-12 rounded-full flex items-center justify-center mx-auto text-2xl">⚠️</div>
+            <div>
+                <h3 id="alertTitle" class="font-bold text-sm text-slate-800">แจ้งเตือน</h3>
+                <p id="alertMessageText" class="text-xs text-slate-600 mt-1 font-medium leading-relaxed"></p>
+            </div>
+            <div class="pt-1">
+                <button onclick="closeModal('customAlertModal')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer">
+                    ตกลง
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Core Logic -->
+    <script>
+        let db;
+        let foodGroups = [];
+        let locationsData = [];
+        let selectedLocationId = null;
+        let selectedLocationName = '';
+        let currentGroupName = '';
+        let currentCustomPrices = {};
+        let rawFoodGroupsData = [];
+
+        const categoryIcons = ['🍱', '🍲', '🍳', '🍚', '🥩', '⭐', '🥗', '🛍️', '🍽️', '🥢', '🍹'];
+
+        function getDbClient() {
+            if (db) return db;
+            if (typeof window.supabaseClient !== 'undefined') db = window.supabaseClient;
+            else if (typeof supabaseClient !== 'undefined') db = supabaseClient;
+            return db;
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            db = getDbClient();
+            if (db) {
+                await loadLocations();
+                await loadFoodGroups();
+            } else {
+                document.getElementById('quickNavContainer').innerHTML = `<div class="col-span-2 text-center w-full text-rose-500 text-xs py-10 font-medium">❌ ไม่สามารถเชื่อมต่อฐานข้อมูลได้</div>`;
+            }
+        });
+
+        function openModal(id) { document.getElementById(id)?.classList.add('active'); }
+        function closeModal(id) { document.getElementById(id)?.classList.remove('active'); }
+        function handleOutsideClick(e, id) { if (e.target.id === id) closeModal(id); }
+
+        function showAlertModal(message, type = 'warning') {
+            const iconContainer = document.getElementById('alertIconContainer');
+            const titleEl = document.getElementById('alertTitle');
+            const textEl = document.getElementById('alertMessageText');
+            textEl.textContent = message;
+
+            if (type === 'error') {
+                iconContainer.className = 'w-12 h-12 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto text-2xl';
+                iconContainer.textContent = '❌'; titleEl.textContent = 'เกิดข้อผิดพลาด';
+            } else if (type === 'success') {
+                iconContainer.className = 'w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-2xl';
+                iconContainer.textContent = '✅'; titleEl.textContent = 'สำเร็จ';
+            } else {
+                iconContainer.className = 'w-12 h-12 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto text-2xl';
+                iconContainer.textContent = '⚠️'; titleEl.textContent = 'แจ้งเตือน';
+            }
+            openModal('customAlertModal');
+        }
+
+        async function loadLocations() {
+            try {
+                const { data, error } = await db.from('locations').select('*').order('name', { ascending: true });
+                if (error) throw error;
+                locationsData = data || [];
+            } catch (err) {
+                console.error("Error loading locations:", err);
+            }
+        }
+
+        function openLocationModal() {
+            const grid = document.getElementById('locationGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            if (locationsData.length === 0) {
+                grid.innerHTML = `<div class="col-span-2 text-center text-slate-400 text-xs py-4">ไม่พบข้อมูลสถานที่</div>`;
+            }
+
+            locationsData.forEach(loc => {
+                let icon = '🏨';
+                if (loc.name.includes('บาหลี')) icon = '🏝️';
+                else if (loc.name.includes('บ้านเขา')) icon = '🏡';
+                else if (loc.name.includes('ชิลล์')) icon = '☕';
+                else if (loc.name.includes('หน้าร้าน')) icon = '🏪';
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'flex flex-col items-center justify-center p-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition cursor-pointer shadow-sm active:scale-95';
+                btn.innerHTML = `
+                    <span class="text-xl mb-1">${icon}</span>
+                    <span class="text-sm font-bold text-slate-800 text-center leading-tight truncate w-full">${loc.name}</span>
+                `;
+                btn.onclick = () => selectLocation(loc);
+                grid.appendChild(btn);
+            });
+
+            openModal('locationModal');
+        }
+
+        function resetToHome() {
+            selectedLocationId = null;
+            selectedLocationName = '';
+            document.getElementById('locationBtnText').innerText = '-- กรุณาเลือกสถานที่ / รีสอร์ต --';
+            document.getElementById('quickNavContainer').innerHTML = `<div class="col-span-2 text-center w-full text-slate-400 text-xs py-10 font-medium">⏳ กรุณาเลือกสถานที่หรือรีสอร์ตด้านบนก่อน...</div>`;
+            window.scrollTo({ top: 0, height: 'smooth' });
+        }
+
+        async function selectLocation(loc) {
+            selectedLocationId = loc.location_id || loc.id;
+            selectedLocationName = loc.name;
+
+            document.getElementById('locationBtnText').innerText = selectedLocationName;
+            closeModal('locationModal');
+
+            await loadCustomPricesForLocation(selectedLocationId);
+            renderQuickNav();
+        }
+
+        async function loadFoodGroups() {
+            try {
+                const { data: fgData, error } = await db.from('food_groups').select('*');
+                if (error) throw error;
+                
+                rawFoodGroupsData = fgData || [];
+                foodGroups = rawFoodGroupsData.map(g => ({
+                    id: g.food_group_id || g.id,
+                    name: g.name || g.food_group_name || 'อื่นๆ'
+                }));
+                
+                const seen = new Set();
+                foodGroups = foodGroups.filter(g => {
+                    if (seen.has(g.name) || g.name === 'importmain') return false;
+                    seen.add(g.name);
+                    return true;
+                }).sort((a, b) => a.name.localeCompare(b.name, ['th', 'en'], { numeric: true }));
+
+                if (selectedLocationId) {
+                    renderQuickNav();
+                }
+            } catch (err) {
+                console.error("Error loading groups:", err);
+            }
+        }
+
+        function renderQuickNav() {
+            const navContainer = document.getElementById('quickNavContainer');
+            if (!navContainer) return;
+            navContainer.innerHTML = '';
+
+            if (foodGroups.length === 0) {
+                navContainer.innerHTML = `<div class="col-span-2 text-center w-full text-slate-400 text-xs py-10 font-medium">ยังไม่มีหมวดหมู่อหาร</div>`;
+                return;
+            }
+
+            foodGroups.forEach((cat, index) => {
+                const icon = categoryIcons[index % categoryIcons.length];
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'cat-nav-btn';
+                btn.innerHTML = `<span class="cat-nav-icon">${icon}</span> <span>${cat.name}</span>`;
+                btn.onclick = () => openCategoryModal(cat.name);
+                navContainer.appendChild(btn);
+            });
+        }
+
+        async function loadCustomPricesForLocation(locationId) {
+            try {
+                const { data, error } = await db
+                    .from('location_food_prices')
+                    .select('food_id, custom_price')
+                    .eq('location_id', locationId);
+
+                if (error) throw error;
+
+                currentCustomPrices = {};
+                (data || []).reverse().forEach(p => {
+                    currentCustomPrices[p.food_id] = p.custom_price;
+                });
+            } catch (err) {
+                console.error("Error loading custom prices:", err);
+            }
+        }
+
+        async function openCategoryModal(groupName) {
+            if (!selectedLocationId) {
+                showAlertModal('กรุณาเลือกสถานที่/รีสอร์ต ด้านบนก่อนเลือกหมวดหมู่อหารครับ', 'warning');
+                return;
+            }
+
+            currentGroupName = groupName;
+            document.getElementById('groupNameTitle').textContent = currentGroupName;
+            document.getElementById('locationBadge').textContent = `สถานที่: ${selectedLocationName}`;
+            
+            openModal('popupModalWrapper');
+            await loadCategoryFoodsAndPrices(selectedLocationId, groupName);
+        }
+
+        async function loadCategoryFoodsAndPrices(locationId, groupName) {
+            const container = document.getElementById('foodListContainer');
+            container.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 text-xs">⏳ กำลังโหลดรายการอาหาร...</td></tr>`;
+
+            try {
+                await loadCustomPricesForLocation(locationId);
+
+                let foods = [];
+
+                const { data: f1 } = await db.from('foods').select('*').eq('food_group', groupName);
+                if (f1 && f1.length > 0) foods = f1;
+
+                if (foods.length === 0) {
+                    const { data: f2 } = await db.from('foods').select('*').ilike('food_group', `%${groupName}%`);
+                    if (f2 && f2.length > 0) foods = f2;
+                }
+
+                if (foods.length === 0) {
+                    const matchedGroups = rawFoodGroupsData.filter(g => (g.name === groupName || g.food_group_name === groupName));
+                    const groupIds = matchedGroups.map(g => g.food_group_id || g.id).filter(Boolean);
+
+                    if (groupIds.length > 0) {
+                        const { data: f3 } = await db.from('foods').select('*').in('food_group_id', groupIds);
+                        if (f3 && f3.length > 0) foods = f3;
+                    }
+                }
+
+                if (foods.length === 0) {
+                    const { data: allFoods } = await db.from('foods').select('*');
+                    if (allFoods) {
+                        foods = allFoods.filter(f => {
+                            return f.food_group === groupName || 
+                                   f.category === groupName || 
+                                   f.group_name === groupName;
+                        });
+                    }
+                }
+
+                renderFoodRows(foods);
+
+            } catch (err) {
+                console.error("Error loading category foods:", err);
+                container.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-rose-500 text-xs">เกิดข้อผิดพลาด: ${err.message}</td></tr>`;
+            }
+        }
+
+        function renderFoodRows(foods) {
+            const container = document.getElementById('foodListContainer');
+            container.innerHTML = '';
+
+            if (!foods || foods.length === 0) {
+                container.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 text-xs">❌ ไม่พบรายการอาหารในหมวดหมู่นี้</td></tr>`;
+                return;
+            }
+
+            foods.sort((a, b) => (a.name || '').localeCompare(b.name || '', ['th', 'en']));
+
+            foods.forEach(food => {
+                const foodId = food.food_id || food.id; 
+                const customPrice = currentCustomPrices[foodId];
+                const displayVal = (customPrice !== undefined && customPrice !== null) ? customPrice : '';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-100 transition";
+                
+                tr.innerHTML = `
+                    <td class="font-bold text-slate-800 px-2 truncate" style="font-size: 14px;" title="${food.name}">
+                        🏨 <span class="truncate">${food.name}</span>
+                    </td>
+                    <td class="text-center text-slate-500 text-[11px] font-medium p-0">
+                        ${food.price_1 || 0}
+                    </td>
+                    <td class="text-center text-slate-500 text-[11px] font-medium p-0">
+                        ${food.price_2 || 0}
+                    </td>
+                    <td class="text-center text-slate-500 text-[11px] font-medium p-0">
+                        ${food.price_3 || 0}
+                    </td>
+                    <td class="text-center align-middle p-0 bg-amber-50/40">
+                        <input type="text" placeholder="ตาม Std" 
+                            value="${displayVal}" 
+                            onfocus="this.select()" 
+                            onblur="saveCustomPrice(${foodId}, this.value)" 
+                            class="excel-input"
+                            title="กรอกเฉพาะราคาที่สถานที่นี้ไม่เหมือนราคาปกติ">
+                    </td>
+                `;
+                container.appendChild(tr);
+            });
+        }
+
+        async function saveCustomPrice(foodId, value) {
+            if (!selectedLocationId || !foodId) return;
+
+            const valTrim = value.trim();
+
+            try {
+                if (valTrim === '') {
+                    await db.from('location_food_prices')
+                        .delete()
+                        .match({ location_id: parseInt(selectedLocationId), food_id: parseInt(foodId) });
+                    
+                    delete currentCustomPrices[foodId];
+                } else {
+                    const newPrice = parseFloat(valTrim) || 0;
+                    
+                    const { error } = await db.from('location_food_prices').upsert({
+                        location_id: parseInt(selectedLocationId),
+                        food_id: parseInt(foodId),
+                        custom_price: newPrice
+                    }, { onConflict: 'location_id, food_id' });
+
+                    if (error) throw error;
+                    currentCustomPrices[foodId] = newPrice;
+                }
+            } catch (err) {
+                console.error("Save price error:", err);
+                showAlertModal('บันทึกราคาไม่สำเร็จ: ' + err.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

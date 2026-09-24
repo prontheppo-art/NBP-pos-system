@@ -1,4 +1,3 @@
-<!-- ไฟล์: selectfood.html -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -7,11 +6,11 @@
     <title>เลือกรายการอาหาร - ลาบหนองบัวลำภู</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         html, body { 
             width: 100%; 
-            height: fit-content; 
+            height: auto !important; 
+            min-height: auto !important;
             margin: 0; 
             padding: 0; 
             background: #ffffff; 
@@ -26,7 +25,7 @@
             display: grid; 
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important; 
             gap: 0.5rem; 
-            align-content: start;
+            align-content: start; /* จัดเรียงชิดด้านบน ไม่ให้กระจายตัวอยู่ตรงกลาง */
         }
         .food-btn { 
             position: relative; 
@@ -65,52 +64,50 @@
             justify-content: center; 
             border: 2px solid #ffffff; 
         }
-        .swal2-popup { font-family: 'Sarabun', sans-serif !important; }
-
-        /* ซ่อน Scrollbar ของหน้าต่างหลัก */
         ::-webkit-scrollbar { width: 0px; background: transparent; }
     </style>
 </head>
-<body class="p-3 flex flex-col justify-between box-border">
+<body class="p-3 flex flex-col box-border">
 
-    <!-- ตัดส่วน Header ออกแล้ว เพื่อไม่ให้ซ้ำซ้อนกับ Modal ของหน้าหลัก -->
-
-    <!-- ส่วนรายการอาหาร (Food Items Grid) -->
     <div id="foodGridContainer" class="food-grid my-1 pr-1">
         <div class="col-span-2 text-center py-6 text-slate-400 font-bold text-[15px]">⏳ กำลังโหลดรายการอาหาร...</div>
     </div>
 
     <script src="supabaseClient.js"></script>
     <script>
-        // ป้องกัน Zoom
-        document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
-        document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
-        document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
         document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
 
         let db;
         let currentCatId = null;
-        let currentCatName = '';
-        let currentCatIcon = '🍱';
         let foods = [];
 
+        // ส่งความสูงจริงกลับไปปรับขนาด Iframe ที่หน้าหลักแบบอัตโนมัติ
         function sendAutoHeight() {
             setTimeout(() => {
                 const actualHeight = document.body.scrollHeight || document.documentElement.scrollHeight;
                 window.parent.postMessage({
                     type: 'RESIZE_IFRAME',
                     action: 'resizeIframe',
-                    iframeId: 'iframeSelectFood',
-                    height: actualHeight
+                    height: actualHeight + 20
                 }, '*');
-            }, 60);
+            }, 50);
         }
 
         function initDatabase() {
             if (typeof supabaseClient !== 'undefined' && supabaseClient) {
                 db = supabaseClient;
-            } else if (typeof window.supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_KEY !== 'undefined') {
+            } else if (typeof window.supabase !== 'undefined' && typeof SUPABASE_URL !== 'undefined') {
                 db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            }
+        }
+
+        function sortFoods() {
+            if (foods && foods.length > 0) {
+                foods.sort((a, b) => {
+                    const nameA = (a.name || a.food_name || '').toString().trim();
+                    const nameB = (b.name || b.food_name || '').toString().trim();
+                    return nameA.localeCompare(nameB, ['th', 'en'], { numeric: true, sensitivity: 'base' });
+                });
             }
         }
 
@@ -119,8 +116,6 @@
             
             const urlParams = new URLSearchParams(window.location.search);
             currentCatId = urlParams.get('group_id') || urlParams.get('catId') || urlParams.get('cat_id');
-            currentCatName = urlParams.get('name') || urlParams.get('catName') || urlParams.get('cat_name') || '';
-            currentCatIcon = urlParams.get('icon') || urlParams.get('catIcon') || urlParams.get('cat_icon') || '🍱';
 
             if (currentCatId) {
                 const globalCachedFoods = localStorage.getItem('cache_foods');
@@ -132,6 +127,7 @@
                             Number(f.food_group_id) === Number(currentCatId) ||
                             Number(f.category_id) === Number(currentCatId)
                         );
+                        sortFoods();
                         if (foods.length > 0) {
                             renderCategoryFoodGrid();
                         }
@@ -161,7 +157,7 @@
                         Number(f.food_group_id) === Number(currentCatId) ||
                         Number(f.category_id) === Number(currentCatId)
                     );
-                    sessionStorage.setItem(`foods_cat_${currentCatId}`, JSON.stringify(foods));
+                    sortFoods();
                 }
             } catch (e) {
                 console.error("Fetch foods error:", e);
@@ -201,12 +197,14 @@
             sendAutoHeight();
         }
 
-        window.addEventListener('storage', renderCategoryFoodGrid);
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'cart' || !e.key) renderCategoryFoodGrid();
+        });
         window.addEventListener('resize', sendAutoHeight);
         window.addEventListener('message', async (e) => {
             if (!e.data) return;
             const type = e.data.type || e.data.action;
-            if (type === 'REFRESH_FOOD_GRID' || type === 'UPDATE_CART_COUNT' || type === 'UPDATE_CART' || type === 'CART_UPDATED' || type === 'RELOAD_FOODS') {
+            if (type === 'REFRESH_FOOD_GRID' || type === 'UPDATE_CART_COUNT' || type === 'UPDATE_CART' || type === 'CART_UPDATED') {
                 if (e.data.cart) {
                     localStorage.setItem('cart', JSON.stringify(e.data.cart));
                 }

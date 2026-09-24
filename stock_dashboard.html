@@ -1,0 +1,708 @@
+<!-- 
+  File Name: stock-management.html
+  Description: ระบบจัดการสต็อกและสูตรอาหาร (ปรับปรุงปุ่มย้อนกลับให้ตรงไปยังหน้าแอดมินโดยไม่มี Alert แจ้งเตือน)
+-->
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>จัดการสต็อกและสูตรอาหาร</title>
+    <!-- โหลด Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- โหลด Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+      * { touch-action: pan-y; }
+      body { width: 100vw; overflow-x: hidden; margin: 0; padding: 0; }
+      :root { --bg-color: #f3f4f6; }
+      
+      .popup-scrollbar::-webkit-scrollbar { width: 4px; display: block; }
+      .popup-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+      .popup-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+
+      .custom-modal-overlay {
+          position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(3px);
+          display: none; align-items: center; justify-content: center; z-index: 9999;
+      }
+      .custom-modal-overlay.active { display: flex !important; }
+      .custom-modal-box {
+          background: white; border-radius: 20px; padding: 20px;
+          width: 92%; max-width: 440px; max-height: 85vh;
+          display: flex; flex-direction: column;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+      }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <div class="max-w-5xl mx-auto p-2 sm:p-4 overflow-hidden space-y-3">
+        <!-- หัวข้อระบบ -->
+        <div class="flex justify-between items-center mb-3">
+            <h1 class="text-base sm:text-xl font-bold truncate">📦 ระบบจัดการสต็อกและสูตรอาหาร</h1>
+            <!-- ปุ่มเปลี่ยนข้อความและลิงก์กลับหน้าผู้ดูแลระบบ -->
+            <button onclick="goBack()" class="bg-orange-500 hover:bg-orange-600 active:scale-95 text-white px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold shadow shrink-0 cursor-pointer transition">
+                ⬅️ กลับหน้าผู้ดูแลระบบ
+            </button>
+        </div>
+
+        <!-- ================= SECTION: เพิ่มวัตถุดิบตั้งต้นใหม่ ================= -->
+        <div class="bg-white p-3 rounded-lg shadow">
+            <h2 class="font-bold text-xs sm:text-sm mb-2">➕ เพิ่มวัตถุดิบตั้งต้นใหม่</h2>
+            <div class="flex items-center gap-1.5 w-full">
+                <button type="button" onclick="openStockSelectModal()" id="selectedStockBtn" class="border p-2 rounded text-xs sm:text-sm w-7/12 min-w-0 bg-white text-left truncate flex items-center justify-between cursor-pointer">
+                    <span id="selectedStockText" class="truncate text-slate-500">-- เลือกวัตถุดิบ --</span>
+                    <span class="text-slate-400 text-xs ml-1">▼</span>
+                </button>
+                <input type="number" id="stockQty" placeholder="จำนวน" class="border p-2 rounded text-xs sm:text-sm w-3/12 min-w-0">
+                <button onclick="addStock()" class="bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-2 rounded font-bold text-xs sm:text-sm w-2/12 shrink-0 cursor-pointer text-center">บันทึก</button>
+            </div>
+        </div>
+
+        <!-- ================= SECTION: เลือกวัตถุดิบเพื่อกำหนดสูตร ================= -->
+        <div class="bg-white p-3 rounded-lg shadow">
+            <h2 class="font-bold text-xs sm:text-sm mb-2">📦 เลือกวัตถุดิบตั้งต้นเพื่อกำหนดสูตร</h2>
+            <div class="bg-amber-50/50 border border-amber-200/80 rounded-xl p-2 shadow-sm flex items-center gap-2">
+                <button type="button" onclick="openStockModal()" class="w-full h-[40px] bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold px-3 rounded-lg text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer">
+                    <span class="text-sm">🥩</span>
+                    <span id="stockBtnText" class="truncate">-- กรุณาเลือกวัตถุดิบตั้งต้นก่อน --</span>
+                </button>
+                <button type="button" onclick="openRecipeLinkModal()" id="linkMenuBtn" class="h-[40px] bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 rounded-lg text-xs shrink-0 cursor-pointer hidden">
+                    🔗 ผูกเมนู
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= GRID 2 COLUMNS: รายการสต็อก และ สรุปรายการลิงก์ ================= -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+            <div class="bg-white p-3 rounded-lg shadow">
+                <h2 class="font-bold text-xs sm:text-sm mb-2">📋 รายการสต็อกวัตถุดิบปัจจุบัน <span class="text-[10px] text-slate-400 font-normal">(คลิกตัวเลขเพื่อแก้ไข)</span></h2>
+                <div id="stockList" class="text-gray-500 text-xs sm:text-sm max-h-80 overflow-y-auto popup-scrollbar">กำลังโหลดข้อมูล...</div>
+            </div>
+
+            <div class="bg-white p-3 rounded-lg shadow border-l-4 border-blue-500">
+                <h2 class="font-bold text-xs sm:text-sm mb-2 text-blue-800">🔗 สรุปรายการลิงก์: วัตถุดิบ ➔ เมนูอาหารที่ใช้</h2>
+                <div id="stockLinkSummary" class="text-xs text-slate-600 max-h-80 overflow-y-auto popup-scrollbar">
+                    <span class="text-gray-400">⏳ กำลังโหลดข้อมูลการลิงก์...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: แก้ไขจำนวนสต็อกวัตถุดิบ -->
+    <div id="editStockModal" class="custom-modal-overlay" onclick="handleOutsideClick(event, 'editStockModal')">
+        <div class="custom-modal-box border-t-4 border-amber-600" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-3 pb-2 border-b">
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">✏️ แก้ไขจำนวนสต็อก</h3>
+                <button onclick="closeModal('editStockModal')" class="text-gray-400 hover:text-gray-600 font-bold text-base px-1 cursor-pointer">✕</button>
+            </div>
+            
+            <div class="mb-3">
+                <label class="block text-xs text-slate-500 mb-1">วัตถุดิบ</label>
+                <div id="editStockNameLabel" class="font-bold text-sm text-slate-800 bg-slate-50 p-2 rounded border border-slate-200"></div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs text-slate-500 mb-1">จำนวนใหม่ (ชุด)</label>
+                <input type="number" id="editStockQtyInput" placeholder="กรอกจำนวนใหม่" class="border p-2 rounded text-xs sm:text-sm w-full font-bold">
+            </div>
+
+            <input type="hidden" id="editStockIdInput">
+
+            <div class="flex gap-2">
+                <button onclick="closeModal('editStockModal')" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 rounded-lg text-xs sm:text-sm cursor-pointer">ยกเลิก</button>
+                <button onclick="saveEditStockQty()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-lg text-xs sm:text-sm cursor-pointer shadow">💾 บันทึก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: เลือกวัตถุดิบตั้งต้นสำหรับกำหนดสูตร -->
+    <div id="stockModal" class="custom-modal-overlay" onclick="handleOutsideClick(event, 'stockModal')">
+        <div class="custom-modal-box border-t-4 border-amber-500" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-3 pb-2 border-b">
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">📦 เลือกวัตถุดิบตั้งต้น</h3>
+                <button onclick="closeModal('stockModal')" class="text-gray-400 hover:text-gray-600 font-bold text-base px-1 cursor-pointer">✕</button>
+            </div>
+            <div id="stockGrid" class="grid grid-cols-2 gap-2 overflow-y-auto py-1 pr-1 max-h-[60vh]"></div>
+        </div>
+    </div>
+
+    <!-- Modal: เลือกเมนูอาหารเพื่อผูกกับวัตถุดิบ -->
+    <div id="recipeLinkModal" class="custom-modal-overlay" onclick="handleOutsideClick(event, 'recipeLinkModal')">
+        <div class="custom-modal-box border-t-4 border-blue-600" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-3 pb-2 border-b">
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">🔗 เลือกเมนูที่ใช้วัตถุดิบนี้</h3>
+                <button onclick="closeModal('recipeLinkModal')" class="text-gray-400 hover:text-gray-600 font-bold text-base px-1 cursor-pointer">✕</button>
+            </div>
+            <div class="text-xs text-slate-500 mb-2" id="recipeLinkModalSubtitle">กำลังโหลด...</div>
+            
+            <div id="categoryGridView" class="space-y-2">
+                <div class="text-center text-slate-400 text-xs py-4">กำลังโหลดหมวดหมู่เมนู...</div>
+            </div>
+
+            <div id="categoryDetailView" class="hidden flex flex-col h-full">
+                <div class="flex items-center justify-between mb-2 pb-1.5 border-b">
+                    <button type="button" onclick="backToCategoryGrid()" class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-2.5 py-1 rounded-lg font-bold cursor-pointer flex items-center gap-1">
+                        <span>⬅️</span> กลับไปเลือกหมวดหมู่
+                    </button>
+                    <div class="space-x-1">
+                        <button type="button" onclick="toggleCurrentCategoryCheck(true)" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 font-semibold cursor-pointer">เลือกทั้งหมด</button>
+                        <button type="button" onclick="toggleCurrentCategoryCheck(false)" class="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded hover:bg-slate-200 font-semibold cursor-pointer">ยกเลิก</button>
+                    </div>
+                </div>
+                <div id="currentCategoryTitle" class="font-bold text-xs text-blue-800 mb-1"></div>
+                <div id="recipeCheckboxList" class="space-y-1.5 overflow-y-auto max-h-[45vh] popup-scrollbar pr-1 mb-3 flex-1"></div>
+            </div>
+
+            <div class="mt-3 pt-2 border-t">
+                <button onclick="saveRecipeLinks()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-xs sm:text-sm cursor-pointer shadow">
+                    💾 บันทึกการเชื่อมโยงเมนู
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: เลือกหรือพิมพ์เพิ่มวัตถุดิบสำหรับช่องเพิ่มสต็อก -->
+    <div id="stockSelectModal" class="custom-modal-overlay" onclick="handleOutsideClick(event, 'stockSelectModal')">
+        <div class="custom-modal-box border-t-4 border-amber-600" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-3 pb-2 border-b">
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">🥩 เลือกหรือพิมพ์เพิ่มวัตถุดิบ</h3>
+                <button onclick="closeModal('stockSelectModal')" class="text-gray-400 hover:text-gray-600 font-bold text-base px-1 cursor-pointer">✕</button>
+            </div>
+            
+            <div class="mb-3 pb-3 border-b flex gap-2">
+                <input type="text" id="customStockInput" placeholder="✏️ พิมพ์ชื่อวัตถุดิบใหม่ที่นี่..." class="border p-2 rounded text-xs sm:text-sm flex-1">
+                <button onclick="selectCustomStock()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-xs font-bold shrink-0 cursor-pointer">ใช้ชื่อนี้</button>
+            </div>
+
+            <div id="stockSelectListContainer" class="space-y-1.5 overflow-y-auto max-h-[50vh] popup-scrollbar pr-1">
+                <div class="text-center text-slate-400 text-xs py-4">กำลังโหลดข้อมูล...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- เรียกใช้ไฟล์ Supabase Client -->
+    <script src="supabaseClient.js"></script>
+
+    <script>
+        let db;
+        let stockData = [];
+        let allFoodsData = [];
+        let foodGroupsData = [];
+        let linkedFoodIdsCache = [];
+        let selectedStockId = null;
+        let selectedStockName = '';
+        let chosenStockValue = ''; 
+        let activeGroupId = null;
+
+        function getDbClient() {
+            if (db) return db;
+            if (typeof window.supabaseClient !== 'undefined') db = window.supabaseClient;
+            else if (typeof supabaseClient !== 'undefined') db = supabaseClient;
+            return db;
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            db = getDbClient();
+            if (db) {
+                await loadStockItems();
+                await loadAllFoods();
+                loadStocks();
+                loadAllStockRecipeLinks();
+            } else {
+                console.error("Supabase client not found.");
+            }
+        });
+
+        function openModal(id) { document.getElementById(id)?.classList.add('active'); }
+        function closeModal(id) { document.getElementById(id)?.classList.remove('active'); }
+        function handleOutsideClick(e, id) { if (e.target.id === id) closeModal(id); }
+
+        async function loadAllFoods() {
+            try {
+                const { data, error } = await db.from('foods').select('*').order('name', { ascending: true });
+                if (error) throw error;
+                allFoodsData = data || [];
+            } catch (err) {
+                console.error("Error loading foods:", err);
+            }
+        }
+
+        function openStockSelectModal() {
+            const container = document.getElementById('stockSelectListContainer');
+            container.innerHTML = '';
+
+            let html = `
+                <div onclick="chooseStockItem('')" class="p-2.5 rounded-lg border border-slate-200 hover:bg-amber-50 cursor-pointer font-medium text-slate-500 text-xs sm:text-sm flex items-center justify-between">
+                    <span>-- เลือกวัตถุดิบจากรายการ --</span>
+                </div>
+            `;
+
+            stockData.forEach(item => {
+                html += `
+                    <div onclick="chooseStockItem('${item.food_stock_name}')" class="p-2.5 rounded-lg border border-slate-200 hover:bg-amber-50 cursor-pointer font-bold text-slate-800 text-xs sm:text-sm flex items-center justify-between transition">
+                        <span>🥩 ${item.food_stock_name}</span>
+                        <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">${item.quantity || 0} ชุด</span>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            document.getElementById('customStockInput').value = '';
+            openModal('stockSelectModal');
+        }
+
+        function chooseStockItem(name) {
+            chosenStockValue = name;
+            const textEl = document.getElementById('selectedStockText');
+            if (name) {
+                textEl.textContent = name;
+                textEl.className = 'truncate text-slate-800 font-bold';
+            } else {
+                textEl.textContent = '-- เลือกวัตถุดิบ --';
+                textEl.className = 'truncate text-slate-500';
+            }
+            closeModal('stockSelectModal');
+        }
+
+        function selectCustomStock() {
+            const customName = document.getElementById('customStockInput').value.trim();
+            if (!customName) {
+                alert('กรุณาพิมพ์ชื่อวัตถุดิบใหม่');
+                return;
+            }
+            chooseStockItem(customName);
+        }
+
+        async function addStock() {
+            const name = chosenStockValue.trim();
+            const qty = parseFloat(document.getElementById('stockQty').value);
+
+            if (!name || isNaN(qty)) {
+                alert('กรุณาเลือกหรือกรอกชื่อวัตถุดิบและจำนวนให้ครบถ้วน');
+                return;
+            }
+
+            const existingItem = stockData.find(item => item.food_stock_name.trim().toLowerCase() === name.toLowerCase());
+
+            if (existingItem) {
+                const stockId = existingItem.food_stock_id || existingItem.id;
+                const newQty = (parseFloat(existingItem.quantity) || 0) + qty;
+
+                const { error } = await db
+                    .from('food_stock')
+                    .update({ quantity: newQty, updated_at: new Date() })
+                    .eq('food_stock_id', stockId);
+
+                if (error) {
+                    alert('เกิดข้อผิดพลาด: ' + error.message);
+                } else {
+                    resetForm();
+                    await loadStockItems();
+                    loadStocks();
+                    loadAllStockRecipeLinks();
+                }
+            } else {
+                const { error } = await db
+                    .from('food_stock')
+                    .insert([{ food_stock_name: name, quantity: qty }]);
+
+                if (error) {
+                    alert('เกิดข้อผิดพลาด: ' + error.message);
+                } else {
+                    resetForm();
+                    await loadStockItems();
+                    loadStocks();
+                    loadAllStockRecipeLinks();
+                }
+            }
+        }
+
+        function resetForm() {
+            chosenStockValue = '';
+            const textEl = document.getElementById('selectedStockText');
+            textEl.textContent = '-- เลือกวัตถุดิบ --';
+            textEl.className = 'truncate text-slate-500';
+            document.getElementById('stockQty').value = '';
+        }
+
+        // โหลดและแสดงรายการสต็อกวัตถุดิบปัจจุบัน
+        async function loadStocks() {
+            const { data, error } = await db
+                .from('food_stock')
+                .select('*')
+                .order('food_stock_id', { ascending: true });
+
+            const container = document.getElementById('stockList');
+            if (error) {
+                container.innerHTML = '<span class="text-red-500">โหลดข้อมูลไม่สำเร็จ: ' + error.message + '</span>';
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                container.innerHTML = '<span class="text-gray-400">ยังไม่มีข้อมูลวัตถุดิบในระบบ</span>';
+                return;
+            }
+
+            let html = '<div class="grid grid-cols-2 gap-2">';
+            data.forEach(item => {
+                const stockId = item.food_stock_id || item.id;
+                const stockName = item.food_stock_name;
+                const qty = item.quantity || 0;
+
+                html += `
+                    <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-center text-xs sm:text-sm">
+                        <span class="truncate font-medium text-slate-800">${stockName}</span> 
+                        <button type="button" onclick="openEditStockModal('${stockId}', '${stockName}', ${qty})" class="font-bold bg-amber-100 hover:bg-amber-200 text-amber-800 px-2 py-0.5 rounded shrink-0 ml-1 transition cursor-pointer shadow-sm" title="คลิกเพื่อแก้ไขจำนวน">
+                            ✏️ ${qty} ชุด
+                        </button>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // เปิด Modal แก้ไขจำนวนสต็อก
+        function openEditStockModal(id, name, qty) {
+            document.getElementById('editStockIdInput').value = id;
+            document.getElementById('editStockNameLabel').textContent = name;
+            document.getElementById('editStockQtyInput').value = qty;
+            openModal('editStockModal');
+        }
+
+        // บันทึกจำนวนสต็อกที่แก้ไขใหม่
+        async function saveEditStockQty() {
+            const stockId = document.getElementById('editStockIdInput').value;
+            const newQty = parseFloat(document.getElementById('editStockQtyInput').value);
+
+            if (isNaN(newQty)) {
+                alert('กรุณากรอกตัวเลขจำนวนให้ถูกต้อง');
+                return;
+            }
+
+            try {
+                const { error } = await db
+                    .from('food_stock')
+                    .update({ quantity: newQty, updated_at: new Date() })
+                    .eq('food_stock_id', stockId);
+
+                if (error) throw error;
+
+                closeModal('editStockModal');
+                await loadStockItems();
+                loadStocks();
+                loadAllStockRecipeLinks();
+
+            } catch (err) {
+                console.error("Error updating stock quantity:", err);
+                alert('เกิดข้อผิดพลาดในการแก้ไขจำนวน: ' + err.message);
+            }
+        }
+
+        async function loadStockItems() {
+            try {
+                const { data, error } = await db.from('food_stock').select('*').order('food_stock_name', { ascending: true });
+                if (error) throw error;
+                stockData = data || [];
+            } catch (err) {
+                console.error("Error loading food stock:", err);
+            }
+        }
+
+        async function loadAllStockRecipeLinks() {
+            const summaryContainer = document.getElementById('stockLinkSummary');
+            if (!summaryContainer) return;
+
+            try {
+                const [stockRes, recipeRes, foodsRes] = await Promise.all([
+                    db.from('food_stock').select('*'),
+                    db.from('menu_food_stock').select('*'),
+                    db.from('foods').select('*')
+                ]);
+
+                if (stockRes.error) throw stockRes.error;
+                if (recipeRes.error) throw recipeRes.error;
+                if (foodsRes.error) throw foodsRes.error;
+
+                const stocks = stockRes.data || [];
+                const relations = recipeRes.data || [];
+                const foods = foodsRes.data || [];
+
+                if (stocks.length === 0) {
+                    summaryContainer.innerHTML = '<span class="text-gray-400">ยังไม่มีข้อมูลวัตถุดิบในสต็อก</span>';
+                    return;
+                }
+
+                let html = '<div class="grid grid-cols-2 gap-2">';
+                stocks.forEach(stock => {
+                    const stockId = stock.food_stock_id || stock.id;
+                    const stockName = stock.food_stock_name;
+
+                    const linkedFoodIds = relations
+                        .filter(r => String(r.food_stock_id) === String(stockId))
+                        .map(r => String(r.food_id));
+
+                    const linkedFoodNames = foods
+                        .filter(f => linkedFoodIds.includes(String(f.food_id || f.id)))
+                        .map(f => f.name);
+
+                    html += `
+                        <div class="p-2 bg-slate-50 rounded-lg border border-slate-200 flex flex-col justify-between">
+                            <div>
+                                <div class="font-bold text-slate-800 flex items-center justify-between text-xs sm:text-sm">
+                                    <span class="truncate">🥩 ${stockName}</span>
+                                    <span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold shrink-0 ml-1">${linkedFoodNames.length} เมนู</span>
+                                </div>
+                                <div class="text-slate-600 mt-1 text-xs truncate">
+                                    ${linkedFoodNames.length > 0 ? '➔ ' + linkedFoodNames.join(', ') : '<span class="text-gray-400 italic">ยังไม่ลิงก์เมนู</span>'}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                summaryContainer.innerHTML = html;
+
+            } catch (err) {
+                console.error("Error loading stock recipe links:", err);
+                summaryContainer.innerHTML = '<span class="text-red-500">โหลดข้อมูลการลิงก์ไม่สำเร็จ</span>';
+            }
+        }
+
+        async function openStockModal() {
+            await loadStockItems();
+            const grid = document.getElementById('stockGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            if (stockData.length === 0) {
+                grid.innerHTML = `<div class="col-span-2 text-center text-slate-400 text-xs py-4">ไม่พบข้อมูลวัตถุดิบในสต็อก</div>`;
+                openModal('stockModal');
+                return;
+            }
+
+            stockData.forEach(item => {
+                const stockId = item.food_stock_id || item.id;
+                const stockName = item.food_stock_name || item.name || 'วัตถุดิบไม่มีชื่อ';
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'flex flex-col items-center justify-center p-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition cursor-pointer shadow-sm active:scale-95';
+                btn.innerHTML = `
+                    <span class="text-xl mb-1">🥩</span>
+                    <span class="text-xs sm:text-sm font-bold text-slate-800 text-center leading-tight truncate w-full">${stockName}</span>
+                `;
+                btn.onclick = () => selectStockItem({ id: stockId, name: stockName });
+                grid.appendChild(btn);
+            });
+
+            openModal('stockModal');
+        }
+
+        function selectStockItem(stock) {
+            selectedStockId = stock.id;
+            selectedStockName = stock.name;
+            document.getElementById('stockBtnText').innerText = selectedStockName;
+            document.getElementById('linkMenuBtn').classList.remove('hidden');
+            closeModal('stockModal');
+        }
+
+        async function openRecipeLinkModal() {
+            if (!selectedStockId) {
+                alert('กรุณาเลือกวัตถุดิบตั้งต้นก่อน');
+                return;
+            }
+
+            document.getElementById('recipeLinkModalSubtitle').innerText = `กำลังผูกเมนูสำหรับวัตถุดิบ: "${selectedStockName}"`;
+            
+            document.getElementById('categoryGridView').classList.remove('hidden');
+            document.getElementById('categoryDetailView').classList.add('hidden');
+
+            const gridContainer = document.getElementById('categoryGridView');
+            gridContainer.innerHTML = '<div class="text-center text-slate-400 text-xs py-4">กำลังโหลดหมวดหมู่เมนู...</div>';
+
+            openModal('recipeLinkModal');
+
+            try {
+                const [linkRes, groupRes, foodRes] = await Promise.all([
+                    db.from('menu_food_stock').select('food_id').eq('food_stock_id', selectedStockId),
+                    db.from('food_groups').select('*').order('name', { ascending: true }),
+                    db.from('foods').select('*').order('name', { ascending: true })
+                ]);
+
+                if (linkRes.error) throw linkRes.error;
+                if (groupRes.error) throw groupRes.error;
+                if (foodRes.error) throw foodRes.error;
+
+                linkedFoodIdsCache = (linkRes.data || []).map(r => String(r.food_id));
+                foodGroupsData = groupRes.data || [];
+                allFoodsData = foodRes.data || [];
+
+                renderCategoryGrid();
+
+            } catch (err) {
+                console.error("Error loading categories for grid:", err);
+                gridContainer.innerHTML = '<div class="text-center text-red-500 text-xs py-4">โหลดข้อมูลหมวดหมู่ไม่สำเร็จ</div>';
+            }
+        }
+
+        function renderCategoryGrid() {
+            const gridContainer = document.getElementById('categoryGridView');
+            let html = '<div class="grid grid-cols-2 gap-2 overflow-y-auto max-h-[55vh] popup-scrollbar p-1">';
+
+            foodGroupsData.forEach(group => {
+                const groupId = String(group.food_group_id || group.id);
+                const groupName = group.name || 'หมวดหมู่ทั่วไป';
+                const foodsInGroup = allFoodsData.filter(f => String(f.food_group_id) === groupId);
+                
+                const linkedCount = foodsInGroup.filter(f => linkedFoodIdsCache.includes(String(f.food_id || f.id))).length;
+
+                html += `
+                    <button type="button" onclick="openCategoryDetail('${groupId}')" class="flex items-center justify-between p-3 bg-white hover:bg-amber-50 border border-slate-200 rounded-xl transition cursor-pointer shadow-sm active:scale-95 text-left">
+                        <div class="flex items-center gap-2 truncate">
+                            <span class="text-lg">📁</span>
+                            <div class="truncate">
+                                <div class="text-xs sm:text-sm font-bold text-slate-800 truncate">${groupName}</div>
+                                <div class="text-[10px] text-slate-400">${foodsInGroup.length} เมนู</div>
+                            </div>
+                        </div>
+                        ${linkedCount > 0 ? `<span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold shrink-0">${linkedCount}</span>` : ''}
+                    </button>
+                `;
+            });
+
+            const uncategorizedFoods = allFoodsData.filter(f => !foodGroupsData.some(g => String(g.food_group_id || g.id) === String(f.food_group_id)));
+            if (uncategorizedFoods.length > 0) {
+                const linkedCount = uncategorizedFoods.filter(f => linkedFoodIdsCache.includes(String(f.food_id || f.id))).length;
+                html += `
+                    <button type="button" onclick="openCategoryDetail('uncategorized')" class="flex items-center justify-between p-3 bg-white hover:bg-amber-50 border border-slate-200 rounded-xl transition cursor-pointer shadow-sm active:scale-95 text-left">
+                        <div class="flex items-center gap-2 truncate">
+                            <span class="text-lg">📁</span>
+                            <div class="truncate">
+                                <div class="text-xs sm:text-sm font-bold text-slate-800 truncate">เมนูอื่นๆ</div>
+                                <div class="text-[10px] text-slate-400">${uncategorizedFoods.length} เมนู</div>
+                            </div>
+                        </div>
+                        ${linkedCount > 0 ? `<span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold shrink-0">${linkedCount}</span>` : ''}
+                    </button>
+                `;
+            }
+
+            html += '</div>';
+            gridContainer.innerHTML = html;
+        }
+
+        function openCategoryDetail(groupId) {
+            activeGroupId = groupId;
+            document.getElementById('categoryGridView').classList.add('hidden');
+            document.getElementById('categoryDetailView').classList.remove('hidden');
+
+            const titleEl = document.getElementById('currentCategoryTitle');
+            const container = document.getElementById('recipeCheckboxList');
+
+            let groupName = 'เมนูอื่นๆ';
+            let foodsInGroup = [];
+
+            if (groupId === 'uncategorized') {
+                foodsInGroup = allFoodsData.filter(f => !foodGroupsData.some(g => String(g.food_group_id || g.id) === String(f.food_group_id)));
+            } else {
+                const group = foodGroupsData.find(g => String(g.food_group_id || g.id) === String(groupId));
+                if (group) groupName = group.name;
+                foodsInGroup = allFoodsData.filter(f => String(f.food_group_id) === String(groupId));
+            }
+
+            titleEl.textContent = `📁 หมวดหมู่: ${groupName} (${foodsInGroup.length} เมนู)`;
+
+            if (foodsInGroup.length === 0) {
+                container.innerHTML = '<div class="text-center text-slate-400 text-xs py-4">ไม่มีเมนูอาหารในหมวดหมู่นี้</div>';
+                return;
+            }
+
+            let html = '';
+            foodsInGroup.forEach(food => {
+                const foodId = String(food.food_id || food.id);
+                const foodName = food.name || 'เมนูไม่มีชื่อ';
+                const isChecked = linkedFoodIdsCache.includes(foodId) ? 'checked' : '';
+
+                html += `
+                    <label class="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 hover:bg-amber-50/60 cursor-pointer transition bg-white">
+                        <span class="text-xs sm:text-sm font-medium text-slate-800">🍲 ${foodName}</span>
+                        <input type="checkbox" name="recipeCheckbox" value="${foodId}" ${isChecked} class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
+                    </label>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function backToCategoryGrid() {
+            syncCurrentCheckboxesToCache();
+            activeGroupId = null;
+            document.getElementById('categoryDetailView').classList.add('hidden');
+            document.getElementById('categoryGridView').classList.remove('hidden');
+            renderCategoryGrid();
+        }
+
+        function syncCurrentCheckboxesToCache() {
+            const checkboxes = document.querySelectorAll('input[name="recipeCheckbox"]');
+            checkboxes.forEach(cb => {
+                const foodId = cb.value;
+                if (cb.checked) {
+                    if (!linkedFoodIdsCache.includes(foodId)) linkedFoodIdsCache.push(foodId);
+                } else {
+                    linkedFoodIdsCache = linkedFoodIdsCache.filter(id => id !== foodId);
+                }
+            });
+        }
+
+        function toggleCurrentCategoryCheck(status) {
+            const checkboxes = document.querySelectorAll('input[name="recipeCheckbox"]');
+            checkboxes.forEach(cb => { cb.checked = status; });
+        }
+
+        async function saveRecipeLinks() {
+            if (!selectedStockId) return;
+
+            if (activeGroupId !== null) {
+                syncCurrentCheckboxesToCache();
+            }
+
+            try {
+                const { error: deleteErr } = await db
+                    .from('menu_food_stock')
+                    .delete()
+                    .eq('food_stock_id', selectedStockId);
+
+                if (deleteErr) throw deleteErr;
+
+                if (linkedFoodIdsCache.length > 0) {
+                    const insertData = linkedFoodIdsCache.map(foodId => ({
+                        food_stock_id: selectedStockId,
+                        food_id: foodId
+                    }));
+
+                    const { error: insertErr } = await db
+                        .from('menu_food_stock')
+                        .insert(insertData);
+
+                    if (insertErr) throw insertErr;
+                }
+
+                closeModal('recipeLinkModal');
+                loadAllStockRecipeLinks();
+
+            } catch (err) {
+                console.error("Error saving recipe links:", err);
+                alert('เกิดข้อผิดพลาดในการบันทึก: ' + err.message);
+            }
+        }
+
+        // ฟังก์ชันกลับหน้าผู้ดูแลระบบโดยตรง ปราศจาก Alert แจ้งเตือน
+        function goBack() {
+            window.location.href = 'index.html?view=admin';
+        }
+    </script>
+</body>
+</html>
