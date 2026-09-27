@@ -15,7 +15,7 @@
     <style>
         :root { --bg-color: #f8fafc; }
         html, body { 
-            width: 100%; height: 100%; overflow: hidden;
+            width: 100%; min-height: 100%; 
             touch-action: pan-y; -webkit-text-size-adjust: 100%;
             background-color: var(--bg-color); color: #1e293b;
             font-family: 'Sarabun', sans-serif; margin: 0; padding: 0; user-select: none; 
@@ -73,10 +73,10 @@
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased flex flex-col h-screen overflow-hidden">
+<body class="bg-slate-50 text-slate-800 antialiased flex flex-col min-h-screen">
 
     <!-- แถบเมนูด้านบน (4 แท็บหลัก) -->
-    <div class="p-3 pb-2 z-35 flex-shrink-0 bg-white border-b border-slate-200 no-print">
+    <div class="p-3 pb-2 z-35 flex-shrink-0 bg-white border-b border-slate-200 no-print sticky top-0">
         <div class="max-w-xl mx-auto grid grid-cols-4 gap-1.5">
             <button type="button" onclick="switchTab(1)" id="tabBtn1" class="py-2 px-1 rounded-xl font-bold text-[11px] flex items-center justify-center gap-0.5 shadow bg-amber-500 text-white cursor-pointer transition">
                 <span>🛒</span> <span>1.เลือก</span>
@@ -94,20 +94,20 @@
     </div>
 
     <!-- พื้นที่แสดงเนื้อหาของแต่ละแท็บ -->
-    <div class="flex-1 w-full max-w-xl mx-auto p-3 flex flex-col overflow-hidden relative">
+    <div class="flex-1 w-full max-w-xl mx-auto p-3 flex flex-col relative">
         
         <!-- TAB 1: เลือกรายการอาหาร (เรียกใช้ foodselect.html) -->
-        <div id="tabContent1" class="flex flex-col w-full h-full">
+        <div id="tabContent1" class="flex flex-col w-full">
             <div class="pb-2 flex-shrink-0">
                 <div class="bg-white p-3 px-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
                     <span class="font-bold text-sm text-slate-700">🛒 ตะกร้าสินค้าปัจจุบัน:</span>
                     <span class="text-emerald-600 font-extrabold text-base" id="cartCountTextTab1">0 รายการ | 0 ชิ้น</span>
                 </div>
             </div>
-            <div class="flex-1 w-full overflow-hidden">
+            <div class="w-full" style="height: 65vh; min-height: 450px;">
                 <iframe id="contentFrame" src="foodselect.html" class="w-full h-full border-0 rounded-2xl bg-white shadow-sm"></iframe>
             </div>
-            <div class="pt-2 flex gap-2 flex-shrink-0">
+            <div class="pt-2 pb-4 flex gap-2 flex-shrink-0">
                 <button type="button" onclick="window.location.href='index.html'" class="bg-white text-slate-700 border border-slate-300 font-bold py-2.5 px-2 rounded-2xl text-xs flex-1 shadow active:scale-95 transition cursor-pointer">🏠 หน้าหลัก</button>
                 <button type="button" onclick="confirmClearCart()" class="bg-rose-50 text-rose-600 border border-rose-200 font-bold py-2.5 px-2 rounded-2xl text-xs flex-1 shadow active:scale-95 transition cursor-pointer">🗑️ ล้างตะกร้า</button>
                 <button type="button" onclick="switchTab(2)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-2 rounded-2xl text-xs flex-1 shadow active:scale-95 transition cursor-pointer">🔍 ไปตรวจสอบ</button>
@@ -115,14 +115,14 @@
         </div>
 
         <!-- TAB 2: ตรวจสอบและระบุลูกค้า -->
-        <div id="tabContent2" class="flex flex-col w-full h-full hidden">
+        <div id="tabContent2" class="flex flex-col w-full hidden">
             <div id="locationSelectorWrapper" class="flex-shrink-0 mb-2"></div>
-            <div class="flex-1 flex flex-col min-h-0 gap-2">
+            <div class="flex-1 flex flex-col min-h-0 gap-2 mb-4">
                 <div class="flex justify-between items-center px-1 text-xs font-bold text-slate-700 shrink-0">
                     <span class="flex items-center gap-1.5">🛒 ตะกร้าสินค้า:</span>
                     <span id="cartCountTextTab2" class="text-green-600 font-extrabold text-sm">0 รายการ | 0 ชิ้น</span>
                 </div>
-                <div class="cart-preview-box bg-white border-2 dashed border-green-300 rounded-2xl p-3 shadow-sm flex-1 flex flex-col min-h-0">
+                <div class="cart-preview-box bg-white border-2 dashed border-green-300 rounded-2xl p-3 shadow-sm flex-1 flex flex-col min-h-0" style="max-height: 50vh;">
                     <div class="flex justify-between items-center mb-2 pb-2 border-b border-dashed border-green-200 flex-shrink-0">
                         <span class="font-bold text-green-700 text-sm">📋 รายการที่เลือกไว้แล้ว</span>
                         <div id="cartTotalPrice" class="font-black text-red-600 text-base">รวม 0.-</div>
@@ -134,21 +134,21 @@
                     </div>
                 </div>
             </div>
-            <div class="pt-2 flex gap-2 flex-shrink-0">
+            <div class="pt-2 pb-4 flex gap-2 flex-shrink-0">
                 <button type="button" onclick="switchTab(1)" class="bg-white text-slate-700 border border-slate-300 font-bold py-3 px-3 rounded-xl text-xs flex-1 shadow-sm transition flex items-center justify-center gap-1 cursor-pointer">⬅️ กลับไปเลือกเพิ่ม</button>
                 <button type="button" onclick="goToTab3()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-3 rounded-xl text-xs flex-1 shadow transition flex items-center justify-center gap-1 cursor-pointer">✅ ไปหน้าสรุป/พิมพ์</button>
             </div>
         </div>
 
         <!-- TAB 3: สรุปและพิมพ์ -->
-        <div id="tabContent3" class="flex flex-col w-full h-full bg-white rounded-2xl shadow-sm border border-slate-200 p-4 hidden">
+        <div id="tabContent3" class="flex flex-col w-full bg-white rounded-2xl shadow-sm border border-slate-200 p-4 hidden mb-4">
             <div class="text-center mb-2 pb-1 flex-shrink-0">
                 <h2 class="font-extrabold text-slate-800 text-base leading-tight">ลาบหนองบัวลำภู @เขื่อนขุนด่าน</h2>
                 <p class="text-[11px] text-slate-500 font-semibold">064-565-4951</p>
                 <p class="text-xs text-slate-700 font-bold mt-0.5">รายการอาหาร<span id="customerGroupWrapper"> ( <span id="customerGroupLabel">-</span> )</span></p>
             </div>
             <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
-                <div class="border-2 border-slate-800 rounded-xl p-3 flex-1 flex flex-col min-h-0 mb-2">
+                <div class="border-2 border-slate-800 rounded-xl p-3 flex-1 flex flex-col min-h-0 mb-2" style="max-height: 40vh;">
                     <div class="flex-1 overflow-y-auto pr-1">
                         <div id="itemListContainer" class="w-full space-y-1">
                             <p class="text-slate-300 font-bold text-center text-xs my-auto py-4">ไม่มีรายการอาหาร</p>
@@ -178,7 +178,7 @@
         </div>
 
         <!-- TAB 4: Quick Order -->
-        <div id="tabContent4" class="flex flex-col w-full h-full hidden">
+        <div id="tabContent4" class="flex flex-col w-full hidden mb-4">
             <div id="quickLocationSelectorWrapper" class="flex-shrink-0 mb-2"></div>
             <div class="flex-1 flex flex-col min-h-0 gap-3 overflow-y-auto">
                 <div class="bg-white border-2 border-emerald-500/30 rounded-2xl p-4 shadow-sm space-y-3">
@@ -193,7 +193,7 @@
                     </div>
                 </div>
             </div>
-            <div class="pt-2 flex gap-2 flex-shrink-0">
+            <div class="pt-4 flex gap-2 flex-shrink-0">
                 <button type="button" onclick="switchTab(1)" class="bg-white text-slate-700 border border-slate-300 font-bold py-3.5 px-3 rounded-xl text-xs flex-1 text-center shadow-sm transition flex items-center justify-center gap-1 cursor-pointer">⬅️ ย้อนกลับ</button>
                 <button type="button" onclick="submitQuickOrder()" id="btnSubmitQuickOrder" class="bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-3.5 px-3 rounded-xl text-xs flex-1 text-center shadow transition flex items-center justify-center gap-1 cursor-pointer">✅ บันทึกออเดอร์</button>
             </div>
@@ -296,6 +296,8 @@
         });
 
         function switchTab(tabIndex) {
+            closeDynamicPopup();
+
             for (let i = 1; i <= 4; i++) {
                 const contentEl = document.getElementById(`tabContent${i}`);
                 const btnEl = document.getElementById(`tabBtn${i}`);
@@ -826,6 +828,8 @@
                 selectedCustomerObj = null;
                 document.querySelectorAll('.customer-input-field').forEach(inp => inp.value = '');
                 updateCartUI();
+                
+                closeDynamicPopup();
                 switchTab(1);
 
             } catch (err) {
@@ -914,7 +918,6 @@
                 localStorage.setItem('cart', JSON.stringify(data.cart));
                 updateCartUI();
             }
-            // รับคำสั่งเปิด modal ย่อยจากไฟล์ foodselect.html ภายใน iframe
             if (data.type === 'OPEN_SELECT_FOOD') {
                 openDynamicPopup(`foodselect.html?mode=food_list&cat_id=${data.catId}`, `📌 หมวดอาหาร`, false);
             }
