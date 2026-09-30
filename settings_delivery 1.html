@@ -1,0 +1,198 @@
+<!-- ไฟล์: delivery_settings.html -->
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ตั้งค่าเรทค่าส่งตามสถานที่ - ลาบหนองบัวลำภู</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="supabaseClient.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap');
+        html, body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            margin: 0; padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        /* สไตล์ตารางแบบ Excel: เส้นตารางติดกัน */
+        .excel-table {
+            border-collapse: collapse;
+            width: 100%;
+            background-color: #ffffff;
+            table-layout: fixed;
+        }
+        .excel-table th, .excel-table td {
+            border: 1px solid #cbd5e1;
+            padding: 2px 4px; /* บีบพื้นที่ภายในให้แคบลงเพื่อลดความสูง */
+            height: 32px; /* ขยายความสูงเล็กน้อยเพื่อให้รับกับตัวหนังสือ 14px */
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        .excel-table th {
+            background-color: #f8fafc;
+            font-weight: 700;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        /* ช่องกรอกข้อมูลแบบ Excel ไร้กรอบตอนปกติ กลมกลืนกับตาราง */
+        .excel-input {
+            border: none;
+            background: transparent;
+            width: 100%;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            outline: none;
+            padding: 2px 0;
+        }
+        .excel-input:focus {
+            background-color: #ffffff;
+            border: 1px solid #3b82f6;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="p-2 max-w-2xl mx-auto h-full flex flex-col">
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-col h-full overflow-hidden">
+        <div class="flex justify-between items-center mb-2 pb-2 border-b shrink-0">
+            <div>
+                <h1 class="font-extrabold text-sm text-slate-800 flex items-center gap-1.5">⚙️ ตั้งค่าเรทค่าส่ง & ยอดขั้นต่ำ</h1>
+                <p class="text-[11px] text-slate-500">กำหนดเงื่อนไขค่าจัดส่งสำหรับแต่ละสถานที่/รีสอร์ต</p>
+            </div>
+            <a href="index.html" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition">
+                ⬅️ กลับหน้าหลัก
+            </a>
+        </div>
+
+        <div id="loadingText" class="text-center text-xs text-slate-400 py-6">⏳ กำลังโหลดข้อมูล...</div>
+
+        <!-- ตารางสไตล์ Excel ล็อกหัวตารางและเลื่อนได้ภายในหน้าจอ -->
+        <div class="flex-1 overflow-y-auto relative rounded border border-slate-200">
+            <table id="locationTable" class="excel-table text-xs hidden">
+                <thead>
+                    <tr class="text-slate-700 text-center">
+                        <th class="text-left px-2 shadow-xs">สถานที่</th>
+                        <th class="px-1 w-20 shadow-xs">ยอดขั้นต่ำ</th>
+                        <th class="px-1 w-16 shadow-xs">ค่าส่ง</th>
+                        <th class="px-1 w-14 shadow-xs">บันทึก</th>
+                    </tr>
+                </thead>
+                <tbody id="locationTableBody" class="text-xs">
+                    <!-- ข้อมูลจะถูกแทรกด้วย JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', async () => {
+            await fetchAndRenderLocations();
+        });
+
+        function getSupabaseClient() {
+            if (typeof window.supabaseClient?.from === 'function') return window.supabaseClient;
+            if (typeof supabase?.from === 'function') return supabase;
+            return null;
+        }
+
+        async function fetchAndRenderLocations() {
+            const _db = getSupabaseClient();
+            const loadingText = document.getElementById('loadingText');
+            const table = document.getElementById('locationTable');
+            const tbody = document.getElementById('locationTableBody');
+
+            if (!_db) {
+                loadingText.textContent = '❌ ไม่พบการเชื่อมต่อ Supabase';
+                return;
+            }
+
+            try {
+                const { data, error } = await _db
+                    .from('locations')
+                    .select('*')
+                    .order('name', { ascending: true });
+
+                if (error) throw error;
+
+                loadingText.style.display = 'none';
+                table.classList.remove('hidden');
+                tbody.innerHTML = '';
+
+                data.forEach(loc => {
+                    const locId = loc.location_id || loc.id;
+                    const minOrder = loc.min_order_for_free_delivery ?? 300;
+                    const deliveryFee = loc.delivery_fee ?? 20;
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50 transition';
+                    tr.innerHTML = `
+                        <td class="font-bold text-slate-800 px-2 truncate" style="font-size: 14px;" title="${loc.name}">
+                            🏨 <span class="truncate">${loc.name}</span>
+                        </td>
+                        <td class="text-center align-middle p-0">
+                            <input type="number" id="min_${locId}" value="${minOrder}" class="excel-input">
+                        </td>
+                        <td class="text-center align-middle p-0">
+                            <input type="number" id="fee_${locId}" value="${deliveryFee}" class="excel-input">
+                        </td>
+                        <td class="text-center align-middle p-0.5">
+                            <button type="button" onclick="saveLocationRule(${locId})" class="w-full h-6 bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold rounded shadow-xs transition text-[10px] flex items-center justify-center" title="บันทึก">
+                                💾
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+            } catch (err) {
+                console.error(err);
+                loadingText.textContent = '❌ เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err.message;
+            }
+        }
+
+        async function saveLocationRule(locId) {
+            const _db = getSupabaseClient();
+            if (!_db) return;
+
+            const minOrderInput = document.getElementById(`min_${locId}`);
+            const feeInput = document.getElementById(`fee_${locId}`);
+
+            const minOrder = Number(minOrderInput.value) || 0;
+            const deliveryFee = Number(feeInput.value) || 0;
+
+            try {
+                const { error } = await _db
+                    .from('locations')
+                    .update({
+                        min_order_for_free_delivery: minOrder,
+                        delivery_fee: deliveryFee
+                    })
+                    .eq('location_id', locId);
+
+                if (error) {
+                    const fallbackRes = await _db
+                        .from('locations')
+                        .update({
+                            min_order_for_free_delivery: minOrder,
+                            delivery_fee: deliveryFee
+                        })
+                        .eq('id', locId);
+                    if (fallbackRes.error) throw fallbackRes.error;
+                }
+
+                alert('✅ บันทึกเรทค่าส่งสำเร็จเรียบร้อย!');
+            } catch (err) {
+                console.error(err);
+                alert('❌ บันทึกไม่สำเร็จ: ' + err.message);
+            }
+        }
+    </script>
+</body>
+</html>
