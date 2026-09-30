@@ -111,6 +111,7 @@
         .btn-cyan { background-color: #0891b2; }
         .btn-indigo { background-color: #4f46e5; }
         .btn-purple { background-color: #7c3aed; }
+        .btn-line { background-color: #06C755; } /* สีเขียวเอกลักษณ์ของ LINE */
 
         @keyframes scaleUp {
             from { transform: scale(0.9); opacity: 0; }
@@ -150,6 +151,10 @@
             <button type="button" onclick="goToPage('salesreport.html')" class="menu-btn btn-amber-600">
                 <span>📊 รายงานการขาย</span>
             </button>
+            <!-- เพิ่มปุ่ม Line Report ตรงนี้ -->
+            <button type="button" onclick="goToPage('linereport.html')" class="menu-btn btn-line">
+                <span>📢 Line Report</span>
+            </button>
             <button type="button" onclick="openAdminModal()" class="menu-btn btn-slate">
                 <span>🔒 ผู้ดูแลระบบ</span>
             </button>
@@ -166,7 +171,7 @@
 
         <div class="menu-list">
             <button type="button" onclick="goToPage('adjust_schema.html')" class="menu-btn btn-amber-600">
-                <span>🛠️ จัดการฐานข้อมูล & Schema</span>
+                <span>🛠️️ จัดการฐานข้อมูล & Schema</span>
             </button>
             <button type="button" onclick="goToPage('set_location_pricing.html')" class="menu-btn btn-teal">
                 <span>📍 ตั้งค่าราคาตามพื้นที่</span>
