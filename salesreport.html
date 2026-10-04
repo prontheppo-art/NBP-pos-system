@@ -1,14 +1,3 @@
-<!--
-================================================================================
-ชื่อไฟล์: reports.html
-คำอธิบาย: ระบบรายงานการขายและการจัดการออร์เดอร์ (ยึดวันที่ตาม Supabase ตรงๆ)
---------------------------------------------------------------------------------
-รายละเอียดการทำงานภายในไฟล์:
-1. Fix Timezone Shift:
-   - อ่านค่าวันที่ YYYY-MM-DD จาก created_at ใน Supabase ตรงๆ ไม่ผ่านการแปลง +7 ชั่วโมง
-   - ออร์เดอร์วันที่ 23 เวลา 18:37 น. จะแสดงในวันที่ 23/09/2026 ตรงตามฐานข้อมูล
-================================================================================
--->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -182,7 +171,6 @@
         return `${year}-${month}-${day}`;
     }
 
-    // ดึงวันที่ YYYY-MM-DD จากข้อความในฐานข้อมูล Supabase ตรงๆ โดยไม่แปลง Timezone
     function getOrderDateStr(order) {
         const rawDate = order.created_at || order.order_date || order.date || '';
         if (!rawDate) return '';
@@ -219,14 +207,64 @@
             let q = Number(item.qty || item.quantity || 1);
             let unitPrice = Number(item.price || item.unit_price || 0);
             let itemTotal = Number(item.total_price || item.sum || (unitPrice * q));
-            let name = item.name || item.food_name || 'รายการ';
-            let note = item.note || item.comment || item.remark || '';
-            return { name, qty: q, unitPrice, totalPrice: itemTotal, note };
+            let name = item.name || item.food_name || '';
+            
+            let rawNote = item.note || item.comment || item.remark || item.details || item.option || item.note_text || item.topping || item.extras || '';
+            
+            let friedEgg = Number(item.friedEggQty || item.khaiDaoQty || item.fried_egg || item.egg_dao || 0);
+            if (friedEgg > 0) {
+                let eggText = `ไข่ดาว ${friedEgg}`;
+                rawNote = rawNote ? `${rawNote}, ${eggText}` : eggText;
+            }
+
+            let omelet = Number(item.omeletQty || item.khaiJiaoQty || item.omelet || item.egg_jiao || 0);
+            if (omelet > 0) {
+                let jiaoText = `ไข่เจียว ${omelet}`;
+                rawNote = rawNote ? `${rawNote}, ${jiaoText}` : jiaoText;
+            }
+
+            if (!rawNote && item.selectedOptions) {
+                if (typeof item.selectedOptions === 'string') rawNote = item.selectedOptions;
+                else if (Array.isArray(item.selectedOptions)) rawNote = item.selectedOptions.join(', ');
+            }
+            
+            if (!rawNote && Array.isArray(item.options)) {
+                rawNote = item.options.map(opt => opt.name || opt).join(', ');
+            }
+
+            if (!rawNote && item.selectedToppings) {
+                if (Array.isArray(item.selectedToppings)) {
+                    rawNote = item.selectedToppings.map(t => t.name || t).join(', ');
+                }
+            }
+
+            if (name.includes('(') && name.includes(')')) {
+                const match = name.match(/^(.*?)\s*\((.*?)\)$/);
+                if (match) {
+                    name = match[1].trim();
+                    let bracketNote = match[2].trim();
+                    rawNote = rawNote ? `${rawNote}, ${bracketNote}` : bracketNote;
+                }
+            }
+
+            let note = '';
+            if (rawNote) {
+                if (typeof rawNote === 'string') {
+                    note = rawNote.trim();
+                } else if (typeof rawNote === 'object') {
+                    note = JSON.stringify(rawNote);
+                }
+            }
+
+            return { name: name || 'รายการ', qty: q, unitPrice, totalPrice: itemTotal, note };
         });
 
+        let deliveryFee = Number(order.delivery_fee || 0);
+        let subtotal = computedItems.reduce((sum, item) => sum + item.totalPrice, 0);
         let billTotal = Number(order.total_price || order.subtotal || 0);
-        if (billTotal === 0 && computedItems.length > 0) {
-            billTotal = computedItems.reduce((sum, item) => sum + item.totalPrice, 0);
+        
+        if (billTotal === 0 && subtotal > 0) {
+            billTotal = subtotal + deliveryFee;
         }
 
         let groupTypeName = "ชาวบ้าน";
@@ -246,6 +284,7 @@
             ...order,
             parsedItems: computedItems,
             computedTotal: billTotal,
+            deliveryFee: deliveryFee,
             groupTypeName,
             dateStr: getOrderDateStr(order)
         };
@@ -262,7 +301,6 @@
     async function fetchInitialOrders() {
         if (!db) return;
         
-        // คำนวณช่วงเวลาเริ่มย้อนหลัง 15 วัน (อ้างอิง String ตรงๆ)
         const pastDate = new Date();
         pastDate.setDate(pastDate.getDate() - 15);
         const pastDateStr = pastDate.toISOString().split('T')[0] + 'T00:00:00';
@@ -275,7 +313,6 @@
         if (error) { console.error("Error fetching initial orders:", error); return; }
         
         const normalized = (data || []).map(o => normalizeOrder(o));
-        
         normalized.forEach(o => { if (o.dateStr) fetchedDatesSet.add(o.dateStr); });
         allOrdersCache = normalized;
         
@@ -291,7 +328,6 @@
             document.getElementById('groupSummaryContainer').innerHTML = `<div class="text-center text-slate-400 py-10 text-xs font-medium">⏳ กำลังค้นหาออร์เดอร์ของวันที่ ${formatDateThai(targetDateStr)}...</div>`;
         }
 
-        // ดึงข้อมูลตามช่วงเวลาสตริงของวันนั้นๆ โดยตรง
         const startStr = `${targetDateStr}T00:00:00`;
         const endStr = `${targetDateStr}T23:59:59.999`;
 
@@ -450,13 +486,22 @@
             total += order.computedTotal;
 
             let itemsHtml = order.parsedItems.map(item => {
-                let comment = item.note ? ` <span class="text-amber-800">(${item.note})</span>` : '';
+                let comment = item.note ? ` <span class="text-amber-800 font-semibold bg-amber-50 px-1.5 py-0.5 rounded text-[11px]">(${item.note})</span>` : '';
                 return `<tr class="border-b border-slate-100">
                     <td class="p-1.5 text-xs text-slate-800 font-medium">${item.name}${comment}</td>
                     <td class="p-1.5 text-xs text-center font-bold">x${item.qty}</td>
                     <td class="p-1.5 text-xs text-right font-bold text-blue-600">${item.totalPrice.toLocaleString()}.-</td>
                 </tr>`;
             }).join('');
+
+            // เพิ่มแถวแสดงค่าบริการจัดส่ง (ถ้ามี)
+            if (order.deliveryFee > 0) {
+                itemsHtml += `<tr class="border-b border-slate-100 bg-amber-50/60">
+                    <td class="p-1.5 text-xs text-amber-900 font-bold flex items-center gap-1"><span>🛵</span><span>ค่าบริการจัดส่ง</span></td>
+                    <td class="p-1.5 text-xs text-center font-bold text-amber-900">-</td>
+                    <td class="p-1.5 text-xs text-right font-bold text-amber-900">${order.deliveryFee.toLocaleString()}.-</td>
+                </tr>`;
+            }
 
             let orderId = order.order_id || order.id;
 
@@ -539,12 +584,19 @@
         group.orders.forEach(o => {
             let itemsHtml = '';
             o.parsedItems.forEach(item => {
-                let comment = item.note ? ` <span class="text-amber-800">(${item.note})</span>` : '';
+                let comment = item.note ? ` <span class="text-amber-800 font-semibold bg-amber-50 px-1.5 py-0.5 rounded text-[10px]">(${item.note})</span>` : '';
                 itemsHtml += `<div class="text-[11px] flex justify-between items-start text-slate-600 py-1 border-b border-slate-100 last:border-none">
-                    <div><span class="font-medium text-slate-800">• ${item.name}${comment}</span> <span class="text-blue-600 font-bold">x${item.qty}</span></div>
-                    <span class="font-bold text-slate-700">฿${item.totalPrice.toLocaleString()}</span>
+                    <div><span class="font-medium text-slate-800">• ${item.name}${comment}</span> <span class="text-blue-600 font-bold ml-1">x${item.qty}</span></div>
+                    <span class="font-bold text-slate-700 shrink-0 ml-2">฿${item.totalPrice.toLocaleString()}</span>
                 </div>`;
             });
+
+            if (o.deliveryFee > 0) {
+                itemsHtml += `<div class="text-[11px] flex justify-between items-center text-amber-900 py-1 bg-amber-50/60 px-1 rounded border-b border-slate-100">
+                    <div><span class="font-bold">🛵 ค่าบริการจัดส่ง</span></div>
+                    <span class="font-bold shrink-0 ml-2">฿${o.deliveryFee.toLocaleString()}</span>
+                </div>`;
+            }
 
             let orderId = o.order_id || o.id;
             listHtml += `

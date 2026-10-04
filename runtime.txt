@@ -1,0 +1,20 @@
+-- 1. เคลียร์ตารางเวลาเก่าทิ้งก่อน
+select cron.unschedule('send-line-report-daily');
+
+-- 2. เปิดใช้งาน pg_cron และ pg_net (ถ้ายังไม่ได้เปิด)
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+-- 3. ตั้งเวลาใหม่ให้รันทุกวันตอน 20:00 น. (ตรงกับ 13:00 UTC)
+select cron.schedule(
+  'send-line-report-daily',
+  '0 13 * * *',
+  $$
+  select
+    net.http_post(
+      url:='https://wmhweeeyulhmoilypklz.supabase.co/functions/v1/send-line-report',
+      headers:='{"Content-Type": "application/json", "apikey": "sb_publishable_yXKK7aSunM_KCqRiUhGupQ__Qs1nyCd", "Authorization": "Bearer sb_publishable_yXKK7aSunM_KCqRiUhGupQ__Qs1nyCd"}'::jsonb,
+      body:='{}'::jsonb
+    ) as request_id;
+  $$
+);

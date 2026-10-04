@@ -70,10 +70,11 @@
             </div>
 
             <div class="space-y-2 pt-1">
-                <button onclick="updatePassword()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs">
+                <button onclick="updatePassword()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs cursor-pointer">
                     💾 บันทึกรหัสผ่านใหม่
                 </button>
-                <a href="PageAdmin.html" class="block w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-4 rounded-xl shadow transition text-xs text-center">
+                <!-- ปรับลิงก์ให้วิ่งไปที่ index_admin.html -->
+                <a href="index_admin.html" class="block w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-4 rounded-xl shadow transition text-xs text-center">
                     🔑 กลับหน้าผู้ดูแลระบบ
                 </a>
             </div>
@@ -87,7 +88,7 @@
             <div id="alertIcon" class="text-4xl mb-1">✅</div>
             <h3 id="alertTitle" class="font-bold text-base text-gray-800">แจ้งเตือน</h3>
             <p id="alertMessage" class="text-xs text-gray-600">ข้อความแจ้งเตือน...</p>
-            <button onclick="closeAlertModal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow">
+            <button onclick="closeAlertModal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow cursor-pointer">
                 ตกลง
             </button>
         </div>
@@ -126,7 +127,8 @@
         function closeAlertModal() {
             document.getElementById('alertModal').classList.add('hidden');
             if (isSuccessAction) {
-                window.location.href = 'PageAdmin.html';
+                // ปรับให้เด้งกลับไปที่ index_admin.html เมื่อเปลี่ยนรหัสผ่านสำเร็จ
+                window.location.href = 'index_admin.html';
             }
         }
 

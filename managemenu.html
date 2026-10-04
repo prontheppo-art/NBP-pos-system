@@ -84,7 +84,6 @@
           flex-shrink: 0;
       }
 
-      /* Excel-like Table Styling (No inner input borders, Auto width for item name) */
       .excel-table {
           width: 100%;
           border-collapse: collapse;
@@ -139,9 +138,10 @@
                class="bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-bold py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer">
                 📁 จัดการกลุ่มอาหาร
             </button>
-            <a href="index.html" 
+            <!-- ปรับลิงก์ให้กลับไปที่ index_admin.html -->
+            <a href="index_admin.html" 
                class="bg-rose-500 hover:bg-rose-600 active:scale-95 text-white font-bold py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md no-underline text-center transition">
-                🏠 หน้าหลัก
+                🏠 กลับหน้าผู้ดูแลระบบ
             </a>
         </div>
 
@@ -301,8 +301,8 @@
                 <span class="text-[10px] text-slate-400 font-normal">*แตะที่ชื่อเพื่อแก้ไข</span>
             </div>
 
-            <div id="categoryListContainer" class="flex-1 overflow-y-auto space-y-1.5 pr-1 popup-scrollbar">
-                <div class="text-center text-slate-400 text-xs py-8">⏳ กำลังโหลดกลุ่มรายการ...</div>
+            <div id="categoryListContainer" class="grid grid-cols-2 gap-2 flex-1 overflow-y-auto pr-1 popup-scrollbar">
+                <div class="col-span-2 text-center text-slate-400 text-xs py-8">⏳ กำลังโหลดกลุ่มรายการ...</div>
             </div>
 
             <div class="pt-2 border-t border-slate-100 shrink-0">
@@ -401,7 +401,7 @@
         let selectedGroupIdForEdit = null;
         let activeEditingCategoryId = null;
 
-        const categoryIcons = ['🍱', '🍲', '🍳', '🍚', '🥩', '⭐', '🥗', '🛍️', '🍽️', '🥢', '🍹'];
+        const categoryIcons = ['🍱', '🍲', '🍳', '🍚', '🥩', '⭐', '🥗', '🛍️', '🍽️️', '🥢', '🍹'];
 
         function getDbClient() {
             if (db) return db;
@@ -804,17 +804,16 @@
             if (!container) return;
 
             if (foodGroups.length === 0) {
-                container.innerHTML = `<div class="text-center text-slate-400 text-xs py-8">ไม่มีกลุ่มรายการอาหาร</div>`;
+                container.innerHTML = `<div class="col-span-2 text-center text-slate-400 text-xs py-8">ไม่มีกลุ่มรายการอาหาร</div>`;
                 return;
             }
 
-            /* ปรับขนาดตัวหนังสือเป็น text-[16px] ตามที่ต้องการ */
             container.innerHTML = foodGroups.map(c => `
-                <div class="flex items-center justify-between bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl px-3.5 py-2.5 transition shadow-2xs">
-                    <span onclick="openEditCategoryModal(${c.id}, '${c.name.replace(/'/g, "\\'")}')" class="font-bold text-[16px] text-slate-800 truncate cursor-pointer flex-1 py-0.5 hover:text-indigo-600 transition">
+                <div class="flex items-center justify-between bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-2.5 transition shadow-2xs h-full min-h-[48px]">
+                    <span onclick="openEditCategoryModal(${c.id}, '${c.name.replace(/'/g, "\\'")}')" class="font-bold text-[14px] text-slate-800 truncate cursor-pointer flex-1 hover:text-indigo-600 transition leading-snug" title="${c.name}">
                         📁 ${c.name}
                     </span>
-                    <button onclick="handleDeleteCategory(${c.id}, '${c.name.replace(/'/g, "\\'")}')" class="w-7 h-7 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-full flex items-center justify-center text-xs font-bold transition shrink-0 ml-2 cursor-pointer" title="ลบหมวดหมู่">
+                    <button onclick="handleDeleteCategory(${c.id}, '${c.name.replace(/'/g, "\\'")}')" class="w-6 h-6 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-full flex items-center justify-center text-xs font-bold transition shrink-0 ml-1 cursor-pointer" title="ลบหมวดหมู่">
                         ✕
                     </button>
                 </div>

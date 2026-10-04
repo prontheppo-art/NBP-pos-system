@@ -59,7 +59,7 @@
         .customer-dropdown.active { display: block; }
         .customer-dropdown-item {
             padding: 10px 12px; font-size: 12px; color: #334155; cursor: pointer;
-            display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9;
+            display: flex; justify-between: space-between; align-items: center; border-bottom: 1px solid #f1f5f9;
         }
         .customer-dropdown-item:hover { background-color: #fef3c7; }
         .cart-item-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
@@ -822,19 +822,14 @@
                 if (error) throw error;
                 if (shouldPrint) window.print();
 
+                // ล้างตะกร้าใน LocalStorage
                 localStorage.removeItem('cart');
-                cart = [];
-                isDeliveryFeeWaived = false;
-                selectedCustomerObj = null;
-                document.querySelectorAll('.customer-input-field').forEach(inp => inp.value = '');
-                updateCartUI();
-                
-                closeDynamicPopup();
-                switchTab(1);
+
+                // รีโหลดหน้าเว็บใหม่ และเปิดมาที่ Tab 1
+                window.location.href = window.location.pathname + '?tab=1';
 
             } catch (err) {
                 Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
-            } finally {
                 const saveBtn1 = document.getElementById('saveOnlyBtn');
                 const saveBtn2 = document.getElementById('saveAndPrintBtn');
                 if (saveBtn1) saveBtn1.disabled = false;
@@ -891,13 +886,11 @@
                     if (error) throw error;
                 }
 
-                amountInput.value = '';
-                document.getElementById('quickNoteInput').value = '';
-                selectedCustomerObj = null;
-                document.querySelectorAll('.customer-input-field').forEach(inp => inp.value = '');
-                btn.disabled = false;
-                btn.innerText = '✅ บันทึกออเดอร์';
-                switchTab(1);
+                // ล้างตะกร้าใน LocalStorage
+                localStorage.removeItem('cart');
+
+                // รีโหลดหน้าเว็บใหม่ และเปิดมาที่ Tab 1
+                window.location.href = window.location.pathname + '?tab=1';
 
             } catch (err) {
                 Swal.fire('เกิดข้อผิดพลาด', err.message || '', 'error');

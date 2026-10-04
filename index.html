@@ -1,12 +1,3 @@
-<!-- 
-  ==========================================================================
-  ชื่อไฟล์: index.html
-  ประเภท/หน้าที่: หน้าแรก (Home View) และหน้าผู้ดูแลระบบ (Admin Dashboard View)
-  รายละเอียด: หน้าหลักของระบบร้านอาหาร "ลาบหนองบัวลำภู @เขื่อนขุนด่านปราการชล" 
-              ทำหน้าที่เป็นเมนูหลักในการเข้าสู่หน้าสั่งอาหาร จัดการเมนู รายงานการขาย 
-              และระบบจัดการหลังบ้านสำหรับผู้ดูแลระบบ (Admin)
-  ==========================================================================
--->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -106,31 +97,14 @@
         .btn-emerald { background-color: #059669; }
         .btn-amber-600 { background-color: #d97706; }
         .btn-slate { background-color: #334155; }
-        .btn-rose { background-color: #e11d48; }
         .btn-teal { background-color: #0d9488; }
-        .btn-cyan { background-color: #0891b2; }
-        .btn-indigo { background-color: #4f46e5; }
-        .btn-purple { background-color: #7c3aed; }
-        .btn-line { background-color: #06C755; } /* สีเขียวเอกลักษณ์ของ LINE */
-
-        @keyframes scaleUp {
-            from { transform: scale(0.9); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-        .modal-box {
-            animation: scaleUp 0.15s ease-out;
-        }
-
-        .hidden-view {
-            display: none !important;
-        }
     </style>
 </head>
 <body>
 
 <div class="app-layout">
     
-    <!-- 1. ส่วนหน้าหลัก (Home View) -->
+    <!-- ส่วนหน้าหลัก (Home View) -->
     <div id="homeView" class="main-card">
         <div class="header-section">
             <h1 class="font-extrabold text-lg text-slate-800 leading-snug">ลาบหนองบัวลำภู</h1>
@@ -139,7 +113,7 @@
         </div>
 
         <div class="menu-list">
-            <button type="button" onclick="goToPage('ordersystem.html')" class="menu-btn btn-blue">
+            <button type="button" onclick="goToPage('ordersystem.html?tab=1')" class="menu-btn btn-blue">
                 <span>📝 หน้าสั่งอาหาร</span>
             </button>
             <button type="button" onclick="goToPage('ordersystem.html?tab=4')" class="menu-btn btn-emerald">
@@ -151,78 +125,16 @@
             <button type="button" onclick="goToPage('salesreport.html')" class="menu-btn btn-amber-600">
                 <span>📊 รายงานการขาย</span>
             </button>
-            <!-- เพิ่มปุ่ม Line Report ตรงนี้ -->
-            <button type="button" onclick="goToPage('linereport.html')" class="menu-btn btn-line">
-                <span>📢 Line Report</span>
+            <button type="button" onclick="goToPage('linereport.html')" class="menu-btn btn-teal">
+                <span>💬 Line Report</span>
             </button>
-            <button type="button" onclick="openAdminModal()" class="menu-btn btn-slate">
+            <!-- ลิงก์ไปหน้าแยก adminlogin.html -->
+            <button type="button" onclick="goToPage('adminlogin.html')" class="menu-btn btn-slate">
                 <span>🔒 ผู้ดูแลระบบ</span>
             </button>
         </div>
     </div>
 
-    <!-- 2. ส่วนหน้าผู้ดูแลระบบ (Admin Dashboard View) -->
-    <div id="adminView" class="main-card hidden-view">
-        <div class="header-section">
-            <div class="text-2xl mb-0.5">🔓</div>
-            <h1 class="font-extrabold text-lg text-slate-800 leading-snug">ผู้ดูแลระบบ</h1>
-            <p class="text-[11px] text-slate-400 mt-0.5">จัดการระบบร้านอาหารและตรวจสอบข้อมูล</p>
-        </div>
-
-        <div class="menu-list">
-            <button type="button" onclick="goToPage('adjust_schema.html')" class="menu-btn btn-amber-600">
-                <span>🛠️️ จัดการฐานข้อมูล & Schema</span>
-            </button>
-            <button type="button" onclick="goToPage('set_location_pricing.html')" class="menu-btn btn-teal">
-                <span>📍 ตั้งค่าราคาตามพื้นที่</span>
-            </button>
-            <button type="button" onclick="goToPage('settings_delivery.html')" class="menu-btn btn-cyan">
-                <span>🚚 ตั้งค่าการจัดส่ง</span>
-            </button>
-            <button type="button" onclick="goToPage('cost.html')" class="menu-btn btn-indigo">
-                <span>💰 จัดการต้นทุน</span>
-            </button>
-            <button type="button" onclick="goToPage('stock_dashboard.html')" class="menu-btn btn-purple">
-                <span>📦 จัดการสต็อกวัตถุดิบ</span>
-            </button>
-            <button type="button" onclick="goToPage('changepwd.html')" class="menu-btn btn-slate">
-                <span>🔑 เปลี่ยนรหัสผ่านแอดมิน</span>
-            </button>
-            <button type="button" onclick="backToHome()" class="menu-btn btn-rose">
-                <span>🏠 กลับหน้าหลัก</span>
-            </button>
-        </div>
-    </div>
-
-</div>
-
-<!-- Modal สำหรับกรอกรหัสผ่านเข้าแอดมิน -->
-<div id="adminAuthModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm hidden items-center justify-center p-4 z-[9999]">
-    <div class="bg-white w-full max-w-xs rounded-2xl p-6 text-center shadow-2xl modal-box">
-        <div class="text-3xl mb-2">🔒</div>
-        <div class="text-base font-bold text-slate-800 mb-1">เข้าสู่ระบบผู้ดูแลระบบ</div>
-        <div class="text-xs text-slate-500 mb-4">กรุณากรอกรหัสผ่านเพื่อเข้าใช้งาน</div>
-        
-        <div class="relative w-full mb-3">
-            <input type="password" id="indexAdminPasswordInput" placeholder="รหัสผ่าน" class="w-full py-3 px-10 border border-slate-300 rounded-xl text-sm text-center outline-none focus:border-blue-500 font-bold" />
-            <button type="button" onclick="toggleIndexPassword('indexAdminPasswordInput', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-base text-slate-400 focus:outline-none">👁️</button>
-        </div>
-
-        <div class="flex gap-2">
-            <button type="button" onclick="closeAdminModal()" class="flex-1 py-2.5 bg-slate-400 hover:bg-slate-500 text-white font-bold rounded-xl text-xs transition">ยกเลิก</button>
-            <button type="button" onclick="verifyAdminPassword()" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition shadow-md shadow-blue-500/30">ยืนยัน</button>
-        </div>
-    </div>
-</div>
-
-<!-- Custom Dialog เตือนเมื่อรหัสผ่านผิด -->
-<div id="indexCustomDialog" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4 z-[10000]">
-    <div class="bg-white w-full max-w-[280px] rounded-2xl p-5 text-center shadow-2xl modal-box">
-        <div class="text-3xl mb-2">⚠️</div>
-        <div class="text-sm font-bold text-slate-800 mb-1.5">รหัสผ่านไม่ถูกต้อง</div>
-        <div id="indexDialogMessage" style="font-size: 22px; color: #ef4444;" class="font-bold mb-4 leading-relaxed">คุณกรอกรหัสผ่านไม่ถูกต้อง</div>
-        <button type="button" onclick="closeIndexCustomDialog()" class="w-full py-2.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl text-xs transition">ตกลง</button>
-    </div>
 </div>
 
 <script>
@@ -249,134 +161,6 @@
     function goToPage(url) {
         window.location.href = url;
     }
-
-    // ตรวจสอบสถานะว่าล็อกอินอยู่หรือไม่ หรือมาจากลิงก์ ?view=admin
-    window.addEventListener('DOMContentLoaded', () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const view = urlParams.get('view');
-        
-        // เช็คสถานะการล็อกอินแอดมินจาก localStorage
-        const isAdminLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
-
-        // ตราบใดที่ยังไม่ได้กดปุ่มกลับหน้าหลัก หรือส่ง ?view=admin มา ให้แสดงหน้าแอดมินทันที
-        if (isAdminLoggedIn || view === 'admin') {
-            if (isAdminLoggedIn) {
-                showAdminView();
-            } else {
-                openAdminModal();
-            }
-        }
-    });
-
-    let indexFailedAttempts = 0;
-    const indexMaxAttempts = 3;
-
-    function openAdminModal() {
-        // หากล็อกอินไว้อยู่แล้ว ข้ามการกรอกรหัสผ่าน เข้าหน้าแอดมินทันที
-        if (localStorage.getItem('adminLoggedIn') === 'true') {
-            showAdminView();
-            return;
-        }
-        
-        indexFailedAttempts = 0;
-        document.getElementById('indexAdminPasswordInput').value = '';
-        const modal = document.getElementById('adminAuthModal');
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        setTimeout(() => document.getElementById('indexAdminPasswordInput').focus(), 100);
-    }
-
-    function closeAdminModal() {
-        const modal = document.getElementById('adminAuthModal');
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
-
-    function toggleIndexPassword(fieldId, btn) {
-        const input = document.getElementById(fieldId);
-        if (input.type === 'password') {
-            input.type = 'text';
-            btn.textContent = '🙈';
-        } else {
-            input.type = 'password';
-            btn.textContent = '👁️';
-        }
-    }
-
-    function verifyAdminPassword() {
-        const inputPass = document.getElementById('indexAdminPasswordInput').value;
-        const savedPassword = localStorage.getItem('adminPassword') ?? '';
-        const msgElement = document.getElementById('indexDialogMessage');
-
-        if (inputPass === savedPassword) {
-            // บันทึกสถานะว่าล็อกอินแล้วข้ามไปจนกว่าจะกดปุ่มกลับหน้าหลัก
-            localStorage.setItem('adminLoggedIn', 'true');
-            closeAdminModal();
-            showAdminView();
-        } else {
-            indexFailedAttempts++;
-            document.getElementById('indexAdminPasswordInput').value = '';
-
-            msgElement.style.fontSize = '22px';
-            msgElement.style.color = '#ef4444';
-
-            if (indexFailedAttempts >= indexMaxAttempts) {
-                closeAdminModal();
-                msgElement.textContent = 'คุณกรอกรหัสผ่านผิดเกิน 3 ครั้ง';
-                const dialog = document.getElementById('indexCustomDialog');
-                dialog.classList.remove('hidden');
-                dialog.classList.add('flex');
-            } else {
-                const remaining = indexMaxAttempts - indexFailedAttempts;
-                msgElement.textContent = `รหัสผ่านไม่ถูกต้อง กรอกผิดครั้งที่ ${indexFailedAttempts} (เหลืออีก ${remaining} ครั้ง)`;
-                const dialog = document.getElementById('indexCustomDialog');
-                dialog.classList.remove('hidden');
-                dialog.classList.add('flex');
-            }
-        }
-    }
-
-    function showAdminView() {
-        document.getElementById('homeView').classList.add('hidden-view');
-        document.getElementById('adminView').classList.remove('hidden-view');
-    }
-
-    // กดปุ่ม "🏠 กลับหน้าหลัก" เพื่อล้างสถานะล็อกอินออก
-    function backToHome() {
-        // ลบสถานะล็อกอิน เพื่อให้ครั้งหน้าต้องใส่รหัสใหม่
-        localStorage.removeItem('adminLoggedIn');
-
-        // เคลียร์ URL Parameter
-        if (window.history.replaceState) {
-            window.history.replaceState(null, null, window.location.pathname);
-        }
-        document.getElementById('adminView').classList.add('hidden-view');
-        document.getElementById('homeView').classList.remove('hidden-view');
-    }
-
-    function closeIndexCustomDialog() {
-        const dialog = document.getElementById('indexCustomDialog');
-        dialog.classList.add('hidden');
-        dialog.classList.remove('flex');
-        
-        if (indexFailedAttempts < indexMaxAttempts) {
-            document.getElementById('indexAdminPasswordInput').focus();
-        }
-    }
-
-    document.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            const customDialog = document.getElementById('indexCustomDialog');
-            if (customDialog && !customDialog.classList.contains('hidden')) {
-                closeIndexCustomDialog();
-                return;
-            }
-            const authModal = document.getElementById('adminAuthModal');
-            if (authModal && !authModal.classList.contains('hidden')) {
-                verifyAdminPassword();
-            }
-        }
-    });
 </script>
 </body>
 </html>
