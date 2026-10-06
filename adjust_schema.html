@@ -9,11 +9,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { background-color: #000000; color: #ffffff; touch-action: manipulation; }
-    @keyframes modalFadeIn {
-      from { opacity: 0; transform: scale(0.92) translateY(10px); }
-      to { opacity: 1; transform: scale(1) translateY(0); }
-    }
-    .animate-modal { animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
   </style>
 </head>
 <body class="min-h-screen p-4 pt-24 relative">
@@ -21,9 +16,9 @@
   <!-- แถบควบคุม Sticky Header บนสุด -->
   <div class="fixed top-0 left-0 right-0 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800 p-3 z-40 shadow-xl">
     <div class="max-w-7xl mx-auto space-y-2">
-      <div class="grid grid-cols-4 gap-2">
+      <div class="grid grid-cols-3 gap-2">
         <a href="index_admin.html" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 px-1.5 rounded-xl text-xs transition active:scale-95 shadow flex flex-col items-center justify-center text-center leading-tight no-underline">
-          <span>🔙</span><span>หน้า Admin</span>
+          <span>🔑</span><span>หน้า Admin</span>
         </a>
         <button onclick="fetchAllTablesData()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-1.5 rounded-xl text-xs transition active:scale-95 shadow flex flex-col items-center justify-center text-center leading-tight">
           <span>🚀</span><span>ดึงตาราง</span>
@@ -31,14 +26,11 @@
         <button onclick="exportSchemaOnly()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 px-1.5 rounded-xl text-xs transition active:scale-95 shadow flex flex-col items-center justify-center text-center leading-tight">
           <span>⚡</span><span>คัดลอก schema.sql</span>
         </button>
-        <button onclick="exportFullBackup()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 px-1.5 rounded-xl text-xs transition active:scale-95 shadow flex flex-col items-center justify-center text-center leading-tight">
-          <span>💾</span><span>คัดลอก schema_data.sql</span>
-        </button>
       </div>
 
       <!-- ข้อความแสดงสถานะ -->
       <div id="statusText" class="text-[11px] font-semibold text-center text-zinc-400 truncate">
-        พร้อมใช้งานระบบ (แก้ไขการสร้าง Primary Key ครบทุกจุดแล้ว)
+        พร้อมใช้งานระบบ (ดึงข้อมูล Comment จาก Supabase ของจริง)
       </div>
     </div>
   </div>
@@ -47,39 +39,11 @@
     <div id="tablesContainer" class="space-y-8"></div>
   </div>
 
-  <!-- CUSTOM MODAL DIALOG BOX -->
-  <div id="customModalOverlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity duration-200">
-    <div class="bg-zinc-900 border border-zinc-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-5 animate-modal relative overflow-hidden">
-      <div id="modalGlow" class="absolute -top-12 -right-12 w-32 h-32 blur-2xl rounded-full pointer-events-none"></div>
-
-      <div class="flex items-start gap-4">
-        <div id="modalIconContainer" class="p-3 rounded-xl shrink-0 text-2xl border">⚠️</div>
-        <div class="space-y-1">
-          <h3 id="modalTitle" class="text-base font-bold text-white leading-tight">แจ้งเตือนระบบ</h3>
-          <p id="modalSubtitle" class="text-xs text-zinc-400">การดำเนินการเสร็จสิ้น</p>
-        </div>
-      </div>
-
-      <div id="modalBody" class="text-xs text-zinc-300 bg-black/60 border border-zinc-800 rounded-xl p-3.5 leading-relaxed font-normal whitespace-pre-line">
-        ข้อความแจ้งเตือนจะแสดงที่นี่...
-      </div>
-
-      <div class="flex justify-end gap-2.5 pt-1">
-        <button id="modalCancelBtn" onclick="closeCustomModal(false)" class="hidden px-4 py-2 rounded-xl text-xs font-semibold text-zinc-300 bg-zinc-800 hover:bg-zinc-700 transition active:scale-95">
-          ยกเลิก
-        </button>
-        <button id="modalConfirmBtn" onclick="closeCustomModal(true)" class="px-5 py-2 rounded-xl text-xs font-semibold text-white transition active:scale-95 shadow-md">
-          ตกลง
-        </button>
-      </div>
-    </div>
-  </div>
-
   <script src="supabaseClient.js"></script>
   
   <script>
-    let modalResolver = null;
     let tablesDataCache = {}; 
+    let tableCommentsMap = {}; // เก็บ Comment จริงจากฐานข้อมูล
 
     const primaryKeyMap = {
       'customer_types': 'customer_type_id',
@@ -91,48 +55,36 @@
       'zones': 'zone_id'
     };
 
-    // Helper สำหรับสร้าง Modal Config ช่วยลดโค้ดซ้ำซ้อน
-    const modalThemes = {
-      warning: { icon: '⚠️', bg: 'bg-amber-500/10 text-amber-400 border-amber-500/30', glow: 'bg-amber-500/15', btn: 'bg-amber-600 hover:bg-amber-500' },
-      danger:  { icon: '🗑️', bg: 'bg-rose-500/10 text-rose-400 border-rose-500/30', glow: 'bg-rose-500/15', btn: 'bg-rose-600 hover:bg-rose-500' },
-      success: { icon: '✅', bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30', glow: 'bg-emerald-500/15', btn: 'bg-emerald-600 hover:bg-emerald-500' },
-      info:    { icon: '💡', bg: 'bg-blue-500/10 text-blue-400 border-blue-500/30', glow: 'bg-blue-500/15', btn: 'bg-blue-600 hover:bg-blue-500' }
-    };
-
-    function showCustomModal({ title, subtitle, message, type = 'info', isConfirm = false }) {
-      return new Promise((resolve) => {
-        modalResolver = resolve;
-        const theme = modalThemes[type] || modalThemes.info;
-
-        document.getElementById('modalTitle').innerText = title || 'แจ้งเตือน';
-        document.getElementById('modalSubtitle').innerText = subtitle || 'Supabase Data Explorer';
-        document.getElementById('modalBody').innerHTML = message;
-
-        const modalIcon = document.getElementById('modalIconContainer');
-        modalIcon.innerHTML = theme.icon;
-        modalIcon.className = `p-3 rounded-xl shrink-0 text-2xl border ${theme.bg}`;
-
-        document.getElementById('modalGlow').className = `absolute -top-12 -right-12 w-32 h-32 blur-2xl rounded-full pointer-events-none ${theme.glow}`;
-        document.getElementById('modalConfirmBtn').className = `px-5 py-2 rounded-xl text-xs font-semibold text-white transition active:scale-95 shadow-md ${theme.btn}`;
-
-        document.getElementById('modalCancelBtn').classList.toggle('hidden', !isConfirm);
-        document.getElementById('customModalOverlay').classList.remove('hidden');
-      });
-    }
-
-    function closeCustomModal(result) {
-      document.getElementById('customModalOverlay').classList.add('hidden');
-      if (modalResolver) {
-        modalResolver(result);
-        modalResolver = null;
+    function getPrimaryKey(tableName, sampleRow) {
+      if (primaryKeyMap[tableName]) return primaryKeyMap[tableName];
+      if (sampleRow) {
+        const keys = Object.keys(sampleRow);
+        const found = keys.find(k => k.endsWith('_id') || k === 'id');
+        if (found) return found;
+        return keys[0];
       }
+      return 'id';
     }
 
-    async function getAllTableNames() {
+    // ฟังก์ชันดึงรายชื่อตารางพร้อม Comment ของจริงจาก Supabase
+    async function fetchTablesWithComments() {
       try {
-        const { data, error } = await supabaseClient.rpc('get_all_tables');
-        return (error || !data) ? [] : data.map(item => item.table_name);
-      } catch {
+        const { data, error } = await supabaseClient.rpc('get_tables_with_comments');
+        if (error || !data) {
+          console.error("RPC Error:", error);
+          return [];
+        }
+        
+        tableCommentsMap = {};
+        data.forEach(item => {
+          if (item.table_comment) {
+            tableCommentsMap[item.table_name] = item.table_comment;
+          }
+        });
+        
+        return data.map(item => item.table_name);
+      } catch (err) {
+        console.error("Fetch Exception:", err);
         return [];
       }
     }
@@ -141,11 +93,11 @@
       const status = document.getElementById('statusText');
       const container = document.getElementById('tablesContainer');
       
-      status.innerHTML = "⏳ กำลังค้นหาตารางทั้งหมดในระบบ...";
-      const tableList = await getAllTableNames();
+      status.innerHTML = "⏳ กำลังดึงตารางและ Comment ของจริงจาก Supabase...";
+      const tableList = await fetchTablesWithComments();
       
       if (tableList.length === 0) {
-        status.innerHTML = `<span class="text-rose-400">❌ ไม่พบตารางในฐานข้อมูล หรือฟังก์ชัน RPC 'get_all_tables' มีปัญหา</span>`;
+        status.innerHTML = `<span class="text-rose-400">❌ ไม่พบตาราง หรือฟังก์ชัน get_tables_with_comments มีปัญหาการเข้าถึง</span>`;
         return;
       }
 
@@ -156,51 +108,72 @@
       
       for (const tableName of tableList) {
         try {
-          const { data, error } = await supabaseClient.from(tableName).select('*');
+          let query = supabaseClient.from(tableName).select('*');
+
+          if (tableName === 'orders') {
+            const date90DaysAgo = new Date();
+            date90DaysAgo.setDate(date90DaysAgo.getDate() - 90);
+            
+            query = query
+              .gte('created_at', date90DaysAgo.toISOString())
+              .order('created_at', { ascending: false })
+              .limit(500);
+          }
+
+          const { data, error } = await query;
+
           if (error) {
-            renderErrorTable(tableName, error.message);
+            renderTableCard(tableName, null, error.message);
           } else {
             tablesDataCache[tableName] = data || [];
-            renderTableData(tableName, data);
+            renderTableCard(tableName, data, null);
             totalCount += (data ? data.length : 0);
           }
         } catch (err) {
-          renderErrorTable(tableName, err.message);
+          renderTableCard(tableName, null, err.message);
         }
       }
       status.innerHTML = `<span class="text-emerald-400">✅ ดึงข้อมูลสำเร็จทั้งหมด ${tableList.length} ตาราง (รวม ${totalCount} รายการ)</span>`;
     }
     
-    function renderTableData(tableName, rows) {
+    function renderTableCard(tableName, rows, errorMsg) {
       const container = document.getElementById('tablesContainer');
       const section = document.createElement('div');
-      section.className = "bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-lg space-y-3";
+      section.className = `bg-zinc-900 border ${errorMsg ? 'border-rose-900/50' : 'border-zinc-800'} rounded-2xl p-5 shadow-lg space-y-3`;
       
+      // ดึง Comment ของจริงจาก Supabase มาต่อท้าย (ถ้ามี)
+      const dbComment = tableCommentsMap[tableName] ? ` (${tableCommentsMap[tableName]})` : '';
+      
+      let noteBadge = '';
+      if (tableName === 'orders') {
+        noteBadge = `<span class="bg-amber-500/20 text-amber-300 text-[10px] px-2 py-0.5 rounded-md border border-amber-500/30">⚡ ย้อนหลัง 90 วัน / สูงสุด 500 แถว</span>`;
+      }
+
       let html = `
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-zinc-800 pb-3">
-            <div class="flex items-center gap-2">
-                <h2 class="text-base font-bold text-amber-400">📌 ตาราง: <span class="text-white">${tableName}</span></h2>
-                <span class="bg-zinc-800 text-zinc-300 text-xs px-2.5 py-1 rounded-full border border-zinc-700">${rows ? rows.length : 0} รายการ</span>
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b ${errorMsg ? 'border-rose-900/40' : 'border-zinc-800'} pb-3">
+            <div class="flex items-center gap-2 flex-wrap">
+                <h2 class="text-base font-bold ${errorMsg ? 'text-rose-400' : 'text-amber-400'}">📌 ตาราง: <span class="text-white">${tableName}</span><span class="text-zinc-400 text-xs font-normal">${dbComment}</span></h2>
+                ${!errorMsg ? `<span class="bg-zinc-800 text-zinc-300 text-xs px-2.5 py-1 rounded-full border border-zinc-700">${rows ? rows.length : 0} รายการ</span>` : ''}
+                ${noteBadge}
             </div>
             <div class="flex items-center gap-2 w-full sm:w-auto">
-                <button onclick="exportSingleTableSQL('${tableName}')" class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition active:scale-95 shadow">
-                    📋 ก๊อปปี้ SQL ตารางนี้ (Schema + Data)
-                </button>
-                <button onclick="clearTableData('${tableName}')" class="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition active:scale-95 shadow">
-                    🗑️ เคลียร์ดาต้า & รีเซ็ต ID
+                <button onclick="exportSingleTableSQL('${tableName}')" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition active:scale-95 shadow whitespace-nowrap">
+                    📋 Copy SQL
                 </button>
             </div>
         </div>
       `;
       
-      if (!rows || rows.length === 0) {
+      if (errorMsg) {
+        html += `<p class="text-xs text-rose-300 bg-black/50 p-2.5 rounded-lg border border-rose-900/30">❌ เกิดข้อผิดพลาด: ${errorMsg}</p>`;
+      } else if (!rows || rows.length === 0) {
         html += `<p class="text-xs text-zinc-500 py-2 italic">-- ไม่มีข้อมูลในตารางนี้ --</p>`;
       } else {
         const headers = Object.keys(rows[0]);
         html += `
-          <div class="overflow-x-auto max-h-96">
+          <div class="overflow-x-auto max-h-[210px]">
               <table class="w-full text-left text-xs border-collapse">
-                  <thead class="sticky top-0 bg-black text-emerald-400">
+                  <thead class="sticky top-0 bg-black text-emerald-400 z-10">
                       <tr>${headers.map(h => `<th class="p-2 border-b border-zinc-800 font-semibold uppercase tracking-wider">${h}</th>`).join('')}</tr>
                   </thead>
                   <tbody class="divide-y divide-zinc-800 text-zinc-300">
@@ -222,7 +195,6 @@
       container.appendChild(section);
     }
 
-    // Helper ในการแปลง JavaScript Types ไปเป็น PostgreSQL Data Types
     function getSqlType(col, val, pkName) {
       if (col === pkName) return "BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY";
       if (typeof val === "number") return Number.isInteger(val) ? "BIGINT" : "NUMERIC";
@@ -232,15 +204,16 @@
       return "TEXT";
     }
 
-    // Helper สำหรับสร้าง SQL Script ทั้งหมดของตาราง
     function buildTableSQL(tableName, rows, includeData = true) {
-      const pkName = primaryKeyMap[tableName] || 'id';
+      const sampleRow = (rows && rows.length > 0) ? rows[0] : null;
+      const pkName = getPrimaryKey(tableName, sampleRow);
+
       let sql = [`-- TABLE: public.${tableName}`, `CREATE TABLE IF NOT EXISTS public.${tableName} (`];
       let colDefs = [];
 
-      if (rows && rows.length > 0) {
-        Object.keys(rows[0]).forEach(col => {
-          colDefs.push(`    ${col} ${getSqlType(col, rows[0][col], pkName)}`);
+      if (sampleRow) {
+        Object.keys(sampleRow).forEach(col => {
+          colDefs.push(`    ${col} ${getSqlType(col, sampleRow[col], pkName)}`);
         });
       } else {
         colDefs.push(`    ${pkName} BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY`);
@@ -273,7 +246,16 @@
       try {
         let rows = tablesDataCache[tableName];
         if (!rows) {
-          const { data } = await supabaseClient.from(tableName).select('*');
+          let query = supabaseClient.from(tableName).select('*');
+          if (tableName === 'orders') {
+            const date90DaysAgo = new Date();
+            date90DaysAgo.setDate(date90DaysAgo.getDate() - 90);
+            query = query
+              .gte('created_at', date90DaysAgo.toISOString())
+              .order('created_at', { ascending: false })
+              .limit(500);
+          }
+          const { data } = await query;
           rows = data || [];
           tablesDataCache[tableName] = rows;
         }
@@ -282,123 +264,43 @@
         const finalSQL = header + buildTableSQL(tableName, rows, true);
         
         await navigator.clipboard.writeText(finalSQL);
-        status.innerHTML = `<span class="text-blue-300">📋 คัดลอก SQL ตาราง ${tableName} ลง Clipboard สำเร็จ!</span>`;
-
-        await showCustomModal({
-          title: 'คัดลอก SQL สำเร็จ!',
-          subtitle: `ตาราง: ${tableName}`,
-          message: `คัดลอกโครงสร้าง Schema และข้อมูลของตาราง <b>"${tableName}"</b> ลง Clipboard เรียบร้อยแล้ว!`,
-          type: 'success'
-        });
+        status.innerHTML = `<span class="text-blue-300">📋 คัดลอก SQL ตาราง ${tableName} ลง Clipboard แล้ว</span>`;
       } catch (err) {
         status.innerHTML = `<span class="text-rose-400">❌ เกิดข้อผิดพลาดในการคัดลอก SQL</span>`;
-        await showCustomModal({ title: 'เกิดข้อผิดพลาด', subtitle: `ตาราง: ${tableName}`, message: err.message, type: 'warning' });
+        console.error(err);
       }
     }
 
-    async function clearTableData(tableName) {
-      const confirmDelete = await showCustomModal({
-        title: 'ยืนยันการเคลียร์ข้อมูล',
-        subtitle: `ตาราง: ${tableName}`,
-        message: `คุณแน่ใจหรือไม่ว่าต้องการเคลียร์ข้อมูลทั้งหมดในตาราง <b>"${tableName}"</b> ?`,
-        type: 'danger',
-        isConfirm: true
-      });
-
-      if (!confirmDelete) return;
-
+    async function exportSchemaOnly() {
       const status = document.getElementById('statusText');
-      status.innerHTML = `⏳ กำลังเคลียร์ข้อมูลตาราง ${tableName}...`;
-
-      try {
-        const rows = tablesDataCache[tableName] || [];
-        if (rows.length > 0) {
-          const pkCol = primaryKeyMap[tableName] || Object.keys(rows[0])[0];
-          const { error } = await supabaseClient.from(tableName).delete().not(pkCol, 'is', null);
-          if (error) throw error;
-        }
-
-        const sqlResetCmd = `TRUNCATE TABLE public.${tableName} RESTART IDENTITY CASCADE;`;
-        await showCustomModal({
-          title: 'เคลียร์ข้อมูลสำเร็จ!',
-          subtitle: `ตาราง: ${tableName}`,
-          message: `ลบข้อมูลในตาราง <b>"${tableName}"</b> เรียบร้อยแล้ว!\n\n<span class="text-amber-400 font-semibold">📋 ก๊อปปี้โค้ดด้านล่างนี้ไปวางรันใน Supabase -> SQL Editor เพื่อรีเซ็ต ID:</span>\n\n<div class="relative bg-black p-3 rounded-xl border border-zinc-800 text-[11px] font-mono text-emerald-400 break-all select-all">\n  ${sqlResetCmd}\n</div>\n\n<button onclick="navigator.clipboard.writeText('${sqlResetCmd}')" class="w-full mt-2 bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-1.5 rounded-lg transition text-xs flex items-center justify-center gap-1 border border-zinc-700">\n  📋 กดคัดลอกโค้ด SQL นี้\n</button>`,
-          type: 'success'
-        });
-
-        fetchAllTablesData();
-      } catch (err) {
-        status.innerHTML = `<span class="text-rose-400">❌ ลบตาราง ${tableName} ไม่สำเร็จ</span>`;
-        await showCustomModal({ title: 'เกิดข้อผิดพลาด', subtitle: `ตาราง: ${tableName}`, message: err.message, type: 'warning' });
+      status.innerHTML = "⏳ กำลังสร้างและคัดลอก schema.sql...";
+      
+      const tableList = Object.keys(tableCommentsMap);
+      if (tableList.length === 0) {
+        status.innerHTML = `<span class="text-rose-400">❌ ไม่พบตารางในฐานข้อมูล กรุณากดปุ่ม 'ดึงตาราง' ก่อน</span>`;
+        return;
       }
-    }
-    
-    function renderErrorTable(tableName, errorMsg) {
-      const container = document.getElementById('tablesContainer');
-      const section = document.createElement('div');
-      section.className = "bg-zinc-900 border border-rose-900/50 rounded-2xl p-5 shadow-lg space-y-2";
-      section.innerHTML = `
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-rose-900/40 pb-2">
-            <h2 class="text-base font-bold text-rose-400">📌 ตาราง: ${tableName}</h2>
-            <div class="flex items-center gap-2 w-full sm:w-auto">
-                <button onclick="exportSingleTableSQL('${tableName}')" class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
-                    📋 ก๊อปปี้ SQL ตารางนี้ (Schema + Data)
-                </button>
-                <button onclick="clearTableData('${tableName}')" class="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
-                    🗑️ เคลียร์ดาต้า & รีเซ็ต ID
-                </button>
-            </div>
-        </div>
-        <p class="text-xs text-rose-300 bg-black/50 p-2.5 rounded-lg border border-rose-900/30">❌ เกิดข้อผิดพลาด: ${errorMsg}</p>
-      `;
-      container.appendChild(section);
-    }
-
-    async function generateSQLScript(includeData = false) {
-      const tableList = await getAllTableNames();
-      if (tableList.length === 0) return "";
 
       let sqlStatements = [
         "-- ========================================================",
-        `-- FILE: ${includeData ? 'schema_data.sql' : 'schema.sql'}`,
+        "-- FILE: schema.sql",
         `-- Date: ${new Date().toLocaleString()}`,
         "-- ========================================================\n"
       ];
 
       for (const tableName of tableList) {
         try {
-          const { data, error } = await supabaseClient.from(tableName).select('*');
-          if (!error) {
-            sqlStatements.push(buildTableSQL(tableName, data, includeData));
-          }
+          const { data } = await supabaseClient.from(tableName).select('*').limit(1);
+          sqlStatements.push(buildTableSQL(tableName, data || [], false));
         } catch (err) {
           console.error(`Error processing table ${tableName}:`, err);
         }
       }
-      return sqlStatements.join("\n");
-    }
 
-    async function exportSchemaOnly() {
-      const status = document.getElementById('statusText');
-      status.innerHTML = "⏳ กำลังสร้างและคัดลอก schema.sql...";
-      const schemaSQL = await generateSQLScript(false);
-      
+      const schemaSQL = sqlStatements.join("\n");
       if (schemaSQL) {
         await navigator.clipboard.writeText(schemaSQL);
-        status.innerHTML = `<span class="text-amber-300">📋 คัดลอกโค้ด schema.sql ลง Clipboard สำเร็จ!</span>`;
-      } else {
-        status.innerHTML = `<span class="text-rose-400">❌ ไม่สามารถคัดลอก SQL ได้</span>`;
-      }
-    }
-
-    async function exportFullBackup() {
-      const status = document.getElementById('statusText');
-      status.innerHTML = "⏳ กำลังสร้างและคัดลอก schema_data.sql (โครงสร้าง + ข้อมูล)...";
-      const fullSQL = await generateSQLScript(true);
-      
-      if (fullSQL) {
-        await navigator.clipboard.writeText(fullSQL);
-        status.innerHTML = `<span class="text-cyan-300">📋 คัดลอกโค้ด schema_data.sql ลง Clipboard สำเร็จ!</span>`;
+        status.innerHTML = `<span class="text-amber-300">📋 คัดลอกโค้ด schema.sql ลง Clipboard แล้ว</span>`;
       } else {
         status.innerHTML = `<span class="text-rose-400">❌ ไม่สามารถคัดลอก SQL ได้</span>`;
       }

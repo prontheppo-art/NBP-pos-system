@@ -1,3 +1,4 @@
+<!-- ไฟล์: foodselect.html -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -15,10 +16,11 @@
             background: #ffffff; 
             overflow-x: hidden; 
             width: 100%;
-            min-height: 100vh;
+            height: auto; /* ปรับจาก min-height เป็น auto เพื่อให้พอดีกับเนื้อหา */
+            min-height: auto; 
             user-select: none;
             touch-action: pan-y;
-            font-size: 16px !important; /* ปรับขนาดพื้นฐานเป็น 16px ทุกจุด */
+            font-size: 16px !important; 
         }
         input[type="number"], input[type="text"] { font-size: 16px !important; }
         .custom-label { font-size: 16px !important; font-weight: 700; }
@@ -37,7 +39,7 @@
             background-color: #ffffff; 
             border: 1.5px solid #cbd5e1;
             color: #1e293b; 
-            font-size: 1rem; /* 16px */
+            font-size: 1rem; 
             font-weight: 700; 
             padding: 0.6rem 0.4rem;
             border-radius: 0.85rem; 
@@ -66,7 +68,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            padding-top: 10vh;
+            padding-top: 5vh; 
             padding-bottom: 2rem;
             padding-left: 1rem;
             padding-right: 1rem;
@@ -79,7 +81,8 @@
             background: #ffffff;
             width: 100%;
             max-width: 450px;
-            max-height: 80vh;
+            height: auto; 
+            max-height: 90vh; 
             border-radius: 1.25rem;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
             display: flex;
@@ -143,7 +146,7 @@
             border: 1.5px solid #10b981; 
             color: #047857; 
             font-weight: 700; 
-            font-size: 16px !important; /* 16px */
+            font-size: 16px !important; 
             padding: 0.6rem 0.4rem; 
             border-radius: 0.75rem; 
             text-align: center; 
@@ -162,7 +165,7 @@
         /* เมนูพิเศษ Preset Button */
         .special-preset-btn {
             background-color: #ffffff; border: 1px solid #cbd5e1; color: #334155;
-            font-weight: 700; font-size: 16px !important; /* 16px */
+            font-weight: 700; font-size: 16px !important; 
             padding: 10px 12px; border-radius: 10px; cursor: pointer;
             transition: all 0.15s ease; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
             display: flex; align-items: center; justify-content: center; min-height: 48px;
@@ -193,7 +196,7 @@
             border: 1px solid #cbd5e1;
             color: #334155;
             font-weight: 700;
-            font-size: 16px !important; /* 16px */
+            font-size: 16px !important; 
             padding: 0.3rem 0.6rem;
             border-radius: 0.5rem;
             cursor: pointer;
@@ -423,6 +426,7 @@
                 backBtn.textContent = String(currentCatId) === '98' ? '◀ ' : '◀ รายการ';
                 initItemDetail();
             }
+            sendAutoHeight();
         }
 
         function closeAppPopup() {
@@ -537,6 +541,7 @@
 
             if (!foodsInCat || foodsInCat.length === 0) {
                 container.innerHTML = '<div class="col-span-2 text-center py-6 text-slate-400 font-bold text-base">ไม่มีรายการอาหารในหมวดนี้</div>';
+                sendAutoHeight();
                 return;
             }
 
@@ -570,6 +575,7 @@
 
                 container.appendChild(btn);
             });
+            sendAutoHeight();
         }
 
         function loadSpecialPresetButtons() {
@@ -580,6 +586,7 @@
 
             if (specialFoods.length === 0) {
                 container.innerHTML = '<div class="text-base text-slate-400 col-span-2 text-center py-2">ยังไม่มีเมนูพิเศษในระบบ</div>';
+                sendAutoHeight();
                 return;
             }
 
@@ -600,6 +607,7 @@
 
                 container.appendChild(btn);
             });
+            sendAutoHeight();
         }
 
         async function saveNewSpecialMenu() {
@@ -679,6 +687,7 @@
                 friedEgg = 0;
                 omelet = 0;
             }
+            sendAutoHeight();
         }
 
         function adjustQty(val) {
@@ -743,6 +752,7 @@
 
             if (rawFilteredItems.length === 0) {
                 boxContainer.classList.add('hidden');
+                sendAutoHeight();
                 return;
             }
 
@@ -768,6 +778,7 @@
                 `;
                 listContainer.appendChild(div);
             });
+            sendAutoHeight();
         }
 
         function deleteCartItemMatch(name, price, fEgg, oMel, note) {

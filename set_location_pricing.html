@@ -1,4 +1,4 @@
-<!-- ไฟล์: set_location_pricing.html (ฉบับสมบูรณ์ ปรับตารางสไตล์ Excel และซ่อน ID อาหาร) -->
+<!-- ไฟล์: set_location_pricing.html (ฉบับซ่อนคอลัมน์ราคามาตรฐาน) -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -80,8 +80,8 @@
       }
       .excel-table th, .excel-table td {
           border: 1px solid #cbd5e1;
-          padding: 4px 6px;
-          height: 36px;
+          padding: 6px 8px;
+          height: 38px;
           overflow: hidden;
           white-space: nowrap;
           text-overflow: ellipsis;
@@ -92,8 +92,13 @@
           position: sticky;
           top: 0;
           z-index: 10;
-          font-size: 11px;
+          font-size: 12px;
       }
+      /* ซ่อนคอลัมน์ราคามาตรฐาน */
+      .col-std-price {
+          display: none !important;
+      }
+
       /* ช่องกรอกข้อมูลราคาพิเศษแบบ Excel ไร้กรอบตอนปกติ กลมกลืนกับตาราง */
       .excel-input {
           border: none;
@@ -148,7 +153,6 @@
                class="bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-bold py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer">
                 🏠 หน้าแรกเพจนี้
             </button>
-            <!-- เปลี่ยนลิงก์และข้อความปุ่มไปที่ index_admin.html -->
             <a href="index_admin.html" 
                class="bg-rose-500 hover:bg-rose-600 active:scale-95 text-white font-bold py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md no-underline text-center transition">
                 🚪 หน้าผู้ดูแลระบบ
@@ -193,10 +197,10 @@
                     <thead>
                         <tr class="text-slate-700 text-center">
                             <th class="text-left px-2">รายการอาหาร</th>
-                            <th class="w-12 text-[10px]">ชาวบ้าน</th>
-                            <th class="w-12 text-[10px]">ท่องเที่ยว</th>
-                            <th class="w-12 text-[10px]">สบายดี</th>
-                            <th class="w-16 text-amber-900 bg-amber-50">ราคาพิเศษ</th>
+                            <th class="w-12 text-[10px] col-std-price">ชาวบ้าน</th>
+                            <th class="w-12 text-[10px] col-std-price">ท่องเที่ยว</th>
+                            <th class="w-12 text-[10px] col-std-price">สบายดี</th>
+                            <th class="w-24 text-amber-900 bg-amber-50">ราคาพิเศษ</th>
                         </tr>
                     </thead>
                     <tbody id="foodListContainer">
@@ -486,13 +490,13 @@
                     <td class="font-bold text-slate-800 px-2 truncate" style="font-size: 14px;" title="${food.name}">
                         🏨 <span class="truncate">${food.name}</span>
                     </td>
-                    <td class="text-center text-slate-500 text-[11px] font-medium p-0">
+                    <td class="text-center text-slate-500 text-[11px] font-medium p-0 col-std-price">
                         ${food.price_1 || 0}
                     </td>
-                    <td class="text-center text-slate-500 text-[11px] font-medium p-0">
+                    <td class="text-center text-slate-500 text-[11px] font-medium p-0 col-std-price">
                         ${food.price_2 || 0}
                     </td>
-                    <td class="text-center text-slate-500 text-[11px] font-medium p-0">
+                    <td class="text-center text-slate-500 text-[11px] font-medium p-0 col-std-price">
                         ${food.price_3 || 0}
                     </td>
                     <td class="text-center align-middle p-0 bg-amber-50/40">

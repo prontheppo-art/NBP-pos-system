@@ -1,3 +1,4 @@
+<!-- ไฟล์: linereport   .html -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -74,13 +75,15 @@
             return { name, qty: q, unitPrice, totalPrice, note: notes.join(', ') };
         });
 
-        let billTotal = Number(order.total_price || order.subtotal || 0) || computedItems.reduce((s, i) => s + i.totalPrice, 0);
+        let subtotal = Number(order.subtotal || computedItems.reduce((s, i) => s + i.totalPrice, 0));
+        let deliveryFee = Number(order.delivery_fee || 0);
+        let billTotal = Number(order.total_price || (subtotal + deliveryFee));
+
         let typeId = Number(order.customer_type_id);
-        
         let groupCategory = typeId === 2 ? "นักท่องเที่ยว" : ((typeId === 3 || String(order.customer_type || '').includes("สบายดี")) ? "สบายดี" : "ชาวบ้าน");
         let subLocationName = (typeId === 2 && order.location_id) ? (locationsCache.find(l => String(l.location_id || l.id) === String(order.location_id))?.name || "") : "";
 
-        return { ...order, parsedItems: computedItems, computedTotal: billTotal, groupCategory, subLocationName };
+        return { ...order, parsedItems: computedItems, computedSubtotal: subtotal, deliveryFee: deliveryFee, computedTotal: billTotal, groupCategory, subLocationName };
     }
 
     function createGroupFlexBubble(groupName, groupOrders, subTotal) {
@@ -104,6 +107,18 @@
                 });
                 if (item.note) contents.push({ "type": "text", "text": `└ [${item.note}]`, "size": "xxs", "color": "#aaaaaa", "margin": "xs" });
             });
+
+            // แสดงค่าส่งใน Flex Message ถ้ามีค่าส่ง
+            if (ord.deliveryFee > 0) {
+                contents.push({
+                    "type": "box", "layout": "horizontal", "margin": "xs",
+                    "contents": [
+                        { "type": "text", "text": `🛵`, "size": "xs", "flex": 2 },
+                        { "type": "text", "text": `ค่าบริการจัดส่ง`, "size": "xs", "color": "#d97706", "flex": 7 },
+                        { "type": "text", "text": `+${ord.deliveryFee.toLocaleString()} บ.`, "size": "xs", "color": "#d97706", "align": "end", "weight": "bold", "flex": 4 }
+                    ]
+                });
+            }
         });
 
         return { "type": "bubble", "body": { "type": "box", "layout": "vertical", contents } };
@@ -152,6 +167,9 @@
                         txt += `  • x${i.qty} ${i.name} = ${i.totalPrice.toLocaleString()} บ.\n`;
                         if (i.note) txt += `    └ [${i.note}]\n`;
                     });
+                    if (ord.deliveryFee > 0) {
+                        txt += `  • 🛵 ค่าบริการจัดส่ง = +${ord.deliveryFee.toLocaleString()} บ.\n`;
+                    }
                 });
                 currentTextSummaries.push(txt);
             });
@@ -178,7 +196,6 @@
                 if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
             }
 
-            // เมื่อส่งสำเร็จ แสดงผลที่ตัวปุ่มโดยตรง ไม่ขึ้น Pop-up
             btn.innerText = "✅ ส่งเข้า LINE เรียบร้อยแล้ว";
             btn.classList.remove('bg-emerald-500', 'hover:bg-emerald-600');
             btn.classList.add('bg-blue-600');
